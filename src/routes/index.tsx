@@ -30,7 +30,7 @@ function Index() {
   const day = foods.filter((f) => f.date === today());
   const sum = day.reduce((a, f) => ({ kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
   const current = weights.length ? [...weights].sort((a, b) => a.date.localeCompare(b.date)).at(-1)!.kg : profile.weight;
-  const next = plan ? plan.days[doneLog.length % plan.days.length] : null;
+  const next = plan ? plan.days[doneLog.length % plan.days.length] ?? null : null;
   const left = t.kcal - Math.round(sum.kcal);
 
   return (

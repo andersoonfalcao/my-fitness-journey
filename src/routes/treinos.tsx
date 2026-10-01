@@ -41,7 +41,7 @@ function TreinosPage() {
 
   const nextIdx = doneLog.length % plan.days.length;
   const active = dayIdx ?? nextIdx;
-  const day = plan.days[active];
+  const day = plan.days[active] ?? plan.days[0]!;
 
   const doSwap = (newId: string) => {
     if (!swap) return;
@@ -128,7 +128,7 @@ function TreinosPage() {
       <Dialog open={!!swap} onOpenChange={(o) => !o && setSwap(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           {swap && (() => {
-            const cur = byId(plan.days[swap.d].items[swap.i].exId);
+            const cur = byId(plan.days[swap.d]!.items[swap.i]!.exId);
             return (
               <>
                 <DialogHeader><DialogTitle className="font-display text-xl">Trocar {cur.name}</DialogTitle></DialogHeader>
