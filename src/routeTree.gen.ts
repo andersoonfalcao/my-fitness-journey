@@ -10,33 +10,102 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AlimentacaoRouteImport } from './routes/alimentacao'
+import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PesoRouteImport } from './routes/peso'
+import { Route as TreinosRouteImport } from './routes/treinos'
+import { Route as ApiEstimateFoodRouteImport } from './routes/api/estimate-food'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AlimentacaoRoute = AlimentacaoRouteImport.update({
+  id: '/alimentacao',
+  path: '/alimentacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PesoRoute = PesoRouteImport.update({
+  id: '/peso',
+  path: '/peso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TreinosRoute = TreinosRouteImport.update({
+  id: '/treinos',
+  path: '/treinos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEstimateFoodRoute = ApiEstimateFoodRouteImport.update({
+  id: '/api/estimate-food',
+  path: '/api/estimate-food',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/alimentacao': typeof AlimentacaoRoute
+  '/perfil': typeof PerfilRoute
+  '/peso': typeof PesoRoute
+  '/treinos': typeof TreinosRoute
+  '/api/estimate-food': typeof ApiEstimateFoodRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/alimentacao': typeof AlimentacaoRoute
+  '/perfil': typeof PerfilRoute
+  '/peso': typeof PesoRoute
+  '/treinos': typeof TreinosRoute
+  '/api/estimate-food': typeof ApiEstimateFoodRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/alimentacao': typeof AlimentacaoRoute
+  '/perfil': typeof PerfilRoute
+  '/peso': typeof PesoRoute
+  '/treinos': typeof TreinosRoute
+  '/api/estimate-food': typeof ApiEstimateFoodRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/alimentacao'
+    | '/perfil'
+    | '/peso'
+    | '/treinos'
+    | '/api/estimate-food'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/alimentacao'
+    | '/perfil'
+    | '/peso'
+    | '/treinos'
+    | '/api/estimate-food'
+  id:
+    | '__root__'
+    | '/'
+    | '/alimentacao'
+    | '/perfil'
+    | '/peso'
+    | '/treinos'
+    | '/api/estimate-food'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AlimentacaoRoute: typeof AlimentacaoRoute
+  PerfilRoute: typeof PerfilRoute
+  PesoRoute: typeof PesoRoute
+  TreinosRoute: typeof TreinosRoute
+  ApiEstimateFoodRoute: typeof ApiEstimateFoodRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +117,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/alimentacao': {
+      id: '/alimentacao'
+      path: '/alimentacao'
+      fullPath: '/alimentacao'
+      preLoaderRoute: typeof AlimentacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/peso': {
+      id: '/peso'
+      path: '/peso'
+      fullPath: '/peso'
+      preLoaderRoute: typeof PesoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/treinos': {
+      id: '/treinos'
+      path: '/treinos'
+      fullPath: '/treinos'
+      preLoaderRoute: typeof TreinosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/estimate-food': {
+      id: '/api/estimate-food'
+      path: '/api/estimate-food'
+      fullPath: '/api/estimate-food'
+      preLoaderRoute: typeof ApiEstimateFoodRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AlimentacaoRoute: AlimentacaoRoute,
+  PerfilRoute: PerfilRoute,
+  PesoRoute: PesoRoute,
+  TreinosRoute: TreinosRoute,
+  ApiEstimateFoodRoute: ApiEstimateFoodRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,0 +1,70 @@
+// Valores por 100 g (aproximados, base TACO / rótulos comuns)
+export type Food = { name: string; kcal: number; p: number; c: number; f: number; unit?: { label: string; g: number } };
+
+export const FOODS: Food[] = [
+  { name: "Arroz branco cozido", kcal: 128, p: 2.5, c: 28.1, f: 0.2, unit: { label: "colher de servir", g: 45 } },
+  { name: "Arroz integral cozido", kcal: 124, p: 2.6, c: 25.8, f: 1, unit: { label: "colher de servir", g: 45 } },
+  { name: "Feijão carioca cozido", kcal: 76, p: 4.8, c: 13.6, f: 0.5, unit: { label: "concha", g: 80 } },
+  { name: "Feijão preto cozido", kcal: 77, p: 4.5, c: 14, f: 0.5, unit: { label: "concha", g: 80 } },
+  { name: "Peito de frango grelhado", kcal: 159, p: 32, c: 0, f: 2.5, unit: { label: "filé", g: 120 } },
+  { name: "Coxa de frango assada", kcal: 215, p: 28, c: 0, f: 11 },
+  { name: "Patinho moído refogado", kcal: 219, p: 35.9, c: 0, f: 7.3 },
+  { name: "Alcatra grelhada", kcal: 241, p: 31.9, c: 0, f: 11.6, unit: { label: "bife", g: 100 } },
+  { name: "Carne de porco lombo assado", kcal: 210, p: 35.7, c: 0, f: 6.4 },
+  { name: "Tilápia grelhada", kcal: 128, p: 26, c: 0, f: 2.7, unit: { label: "filé", g: 120 } },
+  { name: "Salmão grelhado", kcal: 208, p: 25, c: 0, f: 12 },
+  { name: "Atum em lata (água)", kcal: 116, p: 26, c: 0, f: 1, unit: { label: "lata drenada", g: 120 } },
+  { name: "Ovo inteiro cozido", kcal: 146, p: 13.3, c: 0.6, f: 9.5, unit: { label: "ovo", g: 50 } },
+  { name: "Clara de ovo", kcal: 52, p: 11, c: 0.7, f: 0.2, unit: { label: "clara", g: 33 } },
+  { name: "Ovo mexido", kcal: 170, p: 11, c: 1.5, f: 13, unit: { label: "ovo", g: 60 } },
+  { name: "Batata inglesa cozida", kcal: 52, p: 1.2, c: 11.9, f: 0 },
+  { name: "Batata-doce cozida", kcal: 77, p: 0.6, c: 18.4, f: 0.1 },
+  { name: "Mandioca cozida", kcal: 125, p: 0.6, c: 30.1, f: 0.3 },
+  { name: "Macarrão cozido", kcal: 158, p: 5.8, c: 30.9, f: 0.9, unit: { label: "pegador", g: 110 } },
+  { name: "Pão francês", kcal: 300, p: 8, c: 58.6, f: 3.1, unit: { label: "unidade", g: 50 } },
+  { name: "Pão de forma integral", kcal: 253, p: 9.4, c: 49.9, f: 3.7, unit: { label: "fatia", g: 25 } },
+  { name: "Tapioca (goma)", kcal: 240, p: 0, c: 60, f: 0, unit: { label: "tapioca média", g: 60 } },
+  { name: "Cuscuz de milho cozido", kcal: 113, p: 2.2, c: 25.3, f: 0.7 },
+  { name: "Aveia em flocos", kcal: 394, p: 13.9, c: 66.6, f: 8.5, unit: { label: "colher de sopa", g: 15 } },
+  { name: "Granola", kcal: 420, p: 10, c: 64, f: 14, unit: { label: "colher de sopa", g: 12 } },
+  { name: "Banana prata", kcal: 98, p: 1.3, c: 26, f: 0.1, unit: { label: "unidade", g: 70 } },
+  { name: "Maçã", kcal: 56, p: 0.3, c: 15.2, f: 0, unit: { label: "unidade", g: 130 } },
+  { name: "Mamão papaia", kcal: 40, p: 0.5, c: 10.4, f: 0.1 },
+  { name: "Laranja", kcal: 37, p: 1, c: 8.9, f: 0.1, unit: { label: "unidade", g: 140 } },
+  { name: "Morango", kcal: 30, p: 0.9, c: 6.8, f: 0.3 },
+  { name: "Abacate", kcal: 96, p: 1.2, c: 6, f: 8.4 },
+  { name: "Açaí (polpa sem açúcar)", kcal: 58, p: 0.8, c: 6.2, f: 3.9 },
+  { name: "Leite integral", kcal: 61, p: 3.2, c: 4.7, f: 3.3, unit: { label: "copo 200 ml", g: 200 } },
+  { name: "Leite desnatado", kcal: 35, p: 3.4, c: 5, f: 0.1, unit: { label: "copo 200 ml", g: 200 } },
+  { name: "Iogurte natural integral", kcal: 61, p: 4.1, c: 4.7, f: 3, unit: { label: "pote", g: 170 } },
+  { name: "Iogurte grego zero", kcal: 55, p: 9, c: 4, f: 0.2, unit: { label: "pote", g: 100 } },
+  { name: "Queijo minas frescal", kcal: 264, p: 17.4, c: 3.2, f: 20.2, unit: { label: "fatia", g: 30 } },
+  { name: "Queijo muçarela", kcal: 330, p: 22.6, c: 3, f: 25.2, unit: { label: "fatia", g: 20 } },
+  { name: "Requeijão light", kcal: 180, p: 11, c: 4, f: 13, unit: { label: "colher de sopa", g: 20 } },
+  { name: "Whey protein", kcal: 400, p: 80, c: 8, f: 6, unit: { label: "scoop", g: 30 } },
+  { name: "Pasta de amendoim", kcal: 588, p: 25, c: 20, f: 50, unit: { label: "colher de sopa", g: 15 } },
+  { name: "Castanha-do-pará", kcal: 643, p: 14.5, c: 15.1, f: 63.5, unit: { label: "unidade", g: 4 } },
+  { name: "Amendoim torrado", kcal: 606, p: 22.5, c: 18.7, f: 54 },
+  { name: "Azeite de oliva", kcal: 884, p: 0, c: 0, f: 100, unit: { label: "colher de sopa", g: 13 } },
+  { name: "Manteiga", kcal: 726, p: 0.4, c: 0, f: 82, unit: { label: "ponta de faca", g: 5 } },
+  { name: "Alface", kcal: 11, p: 1.3, c: 1.7, f: 0.2 },
+  { name: "Tomate", kcal: 15, p: 1.1, c: 3.1, f: 0.2 },
+  { name: "Brócolis cozido", kcal: 25, p: 2.1, c: 4.4, f: 0.5 },
+  { name: "Cenoura crua", kcal: 34, p: 1.3, c: 7.7, f: 0.2 },
+  { name: "Abobrinha refogada", kcal: 24, p: 1.1, c: 4.3, f: 0.4 },
+  { name: "Chocolate ao leite", kcal: 540, p: 7.2, c: 59.6, f: 30.3, unit: { label: "quadradinho", g: 5 } },
+  { name: "Pizza muçarela", kcal: 270, p: 11, c: 30, f: 11, unit: { label: "fatia", g: 110 } },
+  { name: "Hambúrguer artesanal", kcal: 250, p: 15, c: 20, f: 12, unit: { label: "lanche", g: 230 } },
+  { name: "Café com açúcar", kcal: 40, p: 0.2, c: 9.5, f: 0, unit: { label: "xícara", g: 50 } },
+  { name: "Suco de laranja natural", kcal: 33, p: 0.7, c: 7.6, f: 0.1, unit: { label: "copo 250 ml", g: 250 } },
+  { name: "Refrigerante", kcal: 42, p: 0, c: 10.6, f: 0, unit: { label: "lata", g: 350 } },
+  { name: "Cerveja", kcal: 41, p: 0.3, c: 3.3, f: 0, unit: { label: "lata", g: 350 } },
+];
+
+const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+export function searchFoods(q: string) {
+  const n = norm(q.trim());
+  if (!n) return FOODS.slice(0, 8);
+  return FOODS.filter((f) => norm(f.name).includes(n)).slice(0, 12);
+}
