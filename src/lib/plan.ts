@@ -51,8 +51,8 @@ export function generatePlan(p: Profile): Plan {
       // prefer compound first, rotate across days for variety
       const sorted = [...pool].sort((a, b) => Number(b.compound) - Number(a.compound));
       let idx = rotation[g] ?? 0;
-      let ex = sorted[idx % sorted.length];
-      for (let i = 0; i < sorted.length && used.has(ex.id); i++) ex = sorted[++idx % sorted.length];
+      let ex = sorted[idx % sorted.length]!;
+      for (let i = 0; i < sorted.length && used.has(ex.id); i++) ex = sorted[++idx % sorted.length]!;
       rotation[g] = idx + 1;
       used.add(ex.id);
       return { exId: ex.id, ...prescription(p, ex.compound, g) };
