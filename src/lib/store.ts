@@ -79,11 +79,19 @@ export type FoodEntry = {
   f: number;
 };
 export type WeightEntry = { date: string; kg: number };
+export type LoadEntry = {
+  id: string;
+  exerciseId: string;
+  date: string;
+  kg: number;
+  createdAt?: number;
+};
 
 export const KEYS = {
   profile: "forma.profile",
   foods: "forma.foods",
   weights: "forma.weights",
+  loads: "forma.loads",
   plan: "forma.plan",
   done: "forma.done",
 };
