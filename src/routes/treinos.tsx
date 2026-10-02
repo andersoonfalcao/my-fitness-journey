@@ -61,7 +61,7 @@ function TreinosPage() {
   const historyFor = (exerciseId: string) =>
     loads
       .filter((entry) => entry.exerciseId === exerciseId)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
 
   const saveLoad = (exerciseId: string) => {
     const value = Number((loadInputs[exerciseId] ?? "").replace(",", "."));
@@ -69,7 +69,7 @@ function TreinosPage() {
       toast.error("Digite uma carga válida em kg");
       return;
     }
-    setLoads((entries) => [...entries, { id: uid(), exerciseId, date: today(), kg: value }]);
+    setLoads((entries) => [...entries, { id: uid(), exerciseId, date: today(), kg: value, createdAt: Date.now() }]);
     setLoadInputs((inputs) => ({ ...inputs, [exerciseId]: "" }));
     toast.success("Carga registrada");
   };

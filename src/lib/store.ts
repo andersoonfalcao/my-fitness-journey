@@ -84,6 +84,7 @@ export type LoadEntry = {
   exerciseId: string;
   date: string;
   kg: number;
+  createdAt?: number;
 };
 
 export const KEYS = {
