@@ -10,6 +10,7 @@ import { KEYS, today, uid, useLocal, type LoadEntry, type Profile } from "@/lib/
 import { generatePlan, type Plan } from "@/lib/plan";
 import { alternatives, byId, GROUP_LABEL, type Exercise } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
+import { ExerciseMedia } from "@/components/ExerciseMedia";
 
 export const Route = createFileRoute("/treinos")({
   head: () => ({
@@ -106,8 +107,8 @@ function TreinosPage() {
           const variation = latest && previous ? latest.kg - previous.kg : null;
           return (
             <article key={i} className="flex gap-4 rounded-3xl border border-border bg-card p-3 sm:p-4">
-              <button onClick={() => setDetail(ex)} className="shrink-0">
-                <img src={ex.img} alt={ex.name} loading="lazy" width={816} height={816} className="h-24 w-24 rounded-2xl border border-border object-cover sm:h-28 sm:w-28" />
+              <button onClick={() => setDetail(ex)} className="shrink-0" aria-label={`Ver detalhes de ${ex.name}`}>
+                <ExerciseMedia exercise={ex} compact className="h-24 w-24 rounded-2xl border border-border sm:h-28 sm:w-28" />
               </button>
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{GROUP_LABEL[ex.group]} · {ex.equipment}</div>
@@ -170,7 +171,7 @@ function TreinosPage() {
           {detail && (
             <>
               <DialogHeader><DialogTitle className="font-display text-2xl">{detail.name}</DialogTitle></DialogHeader>
-              <img src={detail.img} alt={detail.name} className="w-full rounded-2xl border border-border" />
+              <ExerciseMedia exercise={detail} className="aspect-square w-full rounded-2xl border border-border" />
               <div>
                 <h4 className="font-bold">Execução</h4>
                 <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm">{detail.steps.map((s) => <li key={s}>{s}</li>)}</ol>
@@ -198,12 +199,16 @@ function TreinosPage() {
             return (
               <>
                 <DialogHeader><DialogTitle className="font-display text-xl">Trocar {cur.name}</DialogTitle></DialogHeader>
-                <p className="text-sm text-muted-foreground">Alternativas que trabalham {GROUP_LABEL[cur.group].toLowerCase()}:</p>
+                <p className="text-sm text-muted-foreground">Alternativas para {GROUP_LABEL[cur.group].toLowerCase()}, priorizando movimentos mais parecidos:</p>
                 <div className="space-y-2">
-                  {alternatives(cur.id).map((a) => (
+                  {alternatives(cur.id).map((a, index) => (
                     <button key={a.id} onClick={() => doSwap(a.id)} className="flex w-full items-center gap-3 rounded-2xl border border-border p-2 text-left hover:border-accent">
                       <img src={a.img} alt={a.name} loading="lazy" className="h-16 w-16 rounded-xl object-cover" />
-                      <div><div className="font-bold">{a.name}</div><div className="text-xs text-muted-foreground">{a.equipment}</div></div>
+                      <div>
+                        <div className="font-bold">{a.name}</div>
+                        <div className="text-xs text-muted-foreground">{a.equipment}</div>
+                        {index === 0 && a.pattern === cur.pattern && <div className="mt-1 text-xs font-bold text-accent">Movimento mais próximo</div>}
+                      </div>
                     </button>
                   ))}
                 </div>
