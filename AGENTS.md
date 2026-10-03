@@ -11,7 +11,7 @@
 
 ## Architecture
 - User data (profile, food log, weights, workout plan) lives in browser localStorage via `src/lib/store.ts` — single-user app, no backend accounts.
-- Workout plans are generated deterministically in `src/lib/plan.ts` from a fixed illustrated exercise library (`src/lib/exercises.ts`); swaps only offer exercises of the same muscle group.
+- Workout plans are generated deterministically from a fixed exercise library; swaps stay within the same muscle group and rank matching movement patterns first to preserve the intended stimulus.
 - AI food estimation runs in the `/api/estimate-food` server route so the API key stays server-side.
 
 - Exercise movement demos use short looping media with an accessible pause/play control; training load history is keyed by exercise ID and remains independent of regenerated plans.
