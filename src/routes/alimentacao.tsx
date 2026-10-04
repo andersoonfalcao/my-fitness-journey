@@ -9,9 +9,9 @@ import { MacroBar, NeedProfile } from "@/components/AppShell";
 export const Route = createFileRoute("/alimentacao")({
   head: () => ({
     meta: [
-      { title: "Diário alimentar — forma" },
-      { name: "description", content: "Registre refeições buscando alimentos ou descrevendo com IA e acompanhe calorias e macros." },
-      { property: "og:title", content: "Diário alimentar — forma" },
+      { title: "Alimentação — forma" },
+      { name: "description", content: "Registre refeições buscando alimentos da tabela TACO ou descrevendo com IA e acompanhe calorias e macros." },
+      { property: "og:title", content: "Alimentação — forma" },
       { property: "og:description", content: "Contagem de calorias e macros com busca de alimentos e estimativa por IA." },
     ],
   }),
@@ -57,6 +57,10 @@ function FoodPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/estimate-food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiText }) });
+      // Static hosting (no server) answers with the app page instead of JSON.
+      if (!res.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("A estimativa por IA não está disponível nesta versão. Use a busca de alimentos.");
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro");
       const items = data.items as Omit<FoodEntry, "id" | "date" | "meal">[];
@@ -74,7 +78,7 @@ function FoodPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-4xl font-extrabold">Diário alimentar</h1>
+        <h1 className="text-4xl font-extrabold">Alimentação</h1>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border border-input bg-card px-3 py-2" />
       </div>
 
@@ -110,18 +114,28 @@ function FoodPage() {
                   className="w-full rounded-xl border border-input bg-background px-4 py-3" />
                 <ul className="mt-2 max-h-72 divide-y divide-border overflow-y-auto">
                   {searchFoods(q).map((f) => (
-                    <li key={f.name}>
-                      <button onClick={() => { setSel(f); setGrams(f.unit?.g ?? 100); }} className="flex w-full justify-between px-1 py-2.5 text-left hover:text-accent">
-                        <span className="font-semibold">{f.name}</span>
-                        <span className="text-sm text-muted-foreground">{f.kcal} kcal/100g</span>
+                    <li key={f.id}>
+                      <button onClick={() => { setSel(f); setGrams(f.unit?.g ?? 100); }} className="flex w-full items-center justify-between gap-3 px-1 py-2.5 text-left hover:text-accent">
+                        <span className="min-w-0">
+                          <span className="block font-semibold">{f.name}</span>
+                          <span className="block text-xs text-muted-foreground">P {f.p}g · C {f.c}g · G {f.f}g por 100 g</span>
+                        </span>
+                        <span className="shrink-0 text-right text-sm text-muted-foreground">
+                          {f.kcal} kcal
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide">{f.source}</span>
+                        </span>
                       </button>
                     </li>
                   ))}
+                  {q.trim() && searchFoods(q).length === 0 && (
+                    <li className="px-1 py-3 text-sm text-muted-foreground">Nada encontrado. Tente outra palavra ou use "Descrever com IA".</li>
+                  )}
                 </ul>
               </>
             ) : (
               <div className="rounded-2xl bg-muted p-4">
                 <div className="font-display text-lg font-bold">{sel.name}</div>
+                <div className="text-xs text-muted-foreground">Fonte: {sel.source === "TACO" ? "TACO (Unicamp)" : sel.source === "USDA" ? "USDA FoodData Central" : "média de rótulos"}</div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <input type="number" value={grams} onChange={(e) => setGrams(Number(e.target.value))} className="w-24 rounded-xl border border-input bg-card px-3 py-2" />
                   <span className="text-sm">gramas</span>

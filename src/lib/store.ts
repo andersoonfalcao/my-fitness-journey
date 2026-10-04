@@ -87,6 +87,40 @@ export type LoadEntry = {
   createdAt?: number;
 };
 
+export type WorkoutSession = {
+  dayName: string;
+  startedAt: number;
+  /** Completed sets per plan item index of this day. */
+  sets?: Record<number, number>;
+  /** Weight of each completed set per plan item index (null = no weight, e.g. bodyweight). */
+  kgs?: Record<number, (number | null)[]>;
+  /** Reps actually done in each set (null = time-based work); defaults to the plan target when not typed. */
+  repsDone?: Record<number, (number | null)[]>;
+  /** Rest after a set; `item` is the plan item index whose card shows the countdown. */
+  rest?: { item: number; endsAt: number; next: string } | undefined;
+};
+
+/** Snapshot of a finished workout; names are copied so the log survives plan changes. */
+export type WorkoutRecord = {
+  id: string;
+  date: string;
+  dayName: string;
+  startedAt?: number | undefined;
+  finishedAt: number;
+  durationMs?: number | undefined;
+  exercises: {
+    exId: string;
+    name: string;
+    setsDone: number;
+    setsPlanned: number;
+    reps: string;
+    kg?: number | undefined;
+    setKgs?: (number | null)[] | undefined;
+    /** Missing in records saved before per-set reps; then every set counts the target `reps`. */
+    setReps?: (number | null)[] | undefined;
+  }[];
+};
+
 export const KEYS = {
   profile: "forma.profile",
   foods: "forma.foods",
@@ -94,6 +128,8 @@ export const KEYS = {
   loads: "forma.loads",
   plan: "forma.plan",
   done: "forma.done",
+  session: "forma.session",
+  history: "forma.history",
 };
 
 export const today = () => {
@@ -103,17 +139,55 @@ export const today = () => {
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
+// ~7700 kcal per kg of body weight change; dividing by 7 gives the daily balance for a weekly rate.
+const KCAL_PER_KG_DAY = 7700 / 7;
+
+/**
+ * Daily targets. Energy: Mifflin-St Jeor × activity. Rates and macros follow
+ * Helms et al. 2014 (cut: lose 0.5–1% of body weight/week, fat 15–30% of kcal),
+ * Iraki et al. 2019 (bulk: +10–20% for novices/intermediates, less when advanced; protein 1.6–2.2 g/kg)
+ * and the ISSN protein position stand (1.4–2.0 g/kg for exercising people, more in a deficit).
+ */
 export function targets(p: Profile) {
   const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "m" ? 5 : -161);
   const tdee = bmr * p.activity;
   const losing = p.goalWeight < p.weight - 0.5;
   const gaining = p.goalWeight > p.weight + 0.5;
-  let kcal = tdee;
-  if (p.focus === "perder" || (losing && p.focus !== "massa")) kcal = tdee - 500;
-  else if (p.focus === "massa" || gaining) kcal = tdee + 300;
+  const deficitFor = (weeklyRate: number) => Math.min(p.weight * weeklyRate * KCAL_PER_KG_DAY, tdee * 0.25);
+
+  let kcal: number;
+  let energyNote: string;
+  if (p.focus === "perder") {
+    kcal = tdee - deficitFor(0.0075);
+    energyNote = "déficit para perder ~0,75% do peso por semana";
+  } else if (p.focus === "massa") {
+    const surplus = p.level === "iniciante" ? 0.15 : p.level === "intermediario" ? 0.1 : 0.05;
+    kcal = tdee * (1 + surplus);
+    energyNote = `superávit de ${surplus * 100}% para ganho de massa`;
+  } else if (losing) {
+    kcal = tdee - deficitFor(0.005);
+    energyNote = "déficit leve (~0,5% do peso por semana) rumo à meta";
+  } else if (gaining) {
+    kcal = tdee * 1.05;
+    energyNote = "superávit leve de 5% rumo à meta";
+  } else {
+    kcal = tdee;
+    energyNote = "manutenção do peso";
+  }
   kcal = Math.round(Math.max(kcal, p.sex === "m" ? 1500 : 1200));
-  const protein = Math.round(p.weight * (p.focus === "perder" ? 2.2 : 2));
-  const fat = Math.round((kcal * 0.27) / 9);
+
+  // In a deficit, protein follows the goal weight so overweight profiles aren't overestimated.
+  const proteinWeight = p.focus === "perder" || losing ? Math.min(p.weight, p.goalWeight) : p.weight;
+  const proteinPerKg = p.focus === "perder" ? 2.2 : p.focus === "massa" ? 2 : p.focus === "forca" ? 1.8 : 1.6;
+  const protein = Math.round(proteinWeight * proteinPerKg);
+  const fat = Math.round(Math.max((kcal * 0.25) / 9, p.weight * 0.6));
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
-  return { kcal, protein, carbs, fat, tdee: Math.round(tdee) };
+
+  const notes = [
+    energyNote,
+    `proteína ${proteinPerKg.toLocaleString("pt-BR")} g/kg${proteinWeight !== p.weight ? " do peso-meta" : ""}`,
+    "gordura ~25% das calorias",
+    "carboidratos completam o restante",
+  ];
+  return { kcal, protein, carbs, fat, tdee: Math.round(tdee), notes };
 }

@@ -3,6 +3,7 @@ import { KEYS, targets, today, useLocal, type FoodEntry, type Profile, type Weig
 import type { Plan } from "@/lib/plan";
 import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
+import { ExerciseMedia } from "@/components/ExerciseMedia";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -79,7 +80,7 @@ function Index() {
               const ex = byId(it.exId);
               return (
                 <div key={i} className="w-32 shrink-0">
-                  <img src={ex.img} alt={ex.name} loading="lazy" className="aspect-square w-full rounded-2xl border border-border object-cover" />
+                  <ExerciseMedia exercise={ex} compact className="aspect-square w-full rounded-2xl border border-border" />
                   <div className="mt-1 text-xs font-semibold leading-tight">{ex.name}</div>
                 </div>
               );

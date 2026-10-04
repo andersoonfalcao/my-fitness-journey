@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 const NAV = [
   { to: "/", label: "Hoje", icon: Home },
-  { to: "/alimentacao", label: "Comida", icon: Utensils },
+  { to: "/alimentacao", label: "Alimentação", icon: Utensils },
   { to: "/peso", label: "Peso", icon: Scale },
   { to: "/treinos", label: "Treinos", icon: Dumbbell },
   { to: "/perfil", label: "Perfil", icon: User },

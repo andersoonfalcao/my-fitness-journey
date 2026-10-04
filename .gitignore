@@ -16,6 +16,9 @@ dist-ssr
 .nitro
 *.local
 
+# Firebase deploy cache
+.firebase/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

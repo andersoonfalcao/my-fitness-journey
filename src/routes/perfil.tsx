@@ -156,7 +156,7 @@ function PerfilPage() {
             <div key={a}><div className="text-sm opacity-75">{a}</div><div className="font-display text-3xl font-extrabold">{b}<span className="ml-1 text-base opacity-75">{c}</span></div></div>
           ))}
         </div>
-        <p className="mt-3 text-sm opacity-75">Gasto estimado: {t.tdee} kcal/dia.</p>
+        <p className="mt-3 text-sm opacity-75">Gasto estimado: {t.tdee} kcal/dia. Como calculamos: {t.notes.join(" · ")}.</p>
       </section>
 
       <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
