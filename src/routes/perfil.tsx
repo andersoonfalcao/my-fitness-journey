@@ -6,6 +6,7 @@ import { generatePlan, type Plan } from "@/lib/plan";
 import { LogOut } from "lucide-react";
 import { logout, useAuth } from "@/lib/auth";
 import { InvitesPanel } from "@/components/InvitesPanel";
+import { StravaCard } from "@/components/StravaCard";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -180,6 +181,8 @@ function PerfilPage() {
           <LogOut className="h-4 w-4" />Sair
         </button>
       </section>
+
+      <StravaCard />
 
       {isAdmin && <InvitesPanel />}
     </div>

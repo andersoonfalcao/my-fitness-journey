@@ -13,6 +13,7 @@ import { alternatives, byId, GROUP_LABEL, youtubeSearchUrl, type Exercise } from
 import { NeedProfile } from "@/components/AppShell";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
+import { StravaActivities } from "@/components/StravaActivities";
 import { lastRecordBefore, recordTotal, repsOfSet, sumKg, volume, type SetValues } from "@/lib/workout-stats";
 
 export const Route = createFileRoute("/treinos")({
@@ -418,6 +419,8 @@ function TreinosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <StravaActivities />
 
       <WorkoutHistory records={history} onDelete={(id) => setHistory((records) => records.filter((r) => r.id !== id))} />
 

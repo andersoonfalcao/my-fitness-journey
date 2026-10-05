@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AlimentacaoRouteImport } from './routes/alimentacao'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PesoRouteImport } from './routes/peso'
+import { Route as StravaRouteImport } from './routes/strava'
 import { Route as TreinosRouteImport } from './routes/treinos'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const PesoRoute = PesoRouteImport.update({
   path: '/peso',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StravaRoute = StravaRouteImport.update({
+  id: '/strava',
+  path: '/strava',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TreinosRoute = TreinosRouteImport.update({
   id: '/treinos',
   path: '/treinos',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/alimentacao': typeof AlimentacaoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
+  '/strava': typeof StravaRoute
   '/treinos': typeof TreinosRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/alimentacao': typeof AlimentacaoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
+  '/strava': typeof StravaRoute
   '/treinos': typeof TreinosRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,22 @@ export interface FileRoutesById {
   '/alimentacao': typeof AlimentacaoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
+  '/strava': typeof StravaRoute
   '/treinos': typeof TreinosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/alimentacao' | '/perfil' | '/peso' | '/treinos'
+  fullPaths: '/' | '/alimentacao' | '/perfil' | '/peso' | '/strava' | '/treinos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/alimentacao' | '/perfil' | '/peso' | '/treinos'
-  id: '__root__' | '/' | '/alimentacao' | '/perfil' | '/peso' | '/treinos'
+  to: '/' | '/alimentacao' | '/perfil' | '/peso' | '/strava' | '/treinos'
+  id:
+    | '__root__'
+    | '/'
+    | '/alimentacao'
+    | '/perfil'
+    | '/peso'
+    | '/strava'
+    | '/treinos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +92,7 @@ export interface RootRouteChildren {
   AlimentacaoRoute: typeof AlimentacaoRoute
   PerfilRoute: typeof PerfilRoute
   PesoRoute: typeof PesoRoute
+  StravaRoute: typeof StravaRoute
   TreinosRoute: typeof TreinosRoute
 }
 
@@ -109,6 +126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PesoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/strava': {
+      id: '/strava'
+      path: '/strava'
+      fullPath: '/strava'
+      preLoaderRoute: typeof StravaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/treinos': {
       id: '/treinos'
       path: '/treinos'
@@ -124,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   AlimentacaoRoute: AlimentacaoRoute,
   PerfilRoute: PerfilRoute,
   PesoRoute: PesoRoute,
+  StravaRoute: StravaRoute,
   TreinosRoute: TreinosRoute,
 }
 export const routeTree = rootRouteImport

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { closeDay } from "@/lib/day-close";
+import { km, sportLabel, stravaKey, type StravaActivity } from "@/lib/strava";
 import {
   daysKey,
   foodsKey,
@@ -36,6 +37,8 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const [history] = useLocal<WorkoutRecord[]>(KEYS.history, []);
   const [days, setDays] = useLocal<DayRecord[]>(daysKey(date), []);
   const [earlier] = useLocal<DayRecord[]>(daysKey(prevMonth(date)), []);
+  const [stravaMonth] = useLocal<StravaActivity[]>(stravaKey(date), []);
+  const stravaToday = stravaMonth.filter((a) => a.date === date);
   const [busy, setBusy] = useState(false);
 
   const t = targets(profile);
@@ -68,6 +71,10 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
     ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje"],
     ["Peso", weighed, weighed ? `${num(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)"],
   ];
+  if (stravaToday.length) {
+    const kcalOut = stravaToday.reduce((s, a) => s + (a.kcal ?? 0), 0);
+    checks.push(["Strava", true, `${stravaToday.map((a) => `${sportLabel(a.sport)}${a.distanceM ? ` ${km(a.distanceM)} km` : ""}`).join(", ")}${kcalOut ? ` · ${kcalOut} kcal gastas` : ""}`]);
+  }
 
   return (
     <section className="space-y-4 rounded-3xl border border-border bg-card p-6">
@@ -130,6 +137,10 @@ function DaySummary({ record }: { record: DayRecord }) {
     ["Água", `${num(day.waterMl / 1000)} / ${num(day.targets.waterMl / 1000)} L`],
     ["Treino", day.workout ? `${day.workout.setsDone}/${day.workout.setsPlanned} séries${day.workout.volumeKg ? ` · ${num(day.workout.volumeKg)} kg` : ""}` : "—"],
   ];
+  if (day.strava?.length) {
+    const kcalOut = day.strava.reduce((s, a) => s + (a.kcal ?? 0), 0);
+    stats.push(["Strava", `${day.strava.map((a) => a.sport).join(", ")}${kcalOut ? ` · ${kcalOut} kcal` : ""}`]);
+  }
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

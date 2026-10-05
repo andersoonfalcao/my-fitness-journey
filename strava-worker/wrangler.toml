@@ -1,0 +1,12 @@
+name = "forma-strava"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "apptreino-f3677"
+ALLOWED_ORIGINS = "https://apptreino.web.app,http://localhost:5191,http://localhost:5190"
+# STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET are set as Worker secrets (never committed).
+
+[[kv_namespaces]]
+binding = "TOKENS"
+id = "39b2a9eb362c42e3bea70e0220f2f7a9"

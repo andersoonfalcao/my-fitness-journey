@@ -2,6 +2,7 @@ import { generateJson, Schema } from "./ai";
 import { foodsKey, readCloudOnce, waterKey } from "./cloud-store";
 import { targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
 import { lastRecordBefore, recordTotal } from "./workout-stats";
+import { sportLabel, stravaKey, type StravaActivity } from "./strava";
 
 const FOCUS_LABEL: Record<Profile["focus"], string> = {
   perder: "perder gordura",
@@ -60,10 +61,12 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
   const start = [sortedWeights[0]?.date, history[0]?.date].filter((d): d is string => !!d).sort()[0] ?? date;
 
   const months = monthsBetween(start < date ? start : date, date);
-  const [foodMonths, waterMonths] = await Promise.all([
+  const [foodMonths, waterMonths, stravaMonths] = await Promise.all([
     Promise.all(months.map((m) => readCloudOnce<FoodEntry[]>(uid, foodsKey(`${m}-01`), []))),
     Promise.all(months.map((m) => readCloudOnce<WaterLog>(uid, waterKey(`${m}-01`), {}))),
+    Promise.all(months.map((m) => readCloudOnce<StravaActivity[]>(uid, stravaKey(`${m}-01`), []))),
   ]);
+  const strava = stravaMonths.flat().filter((a) => a.date >= start && a.date <= date);
   const foods = foodMonths.flat().filter((f) => f.date >= start && f.date <= date);
   const water: WaterLog = Object.assign({}, ...waterMonths);
 
@@ -113,6 +116,9 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       targets: { kcal: t.kcal, protein: t.protein, carbs: t.carbs, fat: t.fat, waterMl: t.waterMl },
       workout,
       weightKg: weights.find((w) => w.date === date)?.kg ?? null,
+      strava: strava
+        .filter((a) => a.date === date)
+        .map((a) => ({ sport: sportLabel(a.sport), km: Math.round(a.distanceM / 100) / 10, minutes: Math.round(a.movingS / 60), kcal: a.kcal, avgHr: a.avgHr })),
     },
     sinceStart: {
       startDate: start,
@@ -128,6 +134,8 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       daysOnCalories: logged.filter((d) => Math.abs(d.kcal - t.kcal) <= t.kcal * 0.1).length,
       daysOnProtein: logged.filter((d) => d.p >= t.protein * 0.9).length,
       volumeTrend,
+      stravaActivities: strava.length,
+      stravaKm: Math.round(strava.reduce((s, a) => s + a.distanceM, 0) / 100) / 10,
     },
   };
 }
@@ -139,6 +147,7 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
   const prompt = JSON.stringify({
     aluno: { nome: profile.name, objetivo: FOCUS_LABEL[profile.focus], nivel: profile.level, treinosPorSemana: profile.days },
     unidades: "calorias em kcal, macros em g, água em ml, peso em kg, volume de treino = soma de peso × repetições em kg",
+    observacao: "atividades do Strava (corrida, pedal etc.) são gasto extra informativo; a meta de calorias do dia não muda por causa delas",
     hoje: numbers.day,
     desdeOInicio: numbers.sinceStart,
   });

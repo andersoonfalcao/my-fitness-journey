@@ -117,6 +117,8 @@ export type DayRecord = {
     targets: { kcal: number; protein: number; carbs: number; fat: number; waterMl: number };
     workout: { name: string; minutes: number | null; setsDone: number; setsPlanned: number; volumeKg: number; volumeDiffKg: number | null } | null;
     weightKg: number | null;
+    /** Strava activities of the day (missing in records closed before the integration). */
+    strava?: { sport: string; km: number; minutes: number; kcal: number | null; avgHr: number | null }[] | undefined;
   };
   sinceStart: {
     startDate: string; days: number;
@@ -124,6 +126,8 @@ export type DayRecord = {
     workouts: number; workoutsLast7Days: number;
     daysLogged: number; avgKcal: number; avgProtein: number; daysOnCalories: number; daysOnProtein: number;
     volumeTrend: { name: string; firstKg: number; lastKg: number }[];
+    stravaActivities?: number | undefined;
+    stravaKm?: number | undefined;
   };
   ai: { overview: string; goingWell: string[]; improve: string[]; sinceStart: string; tomorrow: string };
 };

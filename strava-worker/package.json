@@ -1,0 +1,17 @@
+{
+  "name": "forma-strava-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jose": "^6.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.40.0"
+  }
+}
