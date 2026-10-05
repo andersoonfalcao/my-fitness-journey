@@ -91,7 +91,7 @@ function FoodPage() {
 
       <WaterCard date={date} targetMl={t.waterMl} />
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section id="registrar" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
         <div className="flex flex-wrap gap-2">
           {MEALS.map((m) => (
             <button key={m.v} onClick={() => setMeal(m.v)}
@@ -167,7 +167,7 @@ function FoodPage() {
         )}
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div id="refeicoes" className="grid scroll-mt-24 gap-4 md:grid-cols-2">
         {MEALS.map((m) => {
           const items = day.filter((f) => f.meal === m.v);
           const kcal = items.reduce((a, f) => a + f.kcal, 0);

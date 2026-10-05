@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { CalendarDays, Home, Utensils, Scale, Dumbbell, User } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
@@ -17,6 +17,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (settingsReady) void syncPush(settings);
   }, [settingsReady, settings.reminder, settings.reminderTime]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Links like /alimentacao#agua: the section only exists once the account data loads, so wait for it a little.
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    let tries = 0;
+    const id = setInterval(() => {
+      const target = document.getElementById(hash.replace(/^#/, ""));
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (target || ++tries > 30) clearInterval(id);
+    }, 100);
+    return () => clearInterval(id);
+  }, [pathname, hash]);
 
   return (
     <div className="min-h-screen pb-24 md:pb-0">

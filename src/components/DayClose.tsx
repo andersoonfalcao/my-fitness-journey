@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CalendarCheck, Check, ChevronDown, Loader2, RefreshCw, Share2, Sparkles, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { CalendarCheck, Check, ChevronDown, ChevronRight, Loader2, RefreshCw, Share2, Sparkles, X } from "lucide-react";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { dayCard } from "@/lib/share-card";
 import { toast } from "sonner";
@@ -70,15 +71,17 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
     }
   };
 
-  const checks: [string, boolean, string][] = [
-    ["Refeições", eaten.length > 0, eaten.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g` : "nada registrado"],
-    ["Água", waterMl >= t.waterMl * 0.8, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`],
-    ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje"],
-    ["Peso", weighed, weighed ? `${num(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)"],
+  // Each item opens its section: where to fill it in while missing, where to see it once done.
+  type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string };
+  const checks: [string, boolean, string, Target][] = [
+    ["Refeições", eaten.length > 0, eaten.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g` : "nada registrado", { to: "/alimentacao", hash: eaten.length ? "refeicoes" : "registrar" }],
+    ["Água", waterMl >= t.waterMl * 0.8, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
+    ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje", trained ? { to: "/treinos", hash: "historico" } : { to: "/treinos" }],
+    ["Peso", weighed, weighed ? `${num(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)", { to: "/corpo", hash: weighed ? "evolucao" : "pesagem" }],
   ];
   if (stravaToday.length) {
     const kcalOut = stravaToday.reduce((s, a) => s + (a.kcal ?? 0), 0);
-    checks.push(["Strava", true, `${stravaToday.map((a) => `${sportLabel(a.sport)}${a.distanceM ? ` ${km(a.distanceM)} km` : ""}`).join(", ")}${kcalOut ? ` · ${kcalOut} kcal gastas` : ""}`]);
+    checks.push(["Strava", true, `${stravaToday.map((a) => `${sportLabel(a.sport)}${a.distanceM ? ` ${km(a.distanceM)} km` : ""}`).join(", ")}${kcalOut ? ` · ${kcalOut} kcal gastas` : ""}`, { to: "/treinos", hash: "strava" }]);
   }
 
   return (
@@ -103,12 +106,17 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
       <ShareDialog request={share} onClose={() => setShare(null)} />
 
       <ul className="grid gap-2 sm:grid-cols-2">
-        {checks.map(([label, ok, detail]) => (
-          <li key={label} className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-3 py-2 text-sm">
-            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
-              {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-            </span>
-            <span className="min-w-0"><b>{label}:</b> <span className="text-muted-foreground">{detail}</span></span>
+        {checks.map(([label, ok, detail, target]) => (
+          <li key={label}>
+            <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} aria-label={`${label}: ${detail}. ${ok ? "Ver" : "Preencher"}`}
+              className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted active:bg-muted">
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
+                {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+              </span>
+              <span className="min-w-0 flex-1"><b>{label}:</b> <span className="text-muted-foreground">{detail}</span></span>
+              <span className={`shrink-0 text-xs font-semibold ${ok ? "text-muted-foreground" : "text-accent"}`}>{ok ? "ver" : "preencher"}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
           </li>
         ))}
       </ul>

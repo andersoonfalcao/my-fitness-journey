@@ -141,7 +141,7 @@ function CorpoPage() {
         </p>
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
+      <section id="evolucao" className="scroll-mt-24 rounded-3xl border border-border bg-card p-4 sm:p-6">
         <h2 className="mb-3 px-2 text-lg font-bold sm:px-0">Evolução do peso</h2>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -163,7 +163,7 @@ function CorpoPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section id="pesagem" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
         <h2 className="text-lg font-bold">Registrar pesagem</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <input type="date" aria-label="Data da pesagem" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border border-input bg-card px-3 py-2.5" />

@@ -26,7 +26,7 @@ export function StravaActivities() {
   if (recent.length === 0) return null;
 
   return (
-    <section className="space-y-3 border-t border-border pt-6">
+    <section id="strava" className="scroll-mt-24 space-y-3 border-t border-border pt-6">
       <h2 className="flex items-center gap-2 text-2xl font-bold"><Activity className="h-6 w-6 text-[#fc4c02]" />Atividades do Strava</h2>
       <ul className="space-y-2">
         {recent.map((a) => (

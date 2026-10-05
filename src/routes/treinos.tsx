@@ -712,7 +712,7 @@ const workoutShare = (record: WorkoutRecord, previous: WorkoutRecord | undefined
 
 function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord[]; onDelete: (id: string) => void; onShare: (request: ShareRequest) => void }) {
   return (
-    <section className="space-y-3 border-t border-border pt-6">
+    <section id="historico" className="scroll-mt-24 space-y-3 border-t border-border pt-6">
       <h2 className="text-2xl font-bold">Histórico de treinos</h2>
       {records.length === 0 ? (
         <p className="text-sm text-muted-foreground">Conclua um treino para ver aqui a data, o tempo e as séries de cada exercício.</p>
