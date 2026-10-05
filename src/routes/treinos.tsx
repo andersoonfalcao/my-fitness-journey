@@ -11,6 +11,7 @@ import { KEYS, today, uid, useHistory, useLocal, type LoadEntry, type Profile, t
 import { generatePlan, nextWorkoutIndex, normalizePlan, repsCount, repsFor, type Plan } from "@/lib/plan";
 import { alternatives, byId, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
+import { RegenerateDialog } from "@/components/RegenerateDialog";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
 import { StravaActivities } from "@/components/StravaActivities";
@@ -52,6 +53,7 @@ function TreinosPage() {
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [swap, setSwap] = useState<{ d: number; i: number } | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [regen, setRegen] = useState(false);
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
   const [settings] = useSettings();
 
@@ -115,6 +117,22 @@ function TreinosPage() {
     if (pending.length === 0) {
       setSession({ ...base, sets, kgs, repsDone, rest: undefined });
       toast.success("Todas as séries feitas! Agora é só concluir o treino.");
+      return;
+    }
+    // Circuit: straight on to the next exercise of the round; the rest comes only when the round wraps around.
+    if (plan.circuit && count === 1) {
+      const nextJ = pending.find((j) => j > i) ?? pending[0]!;
+      const nextItem = day.items[nextJ]!;
+      const next = `Série ${(sets[nextJ] ?? 0) + 1} de ${nextItem.sets} · ${byId(nextItem.exId).name}`;
+      if (nextJ > i) {
+        setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+        toast(`Próximo: ${byId(nextItem.exId).name}`);
+        document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      const endsAt = Date.now() + settings.restSeconds * 1000;
+      setSession({ ...base, sets, kgs, repsDone, rest: { item: i, endsAt, next: `Fim da volta · ${next}` } });
+      scheduleRestPush(endsAt, next);
       return;
     }
     // After the exercise's last set there is no countdown: moving to the next machine is the rest.
@@ -195,7 +213,7 @@ function TreinosPage() {
 
   const doSwap = (newId: string) => {
     if (!swap) return;
-    const days = plan.days.map((d, di) => di !== swap.d ? d : { ...d, items: d.items.map((it, ii) => ii === swap.i ? { ...it, exId: newId, reps: repsFor(profile, byId(newId)) } : it) });
+    const days = plan.days.map((d, di) => di !== swap.d ? d : { ...d, items: d.items.map((it, ii) => ii === swap.i ? { ...it, exId: newId, reps: repsFor(profile, byId(newId), plan) } : it) });
     setPlan({ ...plan, days });
     toast.success(`Trocado por ${byId(newId).name}`);
     setSwap(null);
@@ -213,7 +231,7 @@ function TreinosPage() {
           <p className="text-sm font-bold uppercase tracking-widest text-accent">{plan.method}</p>
           <h1 className="mt-1 text-4xl font-extrabold">Seu plano de treino</h1>
         </div>
-        <button onClick={() => { if (confirm("Gerar um novo plano? Suas trocas serão perdidas.")) { setPlan(generatePlan(profile)); toast.success("Novo plano gerado"); } }}
+        <button onClick={() => setRegen(true)}
           className="inline-flex items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold"><RefreshCw className="h-4 w-4" />Regerar</button>
       </div>
 
@@ -337,7 +355,7 @@ function TreinosPage() {
           };
           const setsLeft = it.sets - setsDone;
           return (
-            <article key={i} className={`flex gap-4 rounded-3xl border p-3 sm:p-4 ${setsDone >= it.sets ? "border-accent bg-accent/5" : "border-border bg-card"}`}>
+            <article key={i} id={`exercicio-${i}`} className={`flex scroll-mt-28 gap-4 rounded-3xl border p-3 sm:p-4 ${setsDone >= it.sets ? "border-accent bg-accent/5" : "border-border bg-card"}`}>
               <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{GROUP_LABEL[ex.group]} · {ex.equipment}</div>
@@ -549,6 +567,7 @@ function TreinosPage() {
         <StravaActivities />
       </>)}
       <ShareDialog request={share} onClose={() => setShare(null)} />
+      <RegenerateDialog open={regen} onOpenChange={setRegen} onDone={() => setDayIdx(null)} />
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         {/* Flex column + shrink-0: in the default grid the max height squeezed the square media over the text below. */}
@@ -820,7 +839,8 @@ const SCALE_SETS = 25;
 function WeeklyVolume({ records }: { records: WorkoutRecord[] }) {
   const from = weekStart(today());
   const sets = setsByGroup(records, from);
-  const groups = Object.keys(GROUP_LABEL) as Group[];
+  // Conditioning work is not hypertrophy volume, so it stays out of the weekly sets.
+  const groups = (Object.keys(GROUP_LABEL) as Group[]).filter((g) => g !== "cardio");
   const pct = (n: number) => `${(Math.min(n, SCALE_SETS) / SCALE_SETS) * 100}%`;
   return (
     <section className="space-y-3 rounded-3xl border border-border bg-card p-4">

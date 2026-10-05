@@ -23,7 +23,7 @@ import tricepsFrances from "@/assets/ex/triceps-frances.webp";
 import prancha from "@/assets/ex/prancha.webp";
 import abdominalPolia from "@/assets/ex/abdominal-polia.webp";
 
-export type Group = "peito" | "costas" | "quadriceps" | "posterior" | "ombros" | "biceps" | "triceps" | "core";
+export type Group = "peito" | "costas" | "quadriceps" | "posterior" | "ombros" | "biceps" | "triceps" | "core" | "panturrilha" | "trapezio" | "antebraco" | "cardio";
 
 export const GROUP_LABEL: Record<Group, string> = {
   peito: "Peito",
@@ -34,13 +34,18 @@ export const GROUP_LABEL: Record<Group, string> = {
   biceps: "Bíceps",
   triceps: "Tríceps",
   core: "Abdômen",
+  panturrilha: "Panturrilha",
+  trapezio: "Trapézio",
+  antebraco: "Antebraço",
+  cardio: "Condicionamento",
 };
 
 export type Pattern =
   | "empurrar-horizontal" | "aduzir-ombro" | "empurrar-vertical" | "abduzir-ombro" | "abrir-ombro-posterior"
   | "puxar-horizontal" | "puxar-vertical" | "agachar" | "unilateral-joelho" | "estender-joelho"
   | "dobrar-quadril" | "flexionar-joelho" | "estender-quadril" | "flexionar-cotovelo" | "estender-cotovelo"
-  | "estabilizar-core" | "flexionar-tronco";
+  | "estabilizar-core" | "flexionar-tronco"
+  | "flexionar-plantar" | "encolher-ombros" | "punho" | "carregar" | "cardio";
 
 export type Exercise = {
   id: string;
@@ -522,6 +527,294 @@ const EXTRAS: Extra[] = [
     steps: ["Deite de costas com os joelhos dobrados e as pernas no ar.", "Leve os joelhos em direção ao peito tirando o quadril do chão.", "Desça devagar."],
     posture: ["Braços no chão para apoio.", "Sem balançar as pernas.", "Lombar volta ao chão com controle."],
   },
+  // ——— Ampliação de 05/10/2026: grupos novos e movimentos que faltavam nos métodos ———
+  // Panturrilha
+  {
+    id: "panturrilha-em-pe", name: "Panturrilha em pé na máquina", group: "panturrilha", equipment: "Máquina", compound: false, pattern: "flexionar-plantar", media: "leg-press",
+    steps: ["Apoie os ombros nas almofadas e a ponta dos pés na plataforma.", "Suba o calcanhar o mais alto que conseguir.", "Desça devagar até alongar bem a panturrilha."],
+    posture: ["Joelhos estendidos, sem travar.", "Pausa de 1 s no topo.", "Amplitude completa vale mais que carga."],
+  },
+  {
+    id: "panturrilha-sentado", name: "Panturrilha sentado (gêmeos sentado)", group: "panturrilha", equipment: "Máquina", compound: false, pattern: "flexionar-plantar", media: "leg-press",
+    steps: ["Sente com a almofada sobre as coxas, perto dos joelhos.", "Com a ponta dos pés na plataforma, suba os calcanhares.", "Desça devagar até alongar."],
+    posture: ["Joelhos a 90°.", "Sem quicar embaixo.", "Trabalha mais o sóleo, a parte de baixo da panturrilha."],
+  },
+  {
+    id: "panturrilha-leg-press", name: "Panturrilha no leg press", group: "panturrilha", equipment: "Máquina", compound: false, pattern: "flexionar-plantar", media: "leg-press",
+    steps: ["Sente no leg press e apoie só a ponta dos pés na borda de baixo da plataforma.", "Empurre a plataforma esticando os tornozelos.", "Volte devagar até alongar a panturrilha."],
+    posture: ["Joelhos estendidos, sem travar.", "Mantenha as travas de segurança fechadas.", "Movimento só no tornozelo."],
+  },
+  {
+    id: "panturrilha-halter", name: "Panturrilha em pé com halter", group: "panturrilha", equipment: "Halter e degrau", compound: false, pattern: "flexionar-plantar", media: "leg-press",
+    steps: ["Fique com a ponta de um pé num degrau, segurando um halter do mesmo lado.", "Suba o calcanhar o máximo possível.", "Desça abaixo do degrau e repita; depois troque o lado."],
+    posture: ["Apoie a outra mão para equilíbrio.", "Joelho levemente dobrado.", "Desça devagar, sem quicar."],
+  },
+  {
+    id: "panturrilha-smith", name: "Panturrilha no Smith", group: "panturrilha", equipment: "Máquina Smith e step", compound: false, pattern: "flexionar-plantar", media: "leg-press",
+    steps: ["Fique com a ponta dos pés num step sob a barra apoiada nos ombros.", "Destrave a barra e suba os calcanhares.", "Desça até alongar e repita."],
+    posture: ["Tronco ereto.", "Pés na largura do quadril.", "Trave a barra ao terminar."],
+  },
+  // Trapézio
+  {
+    id: "encolhimento-barra", name: "Encolhimento com barra", group: "trapezio", equipment: "Barra", compound: false, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["Em pé, segure a barra à frente das coxas com as mãos na largura dos ombros.", "Suba os ombros em direção às orelhas.", "Segure 1 s e desça devagar."],
+    posture: ["Braços estendidos: não puxe com os cotovelos.", "Não gire os ombros.", "Pescoço neutro, olhando à frente."],
+  },
+  {
+    id: "encolhimento-halteres", name: "Encolhimento com halteres", group: "trapezio", equipment: "Halteres", compound: false, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["Em pé, um halter em cada mão ao lado do corpo.", "Suba os ombros o mais alto possível.", "Desça devagar até alongar."],
+    posture: ["Braços soltos e estendidos.", "Sem rolar os ombros.", "Abdômen firme."],
+  },
+  {
+    id: "encolhimento-maquina", name: "Encolhimento na máquina", group: "trapezio", equipment: "Máquina", compound: false, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["Posicione-se na máquina segurando as alças.", "Suba os ombros em direção às orelhas.", "Desça controlando."],
+    posture: ["Braços estendidos.", "Tronco ereto.", "Pausa curta no topo."],
+  },
+  {
+    id: "remada-alta", name: "Remada alta com barra", group: "trapezio", equipment: "Barra", compound: true, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["Segure a barra à frente das coxas com as mãos um pouco mais fechadas que os ombros.", "Puxe a barra rente ao corpo até a altura do peito, cotovelos para cima.", "Desça devagar."],
+    posture: ["Cotovelos sempre acima das mãos.", "Não passe da linha dos ombros se sentir dor.", "Tronco parado, sem embalo."],
+  },
+  {
+    id: "remada-alta-polia", name: "Remada alta na polia", group: "trapezio", equipment: "Polia baixa", compound: true, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["De frente para a polia baixa, segure a barra reta.", "Puxe até a altura do peito com os cotovelos subindo.", "Volte devagar."],
+    posture: ["Barra rente ao corpo.", "Ombros sem dor: limite a altura.", "Tronco firme."],
+  },
+  // Antebraço
+  {
+    id: "rosca-punho", name: "Rosca de punho com barra", group: "antebraco", equipment: "Barra e banco", compound: false, pattern: "punho", media: "rosca-direta",
+    steps: ["Sente com os antebraços apoiados nas coxas ou no banco, palmas para cima.", "Deixe a barra descer até a ponta dos dedos.", "Feche a mão e suba o punho o máximo possível."],
+    posture: ["Só o punho se move.", "Antebraços colados no apoio.", "Carga leve e muitas repetições."],
+  },
+  {
+    id: "rosca-punho-inversa", name: "Rosca de punho inversa", group: "antebraco", equipment: "Barra e banco", compound: false, pattern: "punho", media: "rosca-direta",
+    steps: ["Antebraços apoiados, palmas para baixo segurando a barra.", "Suba o dorso da mão o máximo possível.", "Desça devagar."],
+    posture: ["Movimento curto e controlado.", "Use menos carga que na rosca de punho.", "Antebraços parados."],
+  },
+  {
+    id: "rosca-inversa", name: "Rosca inversa com barra", group: "antebraco", equipment: "Barra", compound: false, pattern: "punho", media: "rosca-direta",
+    steps: ["Em pé, segure a barra com as palmas para baixo.", "Dobre os cotovelos subindo a barra até o peito.", "Desça devagar."],
+    posture: ["Cotovelos colados ao corpo.", "Punhos retos.", "Sem balançar o tronco."],
+  },
+  {
+    id: "caminhada-fazendeiro", name: "Caminhada do fazendeiro", group: "antebraco", equipment: "Halteres ou kettlebells", compound: true, pattern: "carregar", media: "rosca-martelo",
+    steps: ["Pegue um peso pesado em cada mão, ao lado do corpo.", "Caminhe a passos curtos e firmes pela distância ou tempo combinado.", "Pare, apoie os pesos no chão com a coluna reta."],
+    posture: ["Peito aberto e ombros para trás.", "Abdômen firme, sem inclinar para os lados.", "Pegue e solte os pesos agachando."],
+  },
+  {
+    id: "rolo-punho", name: "Rolo de punho", group: "antebraco", equipment: "Rolo com corda e anilha", compound: false, pattern: "punho", media: "rosca-direta",
+    steps: ["Segure o rolo com os braços estendidos à frente.", "Gire os punhos enrolando a corda até a anilha subir.", "Desenrole devagar até descer."],
+    posture: ["Braços na altura dos ombros.", "Ombros baixos.", "Gire alternando as mãos."],
+  },
+  // Condicionamento
+  {
+    id: "kettlebell-swing", name: "Swing com kettlebell", group: "cardio", equipment: "Kettlebell", compound: true, pattern: "cardio", media: "terra-romeno",
+    steps: ["Pés um pouco além dos ombros, kettlebell entre as pernas.", "Leve o quadril para trás e projete-o à frente com força, balançando o peso até a altura do peito.", "Deixe o peso voltar entre as pernas e emende a próxima."],
+    posture: ["A força vem do quadril, não dos braços.", "Coluna reta o tempo todo.", "Glúteos contraídos no topo."],
+  },
+  {
+    id: "mountain-climber", name: "Escalador (mountain climber)", group: "cardio", equipment: "Peso corporal", compound: true, pattern: "cardio", media: "prancha",
+    steps: ["Fique em posição de prancha alta, mãos sob os ombros.", "Leve um joelho em direção ao peito.", "Troque as pernas rapidamente, como se corresse no lugar."],
+    posture: ["Quadril alinhado, sem subir.", "Ombros sobre as mãos.", "Ritmo constante e respiração solta."],
+  },
+  {
+    id: "salto-estrela", name: "Salto estrela (polichinelo)", group: "cardio", equipment: "Peso corporal", compound: true, pattern: "cardio", media: "agachamento",
+    steps: ["Agache um pouco com os braços junto ao corpo.", "Salte abrindo braços e pernas em X.", "Aterrisse com os pés juntos e emende o próximo."],
+    posture: ["Aterrisse na ponta dos pés, joelhos macios.", "Abdômen firme.", "Para facilitar, faça o polichinelo comum."],
+  },
+  {
+    id: "salto-caixa", name: "Salto na caixa", group: "cardio", equipment: "Caixa de salto", compound: true, pattern: "cardio", media: "agachamento",
+    steps: ["Fique de frente para a caixa, pés na largura do quadril.", "Balance os braços e salte com os dois pés para cima da caixa.", "Fique em pé no topo e desça andando, um pé de cada vez."],
+    posture: ["Aterrisse com os joelhos alinhados aos pés.", "Comece com uma caixa baixa.", "Desça andando, não pulando."],
+  },
+  {
+    id: "corda-naval", name: "Corda naval", group: "cardio", equipment: "Corda naval", compound: true, pattern: "cardio", media: "agachamento",
+    steps: ["Segure uma ponta da corda em cada mão, em semiagachamento.", "Faça ondas alternando os braços rapidamente.", "Mantenha o ritmo pelo tempo da série."],
+    posture: ["Joelhos dobrados e tronco firme.", "Movimento vem dos ombros.", "Respire durante todo o tempo."],
+  },
+  {
+    id: "pular-corda", name: "Pular corda", group: "cardio", equipment: "Corda", compound: true, pattern: "cardio", media: "agachamento",
+    steps: ["Segure a corda com os cotovelos perto do corpo.", "Gire a corda com os punhos e salte baixo a cada volta.", "Mantenha o ritmo pelo tempo da série."],
+    posture: ["Saltos baixos, na ponta dos pés.", "Joelhos levemente dobrados.", "Os punhos giram, não os braços."],
+  },
+  {
+    id: "agachamento-salto", name: "Agachamento com salto", group: "cardio", equipment: "Peso corporal", compound: true, pattern: "cardio", media: "agachamento",
+    steps: ["Agache até as coxas ficarem perto da paralela.", "Salte o mais alto possível estendendo o corpo.", "Aterrisse macio já descendo para o próximo agachamento."],
+    posture: ["Joelhos alinhados com os pés.", "Peito aberto.", "Aterrisse sem fazer barulho."],
+  },
+  {
+    id: "thruster-kettlebell", name: "Thruster com kettlebell", group: "cardio", equipment: "Kettlebell", compound: true, pattern: "cardio", media: "agachamento",
+    steps: ["Segure o kettlebell na altura dos ombros.", "Agache e, ao subir, empurre o peso acima da cabeça num movimento só.", "Traga o peso de volta aos ombros e repita."],
+    posture: ["Use o impulso das pernas para subir o peso.", "Coluna reta no agachamento.", "Braço estendido acima da cabeça, sem arquear a lombar."],
+  },
+  {
+    id: "remo-ergometro", name: "Remo ergômetro", group: "cardio", equipment: "Remo ergômetro", compound: true, pattern: "cardio", media: "remada-baixa",
+    steps: ["Prenda os pés e segure o puxador com os braços estendidos.", "Empurre com as pernas, incline o tronco para trás e puxe o puxador até o abdômen.", "Volte na ordem inversa: braços, tronco e pernas."],
+    posture: ["Pernas fazem a maior parte da força.", "Coluna reta, sem curvar.", "Ritmo forte e constante."],
+  },
+  {
+    id: "empurrar-treno", name: "Empurrar trenó", group: "cardio", equipment: "Trenó", compound: true, pattern: "cardio", media: "leg-press",
+    steps: ["Segure as barras do trenó com o corpo inclinado à frente.", "Empurre com passos curtos e fortes.", "Siga até o fim da distância."],
+    posture: ["Braços firmes, quase estendidos.", "Corpo em linha reta da cabeça aos pés.", "Empurre com as pernas."],
+  },
+  {
+    id: "bicicleta-ergometrica", name: "Bicicleta ergométrica (tiro)", group: "cardio", equipment: "Bicicleta ergométrica", compound: true, pattern: "cardio", media: "leg-press",
+    steps: ["Ajuste o banco para o joelho ficar quase estendido embaixo.", "Pedale forte pelo tempo da série.", "Reduza no descanso sem parar de pedalar."],
+    posture: ["Tronco estável.", "Aumente a carga em vez de só girar rápido.", "Respire no ritmo."],
+  },
+  {
+    id: "esteira-corrida", name: "Corrida na esteira (tiro)", group: "cardio", equipment: "Esteira", compound: true, pattern: "cardio", media: "afundo",
+    steps: ["Aqueça caminhando e suba a velocidade.", "Corra forte pelo tempo da série.", "Volte a caminhar no descanso."],
+    posture: ["Passadas curtas, pisando embaixo do corpo.", "Não segure nas barras.", "Use a chave de segurança presa à roupa."],
+  },
+  {
+    id: "eliptico", name: "Elíptico (tiro)", group: "cardio", equipment: "Elíptico", compound: true, pattern: "cardio", media: "afundo",
+    steps: ["Suba no aparelho e segure as alças.", "Pedale forte empurrando e puxando as alças.", "Diminua o ritmo no descanso."],
+    posture: ["Tronco ereto.", "Pés inteiros nos pedais.", "Braços e pernas trabalham juntos."],
+  },
+  // Posterior e glúteos
+  {
+    id: "terra-convencional", name: "Levantamento terra", group: "posterior", equipment: "Barra", compound: true, pattern: "dobrar-quadril", media: "terra-romeno",
+    steps: ["Pés na largura do quadril, barra sobre o meio do pé.", "Agache e segure a barra por fora das pernas, peito aberto.", "Empurre o chão e estenda quadril e joelhos juntos até ficar em pé; desça a barra rente às pernas."],
+    posture: ["Coluna neutra do início ao fim.", "Barra sempre encostada nas pernas.", "Abdômen firme antes de puxar."],
+  },
+  {
+    id: "terra-sumo", name: "Levantamento terra sumô", group: "posterior", equipment: "Barra", compound: true, pattern: "dobrar-quadril", media: "terra-romeno",
+    steps: ["Pés bem afastados, pontas para fora, barra sobre o meio do pé.", "Segure a barra por dentro das pernas, peito aberto.", "Empurre o chão afastando os joelhos e suba até ficar em pé."],
+    posture: ["Joelhos na direção das pontas dos pés.", "Coluna neutra.", "Tronco mais vertical que no terra comum."],
+  },
+  {
+    id: "terra-hexagonal", name: "Levantamento terra com barra hexagonal", group: "posterior", equipment: "Barra hexagonal (trap bar)", compound: true, pattern: "dobrar-quadril", media: "terra-romeno",
+    steps: ["Fique dentro da barra e segure as alças laterais.", "Com o peito aberto, empurre o chão até ficar em pé.", "Desça controlando até os pesos tocarem o chão."],
+    posture: ["Coluna neutra.", "Quadril e joelhos sobem juntos.", "Variação mais fácil para a lombar."],
+  },
+  {
+    id: "bom-dia", name: "Bom-dia com barra", group: "posterior", equipment: "Barra e rack", compound: true, pattern: "dobrar-quadril", media: "terra-romeno",
+    steps: ["Apoie a barra nas costas como no agachamento.", "Com os joelhos levemente dobrados, leve o quadril para trás inclinando o tronco.", "Volte contraindo glúteos e posteriores."],
+    posture: ["Coluna neutra sempre.", "Desça só até sentir o posterior alongar.", "Use carga leve."],
+  },
+  {
+    id: "abdutora", name: "Cadeira abdutora", group: "posterior", equipment: "Máquina", compound: false, pattern: "estender-quadril", media: "hip-thrust",
+    steps: ["Sente com as almofadas por fora dos joelhos.", "Afaste as pernas o máximo possível.", "Volte devagar sem deixar os pesos baterem."],
+    posture: ["Costas apoiadas.", "Movimento controlado nos dois sentidos.", "Trabalha o glúteo médio."],
+  },
+  // Quadríceps
+  {
+    id: "adutora", name: "Cadeira adutora", group: "quadriceps", equipment: "Máquina", compound: false, pattern: "estender-joelho", media: "extensora",
+    steps: ["Sente com as almofadas por dentro dos joelhos.", "Feche as pernas apertando as almofadas.", "Abra devagar até o limite confortável."],
+    posture: ["Costas apoiadas.", "Sem tranco na volta.", "Trabalha a parte interna da coxa."],
+  },
+  {
+    id: "agachamento-frontal", name: "Agachamento frontal", group: "quadriceps", equipment: "Barra e rack", compound: true, pattern: "agachar", media: "agachamento",
+    steps: ["Apoie a barra na frente dos ombros com os cotovelos altos.", "Agache mantendo o tronco o mais vertical possível.", "Suba empurrando o chão."],
+    posture: ["Cotovelos sempre apontando à frente.", "Joelhos na direção dos pés.", "Coluna neutra."],
+  },
+  {
+    id: "afundo-caminhando", name: "Afundo caminhando", group: "quadriceps", equipment: "Peso corporal ou halteres", compound: true, pattern: "unilateral-joelho", media: "afundo",
+    steps: ["Dê um passo largo à frente e desça até os dois joelhos ficarem a ~90°.", "Empurre com a perna da frente e traga a de trás para o próximo passo.", "Siga alternando as pernas."],
+    posture: ["Tronco ereto.", "Joelho da frente alinhado com o pé.", "Joelho de trás perto do chão, sem bater."],
+  },
+  // Peito
+  {
+    id: "mergulho-paralelas", name: "Mergulho nas paralelas (peito)", group: "peito", equipment: "Barras paralelas", compound: true, pattern: "empurrar-horizontal", media: "flexao",
+    steps: ["Apoie-se nas paralelas com os braços estendidos.", "Incline o tronco à frente e desça até os ombros ficarem um pouco abaixo dos cotovelos.", "Empurre de volta para cima."],
+    posture: ["Tronco inclinado à frente foca o peito.", "Ombros baixos, longe das orelhas.", "Use o gravitron se ainda não consegue o peso do corpo."],
+  },
+  {
+    id: "supino-declinado", name: "Supino declinado com barra", group: "peito", equipment: "Barra e banco declinado", compound: true, pattern: "empurrar-horizontal", media: "supino-reto",
+    steps: ["Deite no banco declinado com as pernas presas.", "Desça a barra até a parte de baixo do peito.", "Empurre até estender os braços."],
+    posture: ["Escápulas juntas.", "Punhos sobre os cotovelos.", "Peça ajuda para tirar e devolver a barra."],
+  },
+  {
+    id: "pullover-halter", name: "Pullover com halter", group: "peito", equipment: "Halter e banco", compound: false, pattern: "aduzir-ombro", media: "supino-inclinado",
+    steps: ["Deite no banco segurando um halter com as duas mãos acima do peito.", "Leve o halter para trás da cabeça com os braços quase estendidos.", "Volte à posição inicial."],
+    posture: ["Cotovelos levemente dobrados e fixos.", "Desça só até sentir alongar, sem dor no ombro.", "Abdômen firme, lombar no banco."],
+  },
+  // Tríceps
+  {
+    id: "mergulho-triceps", name: "Mergulho nas paralelas (tríceps)", group: "triceps", equipment: "Barras paralelas", compound: true, pattern: "estender-cotovelo", media: "triceps-frances",
+    steps: ["Apoie-se nas paralelas com os braços estendidos e o tronco reto.", "Desça dobrando os cotovelos para trás.", "Empurre até estender os braços."],
+    posture: ["Tronco vertical foca o tríceps.", "Cotovelos apontando para trás.", "Desça até ~90° no cotovelo."],
+  },
+  {
+    id: "mergulho-banco", name: "Mergulho no banco", group: "triceps", equipment: "Banco", compound: true, pattern: "estender-cotovelo", media: "triceps-frances",
+    steps: ["Apoie as mãos na borda do banco atrás de você, pernas à frente.", "Desça o quadril dobrando os cotovelos.", "Empurre até estender os braços."],
+    posture: ["Costas perto do banco.", "Cotovelos para trás, não para os lados.", "Joelhos dobrados facilitam."],
+  },
+  {
+    id: "supino-fechado", name: "Supino fechado", group: "triceps", equipment: "Barra e banco", compound: true, pattern: "estender-cotovelo", media: "supino-reto",
+    steps: ["Deite no banco e segure a barra com as mãos na largura dos ombros.", "Desça a barra até a parte de baixo do peito, cotovelos colados.", "Empurre até estender os braços."],
+    posture: ["Cotovelos junto ao corpo.", "Punhos retos.", "Não feche demais a pegada."],
+  },
+  // Costas
+  {
+    id: "barra-supinada", name: "Barra fixa supinada (chin-up)", group: "costas", equipment: "Barra fixa", compound: true, pattern: "puxar-vertical", media: "barra-fixa",
+    steps: ["Segure a barra com as palmas viradas para você, na largura dos ombros.", "Puxe até o queixo passar da barra.", "Desça devagar até estender os braços."],
+    posture: ["Peito em direção à barra.", "Sem balançar as pernas.", "Use elástico ou gravitron se precisar."],
+  },
+  {
+    id: "remada-curvada-halteres", name: "Remada curvada com halteres", group: "costas", equipment: "Halteres", compound: true, pattern: "puxar-horizontal", media: "remada-curvada",
+    steps: ["Incline o tronco à frente com um halter em cada mão.", "Puxe os halteres até a lateral do abdômen.", "Desça devagar."],
+    posture: ["Coluna neutra.", "Cotovelos rentes ao corpo.", "Junte as escápulas no topo."],
+  },
+  // Bíceps
+  {
+    id: "rosca-spider", name: "Rosca spider", group: "biceps", equipment: "Barra W e banco inclinado", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["Deite de bruços no banco inclinado com os braços pendurados.", "Suba a barra dobrando os cotovelos.", "Desça devagar até estender."],
+    posture: ["Braços perpendiculares ao chão.", "Cotovelos parados.", "Pausa no topo."],
+  },
+  {
+    id: "rosca-zottman", name: "Rosca Zottman", group: "biceps", equipment: "Halteres", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["Suba os halteres com as palmas para cima.", "No topo, gire as palmas para baixo.", "Desça devagar assim e gire de volta embaixo."],
+    posture: ["Cotovelos colados ao corpo.", "Descida lenta.", "Trabalha bíceps e antebraço."],
+  },
+  {
+    id: "rosca-martelo-inclinada", name: "Rosca martelo no banco inclinado", group: "biceps", equipment: "Halteres e banco", compound: false, pattern: "flexionar-cotovelo", media: "rosca-martelo",
+    steps: ["Sente no banco inclinado com os braços pendurados, palmas viradas uma para a outra.", "Suba os halteres sem girar os punhos.", "Desça devagar."],
+    posture: ["Costas apoiadas.", "Cotovelos parados.", "Amplitude completa."],
+  },
+  // Ombros
+  {
+    id: "elevacao-frontal", name: "Elevação frontal com halteres", group: "ombros", equipment: "Halteres", compound: false, pattern: "abduzir-ombro", media: "elevacao-lateral",
+    steps: ["Em pé, halteres à frente das coxas.", "Suba os braços à frente até a altura dos ombros.", "Desça devagar."],
+    posture: ["Cotovelos levemente dobrados.", "Sem jogar o tronco para trás.", "Pode alternar os braços."],
+  },
+  {
+    id: "elevacao-frontal-anilha", name: "Elevação frontal com anilha", group: "ombros", equipment: "Anilha", compound: false, pattern: "abduzir-ombro", media: "elevacao-lateral",
+    steps: ["Segure uma anilha com as duas mãos à frente do corpo.", "Suba a anilha até a altura dos olhos.", "Desça devagar."],
+    posture: ["Braços quase estendidos.", "Abdômen firme.", "Sem embalo."],
+  },
+  // Abdômen
+  {
+    id: "abdominal-bicicleta", name: "Abdominal bicicleta", group: "core", equipment: "Colchonete", compound: false, pattern: "flexionar-tronco", media: "abdominal-polia",
+    steps: ["Deite de costas com as mãos ao lado da cabeça e as pernas no ar.", "Leve o cotovelo em direção ao joelho oposto, esticando a outra perna.", "Alterne os lados num ritmo contínuo."],
+    posture: ["Não puxe a cabeça com as mãos.", "Lombar no chão.", "Gire o tronco, não só o cotovelo."],
+  },
+  {
+    id: "rodinha-abdominal", name: "Rodinha abdominal", group: "core", equipment: "Rodinha", compound: false, pattern: "estabilizar-core", media: "prancha",
+    steps: ["De joelhos, segure a rodinha à frente dos joelhos.", "Role à frente estendendo o corpo até onde conseguir sem arquear a lombar.", "Volte puxando com o abdômen."],
+    posture: ["Abdômen e glúteos contraídos.", "Lombar nunca afunda.", "Aumente a distância aos poucos."],
+  },
+  {
+    id: "elevacao-pernas-suspenso", name: "Elevação de pernas suspenso", group: "core", equipment: "Barra fixa", compound: false, pattern: "flexionar-tronco", media: "abdominal-polia",
+    steps: ["Pendure-se na barra com os braços estendidos.", "Suba as pernas até a altura do quadril ou mais.", "Desça devagar sem balançar."],
+    posture: ["Sem embalo.", "Enrole o quadril no topo.", "Dobre os joelhos para facilitar."],
+  },
+  {
+    id: "russian-twist", name: "Rotação russa (russian twist)", group: "core", equipment: "Colchonete e anilha", compound: false, pattern: "flexionar-tronco", media: "abdominal-polia",
+    steps: ["Sente com os joelhos dobrados e o tronco inclinado para trás.", "Gire o tronco levando as mãos (ou um peso) de um lado ao outro.", "Siga alternando."],
+    posture: ["Coluna reta, sem curvar.", "Gire o tronco, não só os braços.", "Pés no chão para facilitar."],
+  },
+  {
+    id: "abdominal-obliquo", name: "Abdominal oblíquo", group: "core", equipment: "Colchonete", compound: false, pattern: "flexionar-tronco", media: "abdominal-polia",
+    steps: ["Deite de costas com os joelhos dobrados caídos para um lado.", "Suba o tronco contraindo a lateral do abdômen.", "Desça devagar; depois troque o lado."],
+    posture: ["Mãos ao lado da cabeça, sem puxar.", "Movimento curto.", "Expire ao subir."],
+  },
+  {
+    id: "elevacao-pernas-banco", name: "Elevação de pernas no banco", group: "core", equipment: "Banco", compound: false, pattern: "flexionar-tronco", media: "abdominal-polia",
+    steps: ["Deite no banco segurando a borda atrás da cabeça.", "Suba as pernas estendidas até ficarem verticais.", "Desça devagar sem encostar."],
+    posture: ["Lombar colada no banco.", "Joelhos levemente dobrados se precisar.", "Sem embalo."],
+  },
 ];
 
 export const EXERCISES: Exercise[] = [
@@ -546,6 +839,7 @@ const SIMILAR: [Pattern, Pattern][] = [
   ["dobrar-quadril", "flexionar-joelho"],
   ["empurrar-vertical", "abduzir-ombro"],
   ["estabilizar-core", "flexionar-tronco"],
+  ["punho", "carregar"],
 ];
 const isSimilar = (a: Pattern, b: Pattern) => SIMILAR.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 

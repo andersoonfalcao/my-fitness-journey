@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { KEYS, targets, today, useLocal, type Focus, type Level, type Profile, type WeightEntry } from "@/lib/store";
 import { generatePlan, type Plan } from "@/lib/plan";
-import { LogOut } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { logout, useAuth } from "@/lib/auth";
 import { InvitesPanel } from "@/components/InvitesPanel";
 import { StravaCard } from "@/components/StravaCard";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { MethodPicker } from "@/components/MethodPicker";
+import { RegenerateDialog } from "@/components/RegenerateDialog";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -43,7 +45,10 @@ const LEVELS: { v: Level; t: string }[] = [
 
 function PerfilPage() {
   const [saved, setProfile, ready] = useLocal<Profile | null>(KEYS.profile, null);
-  const [, setPlan] = useLocal<Plan | null>(KEYS.plan, null);
+  const [plan, setPlan] = useLocal<Plan | null>(KEYS.plan, null);
+  const [doneLog] = useLocal<string[]>(KEYS.done, []);
+  const [, setCycleStart] = useLocal<number>(KEYS.cycle, 0);
+  const [regen, setRegen] = useState(false);
   const [, setWeights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [p, setP] = useState<Profile>(DEFAULT);
   const nav = useNavigate();
@@ -59,7 +64,8 @@ function PerfilPage() {
 
   const save = () => {
     setProfile(p);
-    setPlan(generatePlan(p));
+    setPlan(generatePlan(p, { variation: plan?.variation }));
+    setCycleStart(doneLog.length);
     setWeights((w) => (w.length ? w : [{ date: today(), kg: p.weight }]));
     toast.success("Perfil salvo e plano de treino gerado!");
     nav({ to: "/treinos" });
@@ -158,6 +164,14 @@ function PerfilPage() {
         </div>
       </section>
 
+      <section className="space-y-4 rounded-3xl border border-border bg-card p-6">
+        <div>
+          <h2 className="text-xl font-bold">4. Método de treino</h2>
+          <p className="text-sm text-muted-foreground">Sugerido pelo seu foco, nível e dias por semana. Toque em outro para mudar.</p>
+        </div>
+        <MethodPicker profile={p} value={p.method} onChange={(method) => set("method", method)} />
+      </section>
+
       <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
         <h2 className="text-xl font-bold">Suas metas diárias</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -171,6 +185,15 @@ function PerfilPage() {
       <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
         Salvar e gerar meu plano de treino
       </button>
+      {saved && plan && (
+        <div className="-mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
+          <span className="text-muted-foreground">Plano atual: <b className="text-foreground">{plan.method}</b></span>
+          <button type="button" onClick={() => setRegen(true)} className="inline-flex items-center gap-1.5 font-semibold text-primary underline-offset-4 hover:underline">
+            <RefreshCw className="h-4 w-4" />Regerar treino (exercícios ou método)
+          </button>
+        </div>
+      )}
+      <RegenerateDialog open={regen} onOpenChange={setRegen} onDone={() => nav({ to: "/treinos" })} />
 
       <SettingsPanel />
 

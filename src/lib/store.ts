@@ -118,6 +118,8 @@ export type Profile = {
   days: number;
   level: Level;
   minutes: number;
+  /** Training method chosen by the person; missing = the one recommended for goal, level and days. */
+  method?: import("./methods").MethodId | undefined;
 };
 
 export type MealType = "cafe" | "almoco" | "lanche" | "jantar";
