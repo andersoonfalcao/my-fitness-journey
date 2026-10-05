@@ -1,5 +1,5 @@
 import { getAI, getGenerativeModel, GoogleAIBackend, type ObjectSchema } from "firebase/ai";
-import { firebaseApp } from "./firebase";
+import { firebaseApp, startAppCheck } from "./firebase";
 
 export { Schema } from "firebase/ai";
 
@@ -14,6 +14,7 @@ function model(name: string, system: string, schema: ObjectSchema) {
   const key = `${name}\n${system}`;
   let m = models.get(key);
   if (!m) {
+    startAppCheck();
     const ai = getAI(firebaseApp(), { backend: new GoogleAIBackend() });
     m = getGenerativeModel(ai, {
       model: name,

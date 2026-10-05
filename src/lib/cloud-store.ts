@@ -1,4 +1,5 @@
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
+import { toast } from "sonner";
 import { db } from "./firebase";
 
 // Each key of the old localStorage store is one Firestore document: users/{uid}/data/{key} = { json }.
@@ -50,12 +51,47 @@ export function readCloud<T>(uid: string, key: string, fallback: T): { value: T;
   return { value: e?.value === undefined ? fallback : (e.value as T), ready: !!e?.ready };
 }
 
-/** Updates the cache immediately (every screen sees it) and saves to Firestore, which queues it while offline. */
-export function writeCloud<T>(uid: string, key: string, value: T) {
+// A Firestore document holds at most 1 MB; warn well before a growing key gets there.
+const WARN_CHARS = 800_000;
+let lastSaveError = 0;
+
+/**
+ * Offline writes are queued and don't fail; a rejected write (document too large, access revoked) would
+ * otherwise vanish silently while the screen still shows the value, so it is reported (at most every 10 s).
+ */
+function reportSaveError(error: unknown) {
+  console.error("forma: falha ao salvar", error);
+  if (Date.now() - lastSaveError < 10_000) return;
+  lastSaveError = Date.now();
+  toast.error("Não foi possível salvar na nuvem", { description: "O último registro pode não ter sido guardado. Recarregue o app e confira." });
+}
+
+function serialize(key: string, value: unknown) {
+  const json = JSON.stringify(value);
+  if (json.length > WARN_CHARS) console.warn(`forma: ${key} tem ${Math.round(json.length / 1000)} mil caracteres (limite do documento: 1 MB)`);
+  return { json, updatedAt: serverTimestamp() };
+}
+
+function setCache(uid: string, key: string, value: unknown) {
   const e = entry(uid, key);
   e.value = value;
   e.subs.forEach((fn) => fn());
-  void setDoc(ref(uid, key), { json: JSON.stringify(value), updatedAt: serverTimestamp() });
+}
+
+/** Updates the cache immediately (every screen sees it) and saves to Firestore, which queues it while offline. */
+export function writeCloud<T>(uid: string, key: string, value: T) {
+  setCache(uid, key, value);
+  setDoc(ref(uid, key), serialize(key, value)).catch(reportSaveError);
+}
+
+/** Saves several keys all-or-nothing (e.g. moving records between documents without losing or doubling any). */
+export function writeCloudMany(uid: string, values: [key: string, value: unknown][]) {
+  const batch = writeBatch(db());
+  for (const [key, value] of values) {
+    setCache(uid, key, value);
+    batch.set(ref(uid, key), serialize(key, value));
+  }
+  batch.commit().catch(reportSaveError);
 }
 
 const LOCAL_KEYS = ["forma.profile", "forma.weights", "forma.loads", "forma.plan", "forma.done", "forma.session", "forma.history"];
@@ -96,6 +132,9 @@ export async function migrateLocalData(uid: string) {
 export const foodsKey = (date: string) => `forma.foods.${date.slice(0, 7)}`;
 /** Water intake per month: { "YYYY-MM-DD": ml }. */
 export const waterKey = (date: string) => `forma.water.${date.slice(0, 7)}`;
+/** Finished workouts per month; `historyMonthsKey` lists the months that have a document. */
+export const historyKey = (month: string) => `forma.history.${month}`;
+export const historyMonthsKey = "forma.history.months";
 /** Closed days (summary + AI review) per month. */
 export const daysKey = (date: string) => `forma.days.${date.slice(0, 7)}`;
 

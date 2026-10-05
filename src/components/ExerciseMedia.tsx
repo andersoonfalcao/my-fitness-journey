@@ -52,8 +52,8 @@ export function ExerciseMedia({ exercise, compact = false, className, onOpen }: 
           src={src}
           alt={i === 0 ? `Execução de ${exercise.name}` : ""}
           loading="lazy"
-          width={850}
-          height={567}
+          width={640}
+          height={427}
           // Photos are landscape: the small card crops to fill, the details view shows the whole frame.
           className={cn("absolute inset-0 h-full w-full transition-opacity duration-500", compact ? "object-cover" : "object-contain", frame === i ? "opacity-100" : "opacity-0")}
         />

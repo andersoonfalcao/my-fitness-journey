@@ -14,6 +14,7 @@ import {
   KEYS,
   targets,
   today,
+  useHistory,
   useLocal,
   waterKey,
   type BodyEntry,
@@ -60,7 +61,7 @@ function CalendarPage() {
   const [water] = useLocal<WaterLog>(waterKey(first), {});
   const [closedDays] = useLocal<DayRecord[]>(daysKey(first), []);
   const [strava] = useLocal<StravaActivity[]>(stravaKey(first), []);
-  const [history] = useLocal<WorkoutRecord[]>(KEYS.history, []);
+  const [history] = useHistory();
   const [weights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [body] = useLocal<BodyEntry[]>(KEYS.body, []);
   const [share, setShare] = useState<ShareRequest | null>(null);

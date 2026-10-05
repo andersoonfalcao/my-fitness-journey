@@ -1,4 +1,5 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import { getAuth, type Auth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, type Firestore } from "firebase/firestore";
 
@@ -17,6 +18,21 @@ export const ADMIN_EMAIL = "andersoonfalcao@gmail.com";
 
 export function firebaseApp(): FirebaseApp {
   return getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+}
+
+/**
+ * reCAPTCHA Enterprise site key ("forma web" in Google Cloud > reCAPTCHA, public by design) registered in
+ * Firebase > App Check for the web app. App Check is mandatory for AI Logic from 2026-11-02.
+ * Allowed domains: apptreino.web.app, apptreino-f3677.web.app, apptreino-f3677.firebaseapp.com, localhost.
+ */
+const RECAPTCHA_SITE_KEY = "6LePkOAtAAAAACWhwzw-555Eeg6QVgRXTC0DcGqr";
+let appCheckStarted = false;
+
+/** Starts App Check once (before the first AI call), so Gemini requests carry a token proving they come from this app. */
+export function startAppCheck() {
+  if (appCheckStarted || !RECAPTCHA_SITE_KEY || typeof window === "undefined") return;
+  appCheckStarted = true;
+  initializeAppCheck(firebaseApp(), { provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true });
 }
 
 let authInstance: Auth | null = null;

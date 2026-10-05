@@ -7,16 +7,17 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { KEYS, today, uid, useLocal, type LoadEntry, type Profile, type WorkoutRecord, type WorkoutSession } from "@/lib/store";
+import { KEYS, today, uid, useHistory, useLocal, type LoadEntry, type Profile, type WorkoutRecord, type WorkoutSession } from "@/lib/store";
 import { generatePlan, nextWorkoutIndex, normalizePlan, repsCount, repsFor, type Plan } from "@/lib/plan";
-import { alternatives, byId, GROUP_LABEL, youtubeSearchUrl, type Exercise } from "@/lib/exercises";
+import { alternatives, byId, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
 import { StravaActivities } from "@/components/StravaActivities";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { workoutCard } from "@/lib/share-card";
-import { lastRecordBefore, recordTotal, repsOfSet, sumKg, volume, type SetValues } from "@/lib/workout-stats";
+import { lastRecordBefore, loadAdvice, personalRecords, recordTotal, repsOfSet, setsByGroup, sumKg, volume, weekStart, type SetValues } from "@/lib/workout-stats";
+import { askRestNotifications, notifyRestOver, useWakeLock } from "@/lib/workout-device";
 
 export const Route = createFileRoute("/treinos")({
   head: () => ({
@@ -39,7 +40,7 @@ function TreinosPage() {
   const [cycleStart, setCycleStart] = useLocal<number>(KEYS.cycle, 0);
   const [loads, setLoads] = useLocal<LoadEntry[]>(KEYS.loads, []);
   const [session, setSession] = useLocal<WorkoutSession | null>(KEYS.session, null);
-  const [history, setHistory] = useLocal<WorkoutRecord[]>(KEYS.history, []);
+  const [history, setHistory] = useHistory();
   const [share, setShare] = useState<ShareRequest | null>(null);
   const [loadInputs, setLoadInputs] = useState<Record<string, string>>({});
   const [repsInputs, setRepsInputs] = useState<Record<string, string>>({});
@@ -47,6 +48,8 @@ function TreinosPage() {
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [swap, setSwap] = useState<{ d: number; i: number } | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+
+  useWakeLock(!!session);
 
   // Plans saved before single rep targets still carry ranges like "6–10"; convert them once.
   useEffect(() => {
@@ -96,6 +99,7 @@ function TreinosPage() {
 
   // Comparison baseline: the last time this same workout (by name) was finished.
   const lastRecordOf = (dayName: string) => lastRecordBefore(history, dayName);
+  const adviceFor = (ex: Exercise) => loadAdvice(history, ex);
   const previousOf = (record: WorkoutRecord | undefined, i: number, exId: string) =>
     record?.exercises[i]?.exId === exId ? record.exercises[i] : record?.exercises.find((e) => e.exId === exId);
 
@@ -135,6 +139,13 @@ function TreinosPage() {
       ? ` · ${formatKg(todayTotal)}${lastFinishTotal > 0 ? ` (${formatDiff(todayTotal - lastFinishTotal)} vs. última vez)` : ""}`
       : "";
     toast.success(session ? `Treino concluído em ${formatDuration(finishedAt - session.startedAt)}${weight}! 💪` : "Treino concluído! 💪");
+    const records = personalRecords(history, record);
+    if (records.length > 0) {
+      toast(`🏆 ${records.length === 1 ? "Novo recorde!" : `${records.length} novos recordes!`}`, {
+        description: records.map((r) => `${r.name}: ${formatKg(r.kg)} (antes ${formatKg(r.previousKg)})`).join(" · "),
+        duration: 8000,
+      });
+    }
     setSession(null);
   };
 
@@ -232,7 +243,7 @@ function TreinosPage() {
           )}
         </div>
       ) : (
-        <button onClick={() => setSession({ dayName: day.name, startedAt: Date.now() })}
+        <button onClick={() => { askRestNotifications(); setSession({ dayName: day.name, startedAt: Date.now() }); }}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 font-display text-lg font-bold text-primary-foreground">
           <Play className="h-5 w-5" />Iniciar {day.name}
         </button>
@@ -248,7 +259,10 @@ function TreinosPage() {
           const setsDone = tracksSets ? session?.sets?.[i] ?? 0 : 0;
           const kgsToday = tracksSets ? session?.kgs?.[i] ?? [] : [];
           const prev = previousOf(lastRecordOf(day.name), i, ex.id);
-          const suggested = kgsToday.at(-1) ?? prev?.setKgs?.[setsDone] ?? latest?.kg;
+          // Within a session, repeat the weight just used; otherwise follow the progression from the last session.
+          const advice = adviceFor(ex);
+          const suggested = kgsToday.at(-1) ?? advice?.kgFor(setsDone) ?? prev?.setKgs?.[setsDone] ?? latest?.kg;
+          const showAdvice = advice && advice.kind !== "manter" && kgsToday.length === 0;
           const typed = (loadInputs[ex.id] ?? "").trim();
           const typedKg = typed ? Number(typed.replace(",", ".")) : undefined;
           const setKg = typed ? typedKg : suggested;
@@ -328,7 +342,15 @@ function TreinosPage() {
                 )}
                 <div className="mt-3 border-t border-border pt-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-xs">
-                    <span className="font-bold text-muted-foreground">Carga usada</span>
+                    <span className="inline-flex items-center gap-2 font-bold text-muted-foreground">
+                      Carga usada
+                      {showAdvice && (
+                        <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${advice.kind === "subir" ? "bg-accent/15 text-accent" : "bg-destructive/10 text-destructive"}`}>
+                          {advice.kind === "subir" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          {advice.kind === "subir" ? "subir carga" : "reduzir carga"}
+                        </span>
+                      )}
+                    </span>
                     {latest && (
                       <button type="button" onClick={() => setDetail(ex)} className="inline-flex items-center gap-1 font-semibold text-primary">
                         Última: {formatKg(latest.kg)}
@@ -371,6 +393,7 @@ function TreinosPage() {
                       <Save />Registrar
                     </Button>
                   </div>
+                  {showAdvice && <p className="mt-1.5 text-xs text-muted-foreground">{advice.reason}</p>}
                   {tracksSets && setsDone < it.sets && (
                     <Button type="button" onClick={onCompleteSet} className="mt-2 h-auto min-h-9 w-full whitespace-normal rounded-full py-2">
                       <Check />Concluir série {setsDone + 1}
@@ -424,6 +447,8 @@ function TreinosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <WeeklyVolume records={history} />
 
       <StravaActivities />
 
@@ -558,6 +583,7 @@ function RestCountdown({ endsAt, next, onAdd, onDone }: { endsAt: number; next: 
     if (left > 0) return;
     navigator.vibrate?.([300, 150, 300]);
     beep();
+    void notifyRestOver(next);
     toast("Descanso acabou! Hora da próxima série", { description: next });
     onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -625,8 +651,9 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
           const planned = r.exercises.reduce((sum, e) => sum + e.setsPlanned, 0);
           const total = recordTotal(r);
           const beforeTotal = recordTotal(lastRecordBefore(records.slice(0, index), r.dayName));
-          return { r, index, done, planned, total, diff: total > 0 && beforeTotal > 0 ? total - beforeTotal : null };
-        }).reverse().map(({ r, index, done, planned, total, diff }) => {
+          const prs = new Set(personalRecords(records.slice(0, index), r).map((p) => p.exId));
+          return { r, index, done, planned, total, prs, diff: total > 0 && beforeTotal > 0 ? total - beforeTotal : null };
+        }).reverse().map(({ r, index, done, planned, total, prs, diff }) => {
           return (
             <details key={r.id} className="group rounded-3xl border border-border bg-card px-4 py-3">
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
@@ -635,7 +662,10 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
                     <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       {new Date(`${r.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}
                     </div>
-                    <div className="font-display text-lg font-bold leading-tight">{r.dayName}</div>
+                    <div className="font-display text-lg font-bold leading-tight">
+                      {r.dayName}
+                      {prs.size > 0 && <span className="ml-2 align-middle text-xs font-bold text-accent">🏆 {prs.size === 1 ? "recorde" : `${prs.size} recordes`}</span>}
+                    </div>
                   </div>
                   <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                 </div>
@@ -650,7 +680,7 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
                 {r.exercises.map((e, i) => (
                   <li key={i} className="py-2">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="min-w-0">{e.name}</span>
+                      <span className="min-w-0">{e.name}{prs.has(e.exId) && <span className="ml-1" role="img" aria-label="recorde pessoal">🏆</span>}</span>
                       <span className={`shrink-0 font-semibold tabular-nums ${e.setsDone >= e.setsPlanned ? "text-accent" : ""}`}>{e.setsDone}/{e.setsPlanned} séries</span>
                     </div>
                     <div className="text-xs tabular-nums text-muted-foreground">
@@ -670,6 +700,44 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
           );
         })
       )}
+    </section>
+  );
+}
+
+// Weekly hard sets per muscle that most hypertrophy studies land on (e.g. Schoenfeld et al. 2017, Baz-Valle et al. 2022).
+const WEEK_SETS = { min: 10, max: 20 };
+const SCALE_SETS = 25;
+
+function WeeklyVolume({ records }: { records: WorkoutRecord[] }) {
+  const from = weekStart(today());
+  const sets = setsByGroup(records, from);
+  const groups = Object.keys(GROUP_LABEL) as Group[];
+  const pct = (n: number) => `${(Math.min(n, SCALE_SETS) / SCALE_SETS) * 100}%`;
+  return (
+    <section className="space-y-3 rounded-3xl border border-border bg-card p-4">
+      <div>
+        <h2 className="text-xl font-bold">Séries da semana por músculo</h2>
+        <p className="text-xs text-muted-foreground">
+          Desde segunda ({formatDate(from)}). A faixa marcada ({WEEK_SETS.min} a {WEEK_SETS.max} séries) é a referência para ganho de massa; abdômen e
+          braços também recebem estímulo dos exercícios compostos.
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {groups.map((g) => {
+          const n = sets[g] ?? 0;
+          const tone = n > WEEK_SETS.max ? "bg-destructive" : n >= WEEK_SETS.min ? "bg-accent" : "bg-primary/40";
+          return (
+            <li key={g} className="grid grid-cols-[6.5rem_1fr_2rem] items-center gap-2 text-sm">
+              <span className="truncate">{GROUP_LABEL[g]}</span>
+              <span className="relative h-3 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${GROUP_LABEL[g]}: ${n} séries`}>
+                <span className="absolute inset-y-0 border-x border-accent/60 bg-accent/10" style={{ left: pct(WEEK_SETS.min), width: `calc(${pct(WEEK_SETS.max)} - ${pct(WEEK_SETS.min)})` }} />
+                <span className={`absolute inset-y-0 left-0 rounded-full ${tone}`} style={{ width: pct(n) }} />
+              </span>
+              <span className="text-right font-display font-bold tabular-nums">{n}</span>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

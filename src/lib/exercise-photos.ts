@@ -101,7 +101,7 @@ const PHOTO_IDS: Record<string, string> = {
   "abdominal-reverso": "Reverse_Crunch",
 };
 
-const files = import.meta.glob<string>("@/assets/fedb/*.jpg", { eager: true, import: "default" });
+const files = import.meta.glob<string>("@/assets/fedb/*.webp", { eager: true, import: "default" });
 const fileUrl = (name: string) => files[`/src/assets/fedb/${name}`];
 
 export const PHOTO_CREDIT = "Fotos: free-exercise-db (domínio público)";
@@ -109,7 +109,7 @@ export const PHOTO_CREDIT = "Fotos: free-exercise-db (domínio público)";
 /** Start and end photos of the exercise, or undefined when the dataset has no equivalent. */
 export function photosFor(exerciseId: string): [string, string] | undefined {
   const id = PHOTO_IDS[exerciseId];
-  const start = id && fileUrl(`${id}-0.jpg`);
-  const end = id && fileUrl(`${id}-1.jpg`);
+  const start = id && fileUrl(`${id}-0.webp`);
+  const end = id && fileUrl(`${id}-1.webp`);
   return start && end ? [start, end] : undefined;
 }

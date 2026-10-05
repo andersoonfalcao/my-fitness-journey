@@ -12,6 +12,7 @@ import {
   foodsKey,
   KEYS,
   targets,
+  useHistory,
   useLocal,
   waterKey,
   type DayRecord,
@@ -36,7 +37,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const [foods] = useLocal<FoodEntry[]>(foodsKey(date), []);
   const [water] = useLocal<WaterLog>(waterKey(date), {});
   const [weights] = useLocal<WeightEntry[]>(KEYS.weights, []);
-  const [history] = useLocal<WorkoutRecord[]>(KEYS.history, []);
+  const [history] = useHistory();
   const [days, setDays] = useLocal<DayRecord[]>(daysKey(date), []);
   const [earlier] = useLocal<DayRecord[]>(daysKey(prevMonth(date)), []);
   const [stravaMonth] = useLocal<StravaActivity[]>(stravaKey(date), []);

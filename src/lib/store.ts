@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "./auth";
-import { readCloud, subscribeCloud, writeCloud } from "./cloud-store";
+import { historyKey, historyMonthsKey, readCloud, subscribeCloud, writeCloud, writeCloudMany } from "./cloud-store";
 
 export { daysKey, foodsKey, waterKey } from "./cloud-store";
 
@@ -30,6 +30,76 @@ export function useLocal<T>(key: string, fallback: T) {
   );
 
   return [value, update, ready] as const;
+}
+
+const byMonth = (records: WorkoutRecord[]) => {
+  const months = new Map<string, WorkoutRecord[]>();
+  for (const r of records) months.set(r.date.slice(0, 7), [...(months.get(r.date.slice(0, 7)) ?? []), r]);
+  return months;
+};
+
+/**
+ * Finished workouts, oldest first. One document per month (`forma.history.YYYY-MM`) so the log never reaches
+ * Firestore's 1 MB document limit. The old single document `forma.history` works as an inbox: whatever is in
+ * it (everything on the first run, or a workout saved by an outdated copy of the app) is moved into the
+ * months and the inbox is emptied, in one all-or-nothing write.
+ */
+export function useHistory() {
+  const userId = useAuth().user?.uid;
+  const [months, , monthsReady] = useLocal<string[]>(historyMonthsKey, []);
+  const [inbox, , inboxReady] = useLocal<WorkoutRecord[]>(KEYS.history, []);
+  const [, rerender] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    const stops = months.map((m) => subscribeCloud(userId, historyKey(m), () => rerender((n) => n + 1)));
+    return () => stops.forEach((stop) => stop());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, months.join()]);
+
+  // The month list is saved sorted, so concatenating the months keeps the records oldest first.
+  const monthly = userId ? months.map((m) => readCloud<WorkoutRecord[]>(userId, historyKey(m), [])) : [];
+  const ready = monthsReady && inboxReady && monthly.every((m) => m.ready);
+  const stored = monthly.flatMap((m) => m.value);
+  // Until the inbox is moved, its records are shown too (ids keep a record from appearing twice).
+  const ids = new Set(stored.map((r) => r.id));
+  const records = inbox.length ? [...stored, ...inbox.filter((r) => !ids.has(r.id))] : stored;
+
+  const save = useCallback(
+    (next: WorkoutRecord[], current: string[]) => {
+      if (!userId) return;
+      const grouped = byMonth(next);
+      const writes: [string, unknown][] = [];
+      for (const m of new Set([...current, ...grouped.keys()])) {
+        const list = grouped.get(m) ?? [];
+        if (JSON.stringify(list) !== JSON.stringify(readCloud(userId, historyKey(m), []).value)) writes.push([historyKey(m), list]);
+      }
+      const nextMonths = [...grouped.keys()].sort();
+      if (nextMonths.join() !== current.join()) writes.push([historyMonthsKey, nextMonths]);
+      if (readCloud<WorkoutRecord[]>(userId, KEYS.history, []).value.length) writes.push([KEYS.history, []]);
+      if (writes.length) writeCloudMany(userId, writes);
+    },
+    [userId],
+  );
+
+  useEffect(() => {
+    if (ready && inbox.length) save(records, months);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, inbox.length]);
+
+  const update = useCallback(
+    (next: (prev: WorkoutRecord[]) => WorkoutRecord[]) => {
+      if (!userId) return;
+      const current = readCloud<string[]>(userId, historyMonthsKey, []).value;
+      const prev = current.flatMap((m) => readCloud<WorkoutRecord[]>(userId, historyKey(m), []).value);
+      const prevIds = new Set(prev.map((r) => r.id));
+      const pending = readCloud<WorkoutRecord[]>(userId, KEYS.history, []).value.filter((r) => !prevIds.has(r.id));
+      save(next([...prev, ...pending]), current);
+    },
+    [userId, save],
+  );
+
+  return [records, update, ready] as const;
 }
 
 export type Sex = "m" | "f";

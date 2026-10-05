@@ -63,9 +63,16 @@ export function repsCount(reps: string): number | null {
   return Number.isInteger(value) && value > 0 ? value : null;
 }
 
-/** Converts a saved plan with rep ranges to single targets; returns the same object when nothing changes. */
+const PROGRESSION_NOTE = "Quando fizer todas as repetições em todas as séries, o app sugere subir a carga na vez seguinte.";
+const OLD_PROGRESSION_NOTE = "Aumente a carga quando completar o topo da faixa de repetições em todas as séries (progressão dupla).";
+
+/**
+ * Converts a saved plan with rep ranges to single targets and refreshes the old progression note;
+ * returns the same object when nothing changes.
+ */
 export function normalizePlan(plan: Plan): Plan {
-  let changed = false;
+  let changed = plan.summary.includes(OLD_PROGRESSION_NOTE);
+  const summary = plan.summary.replace(OLD_PROGRESSION_NOTE, PROGRESSION_NOTE);
   const days = plan.days.map((d) => ({
     ...d,
     items: d.items.map((it) => {
@@ -76,7 +83,7 @@ export function normalizePlan(plan: Plan): Plan {
       return { ...it, reps };
     }),
   }));
-  return changed ? { ...plan, days } : plan;
+  return changed ? { ...plan, summary, days } : plan;
 }
 
 export function generatePlan(p: Profile): Plan {
@@ -109,7 +116,7 @@ export function generatePlan(p: Profile): Plan {
   const weeks = Math.ceil(Math.abs(diff) / (diff < 0 ? 0.5 : 0.25));
   const summary = `Método ${method}, ${p.days}x por semana, focado em ${goal}. ${
     Math.abs(diff) >= 0.5 ? `Meta de ${p.goalWeight} kg: ritmo saudável estimado de ~${weeks} semanas.` : "Meta: manter o peso e recompor o corpo."
-  } Aumente a carga quando completar o topo da faixa de repetições em todas as séries (progressão dupla).`;
+  } ${PROGRESSION_NOTE}`;
 
   return { createdAt: new Date().toISOString(), method, summary, days };
 }
