@@ -14,7 +14,6 @@ import { Route as AlimentacaoRouteImport } from './routes/alimentacao'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PesoRouteImport } from './routes/peso'
 import { Route as TreinosRouteImport } from './routes/treinos'
-import { Route as ApiEstimateFoodRouteImport } from './routes/api/estimate-food'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,11 +40,6 @@ const TreinosRoute = TreinosRouteImport.update({
   path: '/treinos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiEstimateFoodRoute = ApiEstimateFoodRouteImport.update({
-  id: '/api/estimate-food',
-  path: '/api/estimate-food',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,7 +47,6 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
   '/treinos': typeof TreinosRoute
-  '/api/estimate-food': typeof ApiEstimateFoodRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +54,6 @@ export interface FileRoutesByTo {
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
   '/treinos': typeof TreinosRoute
-  '/api/estimate-food': typeof ApiEstimateFoodRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,33 +62,13 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
   '/treinos': typeof TreinosRoute
-  '/api/estimate-food': typeof ApiEstimateFoodRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/alimentacao'
-    | '/perfil'
-    | '/peso'
-    | '/treinos'
-    | '/api/estimate-food'
+  fullPaths: '/' | '/alimentacao' | '/perfil' | '/peso' | '/treinos'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/alimentacao'
-    | '/perfil'
-    | '/peso'
-    | '/treinos'
-    | '/api/estimate-food'
-  id:
-    | '__root__'
-    | '/'
-    | '/alimentacao'
-    | '/perfil'
-    | '/peso'
-    | '/treinos'
-    | '/api/estimate-food'
+  to: '/' | '/alimentacao' | '/perfil' | '/peso' | '/treinos'
+  id: '__root__' | '/' | '/alimentacao' | '/perfil' | '/peso' | '/treinos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -105,7 +77,6 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   PesoRoute: typeof PesoRoute
   TreinosRoute: typeof TreinosRoute
-  ApiEstimateFoodRoute: typeof ApiEstimateFoodRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,13 +116,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TreinosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/estimate-food': {
-      id: '/api/estimate-food'
-      path: '/api/estimate-food'
-      fullPath: '/api/estimate-food'
-      preLoaderRoute: typeof ApiEstimateFoodRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -161,7 +125,6 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   PesoRoute: PesoRoute,
   TreinosRoute: TreinosRoute,
-  ApiEstimateFoodRoute: ApiEstimateFoodRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

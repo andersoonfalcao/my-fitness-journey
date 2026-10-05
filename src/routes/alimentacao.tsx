@@ -4,6 +4,7 @@ import { Search, Sparkles, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { KEYS, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
 import { searchFoods, type Food } from "@/lib/foods";
+import { estimateFood } from "@/lib/ai-food";
 import { MacroBar, NeedProfile } from "@/components/AppShell";
 
 export const Route = createFileRoute("/alimentacao")({
@@ -56,16 +57,9 @@ function FoodPage() {
     if (aiText.trim().length < 2) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/estimate-food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiText }) });
-      // Static hosting (no server) answers with the app page instead of JSON.
-      if (!res.headers.get("content-type")?.includes("application/json")) {
-        throw new Error("A estimativa por IA não está disponível nesta versão. Use a busca de alimentos.");
-      }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro");
-      const items = data.items as Omit<FoodEntry, "id" | "date" | "meal">[];
+      const items = await estimateFood(aiText);
       if (!items.length) throw new Error("Nenhum alimento identificado.");
-      setFoods((fs) => [...fs, ...items.map((i) => ({ id: uid(), date, meal, name: String(i.name), grams: Math.round(Number(i.grams) || 0), kcal: Math.round(Number(i.kcal) || 0), p: r1(Number(i.p) || 0), c: r1(Number(i.c) || 0), f: r1(Number(i.f) || 0) }))]);
+      setFoods((fs) => [...fs, ...items.map((i) => ({ id: uid(), date, meal, ...i }))]);
       toast.success(`${items.length} item(ns) estimado(s) pela IA`);
       setAiText("");
     } catch (e) {
