@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Search, Sparkles, Trash2, Loader2 } from "lucide-react";
+import { Search, Sparkles, Trash2, Loader2, ScanBarcode } from "lucide-react";
 import { toast } from "sonner";
 import { foodsKey, KEYS, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
 import { searchFoods, type Food } from "@/lib/foods";
 import { estimateFood } from "@/lib/ai-food";
 import { WaterCard } from "@/components/WaterCard";
+import { ProductPanel } from "@/components/ProductPanel";
 import { MacroBar, NeedProfile } from "@/components/AppShell";
 
 export const Route = createFileRoute("/alimentacao")({
@@ -33,7 +34,7 @@ function FoodPage() {
   const [date, setDate] = useState(today());
   const [foods, setFoods] = useLocal<FoodEntry[]>(foodsKey(date), []);
   const [meal, setMeal] = useState<MealType>("almoco");
-  const [mode, setMode] = useState<"busca" | "ia">("busca");
+  const [mode, setMode] = useState<"busca" | "produto" | "ia">("busca");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<Food | null>(null);
   const [grams, setGrams] = useState(100);
@@ -98,12 +99,18 @@ function FoodPage() {
               className={`rounded-full border px-4 py-2 text-sm font-semibold ${meal === m.v ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{m.t}</button>
           ))}
         </div>
-        <div className="mt-4 inline-flex rounded-full bg-muted p-1">
-          <button onClick={() => setMode("busca")} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ${mode === "busca" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Search className="h-4 w-4" />Buscar alimento</button>
-          <button onClick={() => setMode("ia")} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ${mode === "ia" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Sparkles className="h-4 w-4 text-accent" />Descrever com IA</button>
+        <div className="mt-4 grid grid-cols-3 gap-1 rounded-3xl bg-muted p-1 sm:inline-grid">
+          <button onClick={() => setMode("busca")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "busca" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Search className="h-4 w-4" />Buscar</button>
+          <button onClick={() => setMode("produto")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "produto" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><ScanBarcode className="h-4 w-4" />Produto</button>
+          <button onClick={() => setMode("ia")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "ia" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Sparkles className="h-4 w-4 text-accent" />Descrever com IA</button>
         </div>
 
-        {mode === "busca" ? (
+        {mode === "produto" ? (
+          <ProductPanel onAdd={(food) => {
+            setFoods((fs) => [...fs, { id: uid(), date, meal, ...food }]);
+            toast.success(`${food.name} adicionado`);
+          }} />
+        ) : mode === "busca" ? (
           <div className="mt-4">
             {!sel ? (
               <>

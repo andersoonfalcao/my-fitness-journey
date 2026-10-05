@@ -1,4 +1,4 @@
-import { generateJson, Schema } from "./ai";
+import { BEST_MODELS, generateJson, Schema } from "./ai";
 import { foodsKey, readCloudOnce, waterKey } from "./cloud-store";
 import { targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
 import { lastRecordBefore, recordTotal } from "./workout-stats";
@@ -151,7 +151,7 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
     hoje: numbers.day,
     desdeOInicio: numbers.sinceStart,
   });
-  const ai = (await generateJson(SYSTEM, SCHEMA, prompt)) as Partial<DayRecord["ai"]>;
+  const ai = (await generateJson(SYSTEM, SCHEMA, prompt, { models: BEST_MODELS, timeoutMs: 40_000 })) as Partial<DayRecord["ai"]>;
   const list = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
   return {
     ...numbers,
