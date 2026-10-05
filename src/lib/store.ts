@@ -63,6 +63,19 @@ export type FoodEntry = {
   f: number;
 };
 export type WeightEntry = { date: string; kg: number };
+/** One bioimpedance reading; every measure is optional because scales report different sets. */
+export type BodyEntry = {
+  date: string;
+  weightKg?: number | undefined;
+  fatPct?: number | undefined;
+  muscleKg?: number | undefined;
+  leanKg?: number | undefined;
+  waterPct?: number | undefined;
+  visceral?: number | undefined;
+  boneKg?: number | undefined;
+  bmrKcal?: number | undefined;
+  metabolicAge?: number | undefined;
+};
 export type LoadEntry = {
   id: string;
   exerciseId: string;
@@ -136,6 +149,7 @@ export const KEYS = {
   profile: "forma.profile",
   foods: "forma.foods",
   weights: "forma.weights",
+  body: "forma.body",
   loads: "forma.loads",
   plan: "forma.plan",
   done: "forma.done",

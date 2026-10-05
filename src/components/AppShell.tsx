@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Utensils, Scale, Dumbbell, User } from "lucide-react";
+import { CalendarDays, Home, Utensils, Scale, Dumbbell, User } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV = [
   { to: "/", label: "Hoje", icon: Home },
   { to: "/alimentacao", label: "Alimentação", icon: Utensils },
-  { to: "/peso", label: "Peso", icon: Scale },
+  { to: "/corpo", label: "Corpo", icon: Scale },
   { to: "/treinos", label: "Treinos", icon: Dumbbell },
   { to: "/perfil", label: "Perfil", icon: User },
 ] as const;
@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             forma<span className="text-accent">.</span>
           </Link>
           <nav className="hidden gap-1 md:flex">
-            {NAV.map((n) => (
+            {[...NAV.slice(0, 1), { to: "/calendario", label: "Calendário" } as const, ...NAV.slice(1)].map((n) => (
               <Link
                 key={n.to}
                 to={n.to}
@@ -31,6 +31,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
+          <Link to="/calendario" aria-label="Calendário" className="rounded-full p-2 text-muted-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
+            <CalendarDays className="h-6 w-6" />
+          </Link>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>

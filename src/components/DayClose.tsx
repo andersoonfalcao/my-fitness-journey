@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { CalendarCheck, Check, ChevronDown, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
+import { CalendarCheck, Check, ChevronDown, Loader2, RefreshCw, Share2, Sparkles, X } from "lucide-react";
+import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
+import { dayCard } from "@/lib/share-card";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -40,6 +42,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const [stravaMonth] = useLocal<StravaActivity[]>(stravaKey(date), []);
   const stravaToday = stravaMonth.filter((a) => a.date === date);
   const [busy, setBusy] = useState(false);
+  const [share, setShare] = useState<ShareRequest | null>(null);
 
   const t = targets(profile);
   const eaten = foods.filter((f) => f.date === date);
@@ -58,6 +61,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
       const record = await closeDay({ uid, date, profile, weights, history });
       setDays((list) => [...list.filter((d) => d.date !== date), record]);
       toast.success(closed ? "Resumo do dia atualizado" : "Dia fechado!");
+      if (!closed) setShare(dayShare(record));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível fechar o dia.");
     } finally {
@@ -83,11 +87,19 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
           <CalendarCheck className="h-5 w-5 text-accent" />
           <h2 className="text-2xl font-bold">{closed ? "Dia fechado" : "Fechar o dia"}</h2>
         </div>
-        <Button type="button" onClick={() => void close()} disabled={busy} variant={closed ? "outline" : "default"} className="rounded-full">
-          {busy ? <Loader2 className="animate-spin" /> : closed ? <RefreshCw /> : <Sparkles />}
-          {busy ? "Analisando o dia…" : closed ? "Gerar de novo" : "Fechar o dia"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {closed && !busy && (
+            <Button type="button" onClick={() => setShare(dayShare(closed))} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+              <Share2 />Compartilhar
+            </Button>
+          )}
+          <Button type="button" onClick={() => void close()} disabled={busy} variant={closed ? "outline" : "default"} className="rounded-full">
+            {busy ? <Loader2 className="animate-spin" /> : closed ? <RefreshCw /> : <Sparkles />}
+            {busy ? "Analisando o dia…" : closed ? "Gerar de novo" : "Fechar o dia"}
+          </Button>
+        </div>
       </div>
+      <ShareDialog request={share} onClose={() => setShare(null)} />
 
       <ul className="grid gap-2 sm:grid-cols-2">
         {checks.map(([label, ok, detail]) => (
@@ -118,7 +130,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
                   </span>
                   <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                 </summary>
-                <div className="mt-3"><DaySummary record={d} /></div>
+                <div className="mt-3"><DaySummary record={d} onShare={() => setShare(dayShare(d))} /></div>
               </details>
             ))}
           </div>
@@ -128,7 +140,14 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   );
 }
 
-function DaySummary({ record }: { record: DayRecord }) {
+export const dayShare = (record: DayRecord): ShareRequest => ({
+  heading: "Seu dia em uma imagem",
+  title: "Meu dia no forma.",
+  fileName: `forma-dia-${record.date}.png`,
+  make: (bg) => dayCard(record, bg),
+});
+
+export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: () => void }) {
   const { day, sinceStart: s, ai } = record;
   const weightChange = s.weightNow - s.weightStart;
   const stats: [string, string][] = [
@@ -164,6 +183,9 @@ function DaySummary({ record }: { record: DayRecord }) {
         <p className="mt-2 text-sm leading-relaxed">{ai.sinceStart}</p>
       </div>
       <p className="text-sm"><b>Foco para amanhã:</b> {ai.tomorrow}</p>
+      {onShare && (
+        <button type="button" onClick={onShare} className="inline-flex items-center gap-1 text-sm font-semibold text-accent"><Share2 className="h-4 w-4" />Compartilhar este dia</button>
+      )}
     </div>
   );
 }

@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AlimentacaoRouteImport } from './routes/alimentacao'
+import { Route as CalendarioRouteImport } from './routes/calendario'
+import { Route as CorpoRouteImport } from './routes/corpo'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PesoRouteImport } from './routes/peso'
 import { Route as StravaRouteImport } from './routes/strava'
@@ -24,6 +26,16 @@ const IndexRoute = IndexRouteImport.update({
 const AlimentacaoRoute = AlimentacaoRouteImport.update({
   id: '/alimentacao',
   path: '/alimentacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarioRoute = CalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorpoRoute = CorpoRouteImport.update({
+  id: '/corpo',
+  path: '/corpo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PerfilRoute = PerfilRouteImport.update({
@@ -50,6 +62,8 @@ const TreinosRoute = TreinosRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alimentacao': typeof AlimentacaoRoute
+  '/calendario': typeof CalendarioRoute
+  '/corpo': typeof CorpoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
   '/strava': typeof StravaRoute
@@ -58,6 +72,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alimentacao': typeof AlimentacaoRoute
+  '/calendario': typeof CalendarioRoute
+  '/corpo': typeof CorpoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
   '/strava': typeof StravaRoute
@@ -67,6 +83,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/alimentacao': typeof AlimentacaoRoute
+  '/calendario': typeof CalendarioRoute
+  '/corpo': typeof CorpoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
   '/strava': typeof StravaRoute
@@ -74,13 +92,31 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/alimentacao' | '/perfil' | '/peso' | '/strava' | '/treinos'
+  fullPaths:
+    | '/'
+    | '/alimentacao'
+    | '/calendario'
+    | '/corpo'
+    | '/perfil'
+    | '/peso'
+    | '/strava'
+    | '/treinos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/alimentacao' | '/perfil' | '/peso' | '/strava' | '/treinos'
+  to:
+    | '/'
+    | '/alimentacao'
+    | '/calendario'
+    | '/corpo'
+    | '/perfil'
+    | '/peso'
+    | '/strava'
+    | '/treinos'
   id:
     | '__root__'
     | '/'
     | '/alimentacao'
+    | '/calendario'
+    | '/corpo'
     | '/perfil'
     | '/peso'
     | '/strava'
@@ -90,6 +126,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlimentacaoRoute: typeof AlimentacaoRoute
+  CalendarioRoute: typeof CalendarioRoute
+  CorpoRoute: typeof CorpoRoute
   PerfilRoute: typeof PerfilRoute
   PesoRoute: typeof PesoRoute
   StravaRoute: typeof StravaRoute
@@ -110,6 +148,20 @@ declare module '@tanstack/react-router' {
       path: '/alimentacao'
       fullPath: '/alimentacao'
       preLoaderRoute: typeof AlimentacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendario': {
+      id: '/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof CalendarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corpo': {
+      id: '/corpo'
+      path: '/corpo'
+      fullPath: '/corpo'
+      preLoaderRoute: typeof CorpoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/perfil': {
@@ -146,6 +198,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlimentacaoRoute: AlimentacaoRoute,
+  CalendarioRoute: CalendarioRoute,
+  CorpoRoute: CorpoRoute,
   PerfilRoute: PerfilRoute,
   PesoRoute: PesoRoute,
   StravaRoute: StravaRoute,

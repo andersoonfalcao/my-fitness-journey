@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { ExternalLink, Loader2, Share2 } from "lucide-react";
+import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
+import { stravaCard } from "@/lib/share-card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { decodePolyline, duration, km, pace, sportLabel, stravaActivityDetail, usesPace, type StravaActivity, type StravaDetail } from "@/lib/strava";
@@ -10,6 +12,7 @@ export function StravaActivityDialog({ activity, onClose }: { activity: StravaAc
   const uid = useAuth().user?.uid;
   const [detail, setDetail] = useState<StravaDetail | null>(null);
   const [error, setError] = useState("");
+  const [share, setShare] = useState<ShareRequest | null>(null);
 
   useEffect(() => {
     setDetail(null);
@@ -26,6 +29,7 @@ export function StravaActivityDialog({ activity, onClose }: { activity: StravaAc
   }, [activity, uid]);
 
   return (
+    <>
     <Dialog open={!!activity} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[90vh] flex-col overflow-y-auto sm:max-w-lg">
         {activity && (
@@ -44,16 +48,18 @@ export function StravaActivityDialog({ activity, onClose }: { activity: StravaAc
             ) : !detail ? (
               <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Buscando os detalhes no Strava…</div>
             ) : (
-              <DetailBody d={detail} />
+              <DetailBody d={detail} onShare={() => setShare({ heading: "Sua atividade em uma imagem", title: `${detail.name} no forma.`, fileName: `forma-strava-${activity.date}.png`, make: (bg) => stravaCard(detail, bg) })} />
             )}
           </>
         )}
       </DialogContent>
     </Dialog>
+    <ShareDialog request={share} onClose={() => setShare(null)} />
+    </>
   );
 }
 
-function DetailBody({ d }: { d: StravaDetail }) {
+function DetailBody({ d, onShare }: { d: StravaDetail; onShare: () => void }) {
   const paceSport = usesPace(d.sport);
   const speedOrPace = (mps: number | null) =>
     !mps ? null : paceSport ? pace(1000 / mps) : `${(mps * 3.6).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km/h`;
@@ -111,6 +117,9 @@ function DetailBody({ d }: { d: StravaDetail }) {
           {[d.device, d.prCount ? `${d.prCount} recorde(s) pessoal(is)` : null, d.achievements ? `${d.achievements} conquista(s)` : null, d.kudos ? `${d.kudos} kudos` : null]
             .filter(Boolean).join(" · ")}
         </span>
+        <button type="button" onClick={onShare} className="inline-flex items-center gap-1 font-bold text-accent">
+          <Share2 className="h-3.5 w-3.5" />Compartilhar
+        </button>
         <a href={`https://www.strava.com/activities/${d.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-[#fc4c02]">
           Ver no Strava<ExternalLink className="h-3.5 w-3.5" />
         </a>

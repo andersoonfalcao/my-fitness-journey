@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, Play, RefreshCw, RotateCcw, Save, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
+import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, Play, RefreshCw, RotateCcw, Save, Share2, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { NeedProfile } from "@/components/AppShell";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
 import { StravaActivities } from "@/components/StravaActivities";
+import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
+import { workoutCard } from "@/lib/share-card";
 import { lastRecordBefore, recordTotal, repsOfSet, sumKg, volume, type SetValues } from "@/lib/workout-stats";
 
 export const Route = createFileRoute("/treinos")({
@@ -38,6 +40,7 @@ function TreinosPage() {
   const [loads, setLoads] = useLocal<LoadEntry[]>(KEYS.loads, []);
   const [session, setSession] = useLocal<WorkoutSession | null>(KEYS.session, null);
   const [history, setHistory] = useLocal<WorkoutRecord[]>(KEYS.history, []);
+  const [share, setShare] = useState<ShareRequest | null>(null);
   const [loadInputs, setLoadInputs] = useState<Record<string, string>>({});
   const [repsInputs, setRepsInputs] = useState<Record<string, string>>({});
   const [dayIdx, setDayIdx] = useState<number | null>(null);
@@ -107,7 +110,7 @@ function TreinosPage() {
 
   const finishWorkout = () => {
     const finishedAt = Date.now();
-    setHistory((records) => [...records, {
+    const record: WorkoutRecord = {
       id: uid(),
       date: today(),
       dayName: finishDay.name,
@@ -120,7 +123,9 @@ function TreinosPage() {
         const kg = session ? loads.filter((l) => l.exerciseId === ex.id && (l.createdAt ?? 0) >= session.startedAt).at(-1)?.kg : undefined;
         return { exId: ex.id, name: ex.name, setsDone: finishSets[i] ?? 0, setsPlanned: it.sets, reps: it.reps, kg, setKgs: finishKgs[i] ?? [], setReps: finishReps[i] ?? [] };
       }),
-    }]);
+    };
+    setHistory((records) => [...records, record]);
+    setShare(workoutShare(record, lastRecordBefore(history, record.dayName)));
     setDone((d) => [...d, `${today()}|${finishDay.name}`]);
     setDayIdx(null);
     setConfirmFinish(false);
@@ -422,7 +427,8 @@ function TreinosPage() {
 
       <StravaActivities />
 
-      <WorkoutHistory records={history} onDelete={(id) => setHistory((records) => records.filter((r) => r.id !== id))} />
+      <WorkoutHistory records={history} onDelete={(id) => setHistory((records) => records.filter((r) => r.id !== id))} onShare={setShare} />
+      <ShareDialog request={share} onClose={() => setShare(null)} />
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         {/* Flex column + shrink-0: in the default grid the max height squeezed the square media over the text below. */}
@@ -600,7 +606,14 @@ function HistoryStat({ label, value, extra }: { label: string; value: string; ex
   );
 }
 
-function WorkoutHistory({ records, onDelete }: { records: WorkoutRecord[]; onDelete: (id: string) => void }) {
+const workoutShare = (record: WorkoutRecord, previous: WorkoutRecord | undefined): ShareRequest => ({
+  heading: `${record.dayName} concluído! 💪`,
+  title: `${record.dayName} concluído no forma.`,
+  fileName: `forma-treino-${record.date}.png`,
+  make: (bg) => workoutCard(record, previous, bg),
+});
+
+function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord[]; onDelete: (id: string) => void; onShare: (request: ShareRequest) => void }) {
   return (
     <section className="space-y-3 border-t border-border pt-6">
       <h2 className="text-2xl font-bold">Histórico de treinos</h2>
@@ -612,8 +625,8 @@ function WorkoutHistory({ records, onDelete }: { records: WorkoutRecord[]; onDel
           const planned = r.exercises.reduce((sum, e) => sum + e.setsPlanned, 0);
           const total = recordTotal(r);
           const beforeTotal = recordTotal(lastRecordBefore(records.slice(0, index), r.dayName));
-          return { r, done, planned, total, diff: total > 0 && beforeTotal > 0 ? total - beforeTotal : null };
-        }).reverse().map(({ r, done, planned, total, diff }) => {
+          return { r, index, done, planned, total, diff: total > 0 && beforeTotal > 0 ? total - beforeTotal : null };
+        }).reverse().map(({ r, index, done, planned, total, diff }) => {
           return (
             <details key={r.id} className="group rounded-3xl border border-border bg-card px-4 py-3">
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
@@ -648,7 +661,10 @@ function WorkoutHistory({ records, onDelete }: { records: WorkoutRecord[]; onDel
               </ul>
               <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>{r.startedAt !== undefined ? `Início ${formatClock(r.startedAt)} · fim ${formatClock(r.finishedAt)}` : `Concluído às ${formatClock(r.finishedAt)}, sem cronômetro`}</span>
-                <button type="button" onClick={() => { if (confirm("Excluir este registro de treino?")) onDelete(r.id); }} className="font-semibold hover:text-destructive">Excluir</button>
+                <span className="flex shrink-0 gap-4">
+                  <button type="button" onClick={() => onShare(workoutShare(r, lastRecordBefore(records.slice(0, index), r.dayName)))} className="inline-flex items-center gap-1 font-semibold text-accent"><Share2 className="h-3.5 w-3.5" />Compartilhar</button>
+                  <button type="button" onClick={() => { if (confirm("Excluir este registro de treino?")) onDelete(r.id); }} className="font-semibold hover:text-destructive">Excluir</button>
+                </span>
               </div>
             </details>
           );

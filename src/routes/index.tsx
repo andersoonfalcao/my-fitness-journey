@@ -5,6 +5,7 @@ import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
+import { CalendarDays, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -58,12 +59,12 @@ function Index() {
           <Link to="/alimentacao" className="mt-5 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">+ Registrar refeição</Link>
         </section>
 
-        <Link to="/peso" className="rounded-3xl bg-primary p-6 text-primary-foreground">
+        <Link to="/corpo" className="rounded-3xl bg-primary p-6 text-primary-foreground">
           <div className="text-sm opacity-75">Peso atual</div>
-          <div className="font-display text-5xl font-extrabold">{current.toFixed(1)}<span className="text-xl"> kg</span></div>
+          <div className="font-display text-5xl font-extrabold">{current.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}<span className="text-xl"> kg</span></div>
           <div className="mt-4 text-sm opacity-75">Meta: {profile.goalWeight} kg</div>
           <div className="font-display text-xl font-bold text-accent">
-            {Math.abs(current - profile.goalWeight) < 0.1 ? "Meta atingida!" : `faltam ${Math.abs(current - profile.goalWeight).toFixed(1)} kg`}
+            {Math.abs(current - profile.goalWeight) < 0.1 ? "Meta atingida!" : `faltam ${Math.abs(current - profile.goalWeight).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kg`}
           </div>
         </Link>
       </div>
@@ -92,6 +93,17 @@ function Index() {
       )}
 
       <DayClose profile={profile} date={today()} />
+
+      <Link to="/calendario" className="flex items-center justify-between gap-3 rounded-3xl border border-border bg-card p-5 hover:border-accent">
+        <span className="flex items-center gap-3">
+          <CalendarDays className="h-6 w-6 text-accent" />
+          <span>
+            <span className="block font-display text-lg font-bold">Calendário</span>
+            <span className="block text-sm text-muted-foreground">Os números de cada dia e o resumo do mês</span>
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+      </Link>
     </div>
   );
 }
