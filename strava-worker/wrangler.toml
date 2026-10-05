@@ -4,9 +4,26 @@ compatibility_date = "2026-09-01"
 
 [vars]
 FIREBASE_PROJECT_ID = "apptreino-f3677"
+# Public web key of the Firebase app (same as src/lib/firebase.ts); used to renew the user's own token for the reminder.
+FIREBASE_API_KEY = "AIzaSyD944jrfTQDIGiAH6uskT3o8rJgpxYbGsA"
 ALLOWED_ORIGINS = "https://apptreino.web.app,http://localhost:5191,http://localhost:5190"
-# STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET are set as Worker secrets (never committed).
+# Public VAPID key (same as src/lib/push.ts). The private one is the VAPID_PRIVATE_JWK secret.
+VAPID_PUBLIC_KEY = "BFcNxeLIMg6YibiqivRXJvPW9-OvgT4bdvQ7KKWNBmTr0hDchfSL-yt0XdmTHWW8BEU8LP1XImNLiQ762verpro"
+# STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET and VAPID_PRIVATE_JWK are set as Worker secrets (never committed).
 
 [[kv_namespaces]]
 binding = "TOKENS"
 id = "39b2a9eb362c42e3bea70e0220f2f7a9"
+
+# End of a rest with the screen off: one Durable Object per user holds the alarm.
+[[durable_objects.bindings]]
+name = "REST"
+class_name = "RestTimer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RestTimer"]
+
+# Daily reminder: checks every 5 minutes who is due.
+[triggers]
+crons = ["*/5 * * * *"]

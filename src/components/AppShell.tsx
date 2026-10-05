@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, Home, Utensils, Scale, Dumbbell, User } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { syncPush, useSettings } from "@/lib/push";
 
 const NAV = [
   { to: "/", label: "Hoje", icon: Home },
@@ -11,6 +12,12 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
+  // A device with notifications on refreshes its reminder settings and sign-in at the server (once a day or on change).
+  const [settings, , settingsReady] = useSettings();
+  useEffect(() => {
+    if (settingsReady) void syncPush(settings);
+  }, [settingsReady, settings.reminder, settings.reminderTime]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="min-h-screen pb-24 md:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">

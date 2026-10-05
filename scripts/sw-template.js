@@ -100,15 +100,39 @@ self.addEventListener("message", (event) => {
   );
 });
 
-// Tapping the "rest is over" notification brings the app back to the workout.
+// Pushes from the Worker (strava-worker/src/notify.ts): the end of a rest and the daily reminder.
+self.addEventListener("push", (event) => {
+  let message = { title: "forma", body: "", tag: "forma", url: "/" };
+  try {
+    message = { ...message, ...event.data?.json() };
+  } catch {
+    // An empty or unreadable push still shows the generic notice: browsers require one per push.
+  }
+  event.waitUntil(
+    self.registration.showNotification(message.title, {
+      body: message.body,
+      tag: message.tag,
+      renotify: true,
+      vibrate: [300, 150, 300],
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: message.url },
+    }),
+  );
+});
+
+// Tapping a notification brings the app back (to the workout for a rest, to Hoje for the reminder).
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const url = event.notification.data?.url ?? "/treinos";
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const open = windows.find((client) => new URL(client.url).origin === self.location.origin);
-      if (open) await open.focus();
-      else await self.clients.openWindow("/treinos");
+      if (open) {
+        await open.focus();
+        if (new URL(open.url).pathname !== url) await open.navigate(url).catch(() => undefined);
+      } else await self.clients.openWindow(url);
     })(),
   );
 });

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, Play, RefreshCw, RotateCcw, Save, Share2, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
+import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, ListChecks, Play, RefreshCw, RotateCcw, Share2, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { workoutCard } from "@/lib/share-card";
 import { lastRecordBefore, loadAdvice, personalRecords, recordTotal, repsOfSet, setsByGroup, sumKg, volume, weekStart, type SetValues } from "@/lib/workout-stats";
 import { askRestNotifications, notifyRestOver, useWakeLock } from "@/lib/workout-device";
+import { cancelRestPush, deviceId, scheduleRestPush, useSettings } from "@/lib/push";
 
 export const Route = createFileRoute("/treinos")({
   head: () => ({
@@ -48,6 +49,8 @@ function TreinosPage() {
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [swap, setSwap] = useState<{ d: number; i: number } | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
+  const [settings] = useSettings();
 
   useWakeLock(!!session);
 
@@ -75,26 +78,49 @@ function TreinosPage() {
   // Set tracking belongs to the day being trained; other tabs are view-only while a session runs.
   const tracksSets = !session || sessionIdx === active || sessionIdx < 0;
 
-  const completeSet = (i: number, kg: number | null, reps: number | null) => {
+  /**
+   * The load history (evolution chart, "Última") fills itself: each session keeps one entry per exercise with its
+   * heaviest set, so raising the weight in a set updates it, and undoing sets brings it back down.
+   */
+  const syncLoad = (exerciseId: string, startedAt: number, setKgs: (number | null)[]) => {
+    const top = Math.max(0, ...setKgs.map((kg) => kg ?? 0));
+    setLoads((entries) => {
+      const current = entries.find((l) => l.exerciseId === exerciseId && (l.createdAt ?? 0) >= startedAt);
+      if (!top) return current ? entries.filter((l) => l !== current) : entries;
+      if (current) return current.kg === top ? entries : entries.map((l) => (l === current ? { ...l, kg: top } : l));
+      return [...entries, { id: uid(), exerciseId, date: today(), kg: top, createdAt: Date.now() }];
+    });
+  };
+
+  /** Marks `count` sets of item `i` with the same weight and reps; rests only between sets of the same exercise. */
+  const completeSets = (i: number, kg: number | null, reps: number | null, count: number) => {
     const item = day.items[i]!;
     unlockAudio();
     const base = session ?? { dayName: day.name, startedAt: Date.now() };
-    const done = (base.sets?.[i] ?? 0) + 1;
-    if (done > item.sets) return;
+    const before = base.sets?.[i] ?? 0;
+    const done = Math.min(item.sets, before + count);
+    if (done === before) return;
+    const added = done - before;
     const sets = { ...base.sets, [i]: done };
-    const kgs = { ...base.kgs, [i]: [...(base.kgs?.[i] ?? []), kg] };
-    const repsDone = { ...base.repsDone, [i]: [...(base.repsDone?.[i] ?? []), reps] };
-    setRepsInputs((inputs) => ({ ...inputs, [item.exId]: "" }));
+    const kgs = { ...base.kgs, [i]: [...(base.kgs?.[i] ?? []), ...Array<number | null>(added).fill(kg)] };
+    const repsDone = { ...base.repsDone, [i]: [...(base.repsDone?.[i] ?? []), ...Array<number | null>(added).fill(reps)] };
+    syncLoad(item.exId, base.startedAt, kgs[i]!);
+    cancelRestPush();
     const pending = day.items.map((it, j) => j).filter((j) => (sets[j] ?? 0) < day.items[j]!.sets);
     if (pending.length === 0) {
       setSession({ ...base, sets, kgs, repsDone, rest: undefined });
       toast.success("Todas as séries feitas! Agora é só concluir o treino.");
       return;
     }
-    const nextJ = done < item.sets ? i : pending.find((j) => j > i) ?? pending[0]!;
-    const nextItem = day.items[nextJ]!;
-    const next = `Série ${(sets[nextJ] ?? 0) + 1} de ${nextItem.sets} · ${byId(nextItem.exId).name}`;
-    setSession({ ...base, sets, kgs, repsDone, rest: { item: i, endsAt: Date.now() + item.rest * 1000, next } });
+    // After the exercise's last set there is no countdown: moving to the next machine is the rest.
+    if (done >= item.sets) {
+      setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+      return;
+    }
+    const next = `Série ${done + 1} de ${item.sets} · ${byId(item.exId).name}`;
+    const endsAt = Date.now() + settings.restSeconds * 1000;
+    setSession({ ...base, sets, kgs, repsDone, rest: { item: i, endsAt, next } });
+    scheduleRestPush(endsAt, next);
   };
 
   // Comparison baseline: the last time this same workout (by name) was finished.
@@ -151,6 +177,8 @@ function TreinosPage() {
 
   const undoSet = (i: number) => {
     if (!session) return;
+    cancelRestPush();
+    syncLoad(day.items[i]!.exId, session.startedAt, (session.kgs?.[i] ?? []).slice(0, -1));
     setSession({
       ...session,
       sets: { ...session.sets, [i]: Math.max(0, (session.sets?.[i] ?? 0) - 1) },
@@ -172,17 +200,6 @@ function TreinosPage() {
     loads
       .filter((entry) => entry.exerciseId === exerciseId)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
-
-  const saveLoad = (exerciseId: string) => {
-    const value = Number((loadInputs[exerciseId] ?? "").replace(",", "."));
-    if (!Number.isFinite(value) || value <= 0) {
-      toast.error("Digite uma carga válida em kg");
-      return;
-    }
-    setLoads((entries) => [...entries, { id: uid(), exerciseId, date: today(), kg: value, createdAt: Date.now() }]);
-    setLoadInputs((inputs) => ({ ...inputs, [exerciseId]: "" }));
-    toast.success("Carga registrada");
-  };
 
   return (
     <div className="space-y-6">
@@ -230,7 +247,7 @@ function TreinosPage() {
                 <WorkoutClock startedAt={session.startedAt} className="font-display text-3xl font-extrabold tabular-nums" />
               </div>
             </div>
-            <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { setSession(null); setLoadInputs({}); } }}
+            <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setSession(null); setLoadInputs({}); setRepsInputs({}); } }}
               className="text-sm font-semibold underline-offset-4 opacity-75 hover:underline">Cancelar</button>
           </div>
           {(todayTotal > 0 || lastFinishTotal > 0) && (
@@ -259,21 +276,23 @@ function TreinosPage() {
           const setsDone = tracksSets ? session?.sets?.[i] ?? 0 : 0;
           const kgsToday = tracksSets ? session?.kgs?.[i] ?? [] : [];
           const prev = previousOf(lastRecordOf(day.name), i, ex.id);
-          // Within a session, repeat the weight just used; otherwise follow the progression from the last session.
+          // The fields come filled with the last weight and reps used (this session, else the same set last time),
+          // and what is typed stays for the next sets. The progression advice is a tap away on its badge.
           const advice = adviceFor(ex);
-          const suggested = kgsToday.at(-1) ?? advice?.kgFor(setsDone) ?? prev?.setKgs?.[setsDone] ?? latest?.kg;
           const showAdvice = advice && advice.kind !== "manter" && kgsToday.length === 0;
-          const typed = (loadInputs[ex.id] ?? "").trim();
-          const typedKg = typed ? Number(typed.replace(",", ".")) : undefined;
-          const setKg = typed ? typedKg : suggested;
-          // Reps are optional: empty means the plan target. Time-based work (plank) has no reps.
+          const advisedKg = showAdvice ? advice.kgFor(setsDone) : undefined;
+          const lastKg = kgsToday.at(-1) ?? prev?.setKgs?.[setsDone] ?? latest?.kg;
+          const kgText = (loadInputs[ex.id] ?? (lastKg != null ? kgInput(lastKg) : "")).trim();
+          const setKg = kgText ? Number(kgText.replace(",", ".")) : null;
+          // Empty reps means the plan target. Time-based work (plank) has no reps.
           const targetReps = repsCount(it.reps);
           const repsToday = tracksSets ? session?.repsDone?.[i] ?? [] : [];
-          const typedRepsText = (repsInputs[ex.id] ?? "").trim();
-          const typedReps = typedRepsText ? Number(typedRepsText) : undefined;
+          const lastReps = repsToday.at(-1) ?? prev?.setReps?.[setsDone] ?? targetReps;
+          const repsText = (repsInputs[ex.id] ?? (lastReps != null ? String(lastReps) : "")).trim();
+          const typedReps = repsText ? Number(repsText) : undefined;
           const setReps = typedReps ?? targetReps;
-          const onCompleteSet = () => {
-            if (typedKg !== undefined && (!Number.isFinite(typedKg) || typedKg < 0)) {
+          const onComplete = (count: number) => {
+            if (setKg !== null && (!Number.isFinite(setKg) || setKg < 0)) {
               toast.error("Digite um peso válido em kg");
               return;
             }
@@ -281,8 +300,13 @@ function TreinosPage() {
               toast.error("Digite um número de repetições entre 1 e 100");
               return;
             }
-            completeSet(i, setKg ?? null, targetReps === null ? null : setReps);
+            const reps = targetReps === null ? null : setReps;
+            if (count === 1) return completeSets(i, setKg, reps, 1);
+            // Marking several sets at once is easy to tap by mistake, so it asks first.
+            const detail = [setKg !== null ? formatKg(setKg) : "sem peso", reps !== null && reps !== undefined ? `${reps} repetições` : it.reps].join(" × ");
+            setConfirmAll({ name: ex.name, count, detail, run: () => completeSets(i, setKg, reps, count) });
           };
+          const setsLeft = it.sets - setsDone;
           return (
             <article key={i} className={`flex gap-4 rounded-3xl border p-3 sm:p-4 ${setsDone >= it.sets ? "border-accent bg-accent/5" : "border-border bg-card"}`}>
               <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
@@ -292,7 +316,7 @@ function TreinosPage() {
                 <div className="mt-1 flex flex-wrap gap-x-4 text-sm">
                   <span><b className="font-display text-accent">{it.sets}</b> séries</span>
                   <span><b className="font-display text-accent">{it.reps}</b> {repsCount(it.reps) ? "reps" : "por série"}</span>
-                  <span>descanso <b>{it.rest}s</b></span>
+                  <span>descanso <b>{formatRest(settings.restSeconds)}</b></span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
@@ -345,10 +369,17 @@ function TreinosPage() {
                     <span className="inline-flex items-center gap-2 font-bold text-muted-foreground">
                       Carga usada
                       {showAdvice && (
-                        <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${advice.kind === "subir" ? "bg-accent/15 text-accent" : "bg-destructive/10 text-destructive"}`}>
+                        <button
+                          type="button"
+                          disabled={advisedKg == null}
+                          onClick={() => advisedKg != null && setLoadInputs((inputs) => ({ ...inputs, [ex.id]: kgInput(advisedKg) }))}
+                          aria-label={advisedKg != null ? `Usar ${formatKg(advisedKg)} sugeridos` : undefined}
+                          className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${advice.kind === "subir" ? "bg-accent/15 text-accent" : "bg-destructive/10 text-destructive"}`}
+                        >
                           {advice.kind === "subir" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                           {advice.kind === "subir" ? "subir carga" : "reduzir carga"}
-                        </span>
+                          {advisedKg != null && ` → ${formatKg(advisedKg)}`}
+                        </button>
                       )}
                     </span>
                     {latest && (
@@ -367,39 +398,45 @@ function TreinosPage() {
                       <Input
                         aria-label={`Carga de ${ex.name} em kg`}
                         inputMode="decimal"
-                        placeholder={suggested !== undefined ? String(suggested).replace(".", ",") : "Ex: 40"}
-                        value={loadInputs[ex.id] ?? ""}
+                        placeholder="Ex: 40"
+                        value={loadInputs[ex.id] ?? (lastKg != null ? kgInput(lastKg) : "")}
                         onChange={(event) => setLoadInputs((inputs) => ({ ...inputs, [ex.id]: event.target.value }))}
-                        onKeyDown={(event) => event.key === "Enter" && saveLoad(ex.id)}
+                        onKeyDown={(event) => event.key === "Enter" && tracksSets && setsLeft > 0 && onComplete(1)}
+                        onFocus={(event) => event.target.select()}
                         className="pr-9"
                       />
                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
                     </div>
-                    {tracksSets && setsDone < it.sets && targetReps !== null && (
+                    {tracksSets && setsLeft > 0 && targetReps !== null && (
                       <div className="relative w-[calc(50%-0.25rem)] sm:w-24">
                         <Input
-                          aria-label={`Repetições feitas na série ${setsDone + 1} de ${ex.name} (opcional)`}
+                          aria-label={`Repetições na série ${setsDone + 1} de ${ex.name}`}
                           inputMode="numeric"
                           placeholder={String(targetReps)}
-                          value={repsInputs[ex.id] ?? ""}
+                          value={repsInputs[ex.id] ?? (lastReps != null ? String(lastReps) : "")}
                           onChange={(event) => setRepsInputs((inputs) => ({ ...inputs, [ex.id]: event.target.value }))}
-                          onKeyDown={(event) => event.key === "Enter" && onCompleteSet()}
+                          onKeyDown={(event) => event.key === "Enter" && onComplete(1)}
+                          onFocus={(event) => event.target.select()}
                           className="pr-11"
                         />
                         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">reps</span>
                       </div>
                     )}
-                    <Button type="button" size="sm" onClick={() => saveLoad(ex.id)} className="shrink-0 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
-                      <Save />Registrar
-                    </Button>
                   </div>
                   {showAdvice && <p className="mt-1.5 text-xs text-muted-foreground">{advice.reason}</p>}
-                  {tracksSets && setsDone < it.sets && (
-                    <Button type="button" onClick={onCompleteSet} className="mt-2 h-auto min-h-9 w-full whitespace-normal rounded-full py-2">
-                      <Check />Concluir série {setsDone + 1}
-                      {setKg !== undefined && Number.isFinite(setKg) ? ` · ${formatKg(setKg)}` : ""}
-                      {targetReps !== null && setReps !== undefined && Number.isFinite(setReps) ? ` × ${setReps}` : ""}
-                    </Button>
+                  {tracksSets && setsLeft > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button type="button" onClick={() => onComplete(1)} className="h-auto min-h-9 flex-1 basis-40 whitespace-normal rounded-full py-2">
+                        <Check />Concluir série {setsDone + 1}
+                        {setKg !== null && Number.isFinite(setKg) ? ` · ${formatKg(setKg)}` : ""}
+                        {targetReps !== null && setReps !== undefined && Number.isFinite(setReps) ? ` × ${setReps}` : ""}
+                      </Button>
+                      {setsLeft > 1 && (
+                        <Button type="button" variant="secondary" onClick={() => onComplete(setsLeft)} className="h-auto min-h-9 flex-1 basis-40 whitespace-normal rounded-full py-2">
+                          <ListChecks />{setsDone === 0 ? `Concluir as ${setsLeft} séries` : `Concluir as ${setsLeft} restantes`}
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
                 {tracksSets && session?.rest?.item === i && (
@@ -407,7 +444,12 @@ function TreinosPage() {
                     key={session.rest.endsAt}
                     endsAt={session.rest.endsAt}
                     next={session.rest.next}
-                    onAdd={(seconds) => setSession((s) => s?.rest ? { ...s, rest: { ...s.rest, endsAt: s.rest.endsAt + seconds * 1000 } } : s)}
+                    onAdd={(seconds) => {
+                      const rest = session.rest!;
+                      scheduleRestPush(rest.endsAt + seconds * 1000, rest.next);
+                      setSession((s) => s?.rest ? { ...s, rest: { ...s.rest, endsAt: s.rest.endsAt + seconds * 1000 } } : s);
+                    }}
+                    onSkip={() => { cancelRestPush(); setSession((s) => s && { ...s, rest: undefined }); }}
                     onDone={() => setSession((s) => s && { ...s, rest: undefined })}
                   />
                 )}
@@ -422,6 +464,21 @@ function TreinosPage() {
         <Check className="h-5 w-5" />Concluir {finishDay.name}
       </button>
       <p className="text-center text-sm text-muted-foreground">{doneLog.length} treino(s) concluído(s) até agora.</p>
+
+      <AlertDialog open={!!confirmAll} onOpenChange={(open) => !open && setConfirmAll(null)}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-xl">Concluir {confirmAll?.count} séries?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAll && <>Todas as {confirmAll.count} séries de <b>{confirmAll.name}</b> serão marcadas como feitas com <b>{confirmAll.detail}</b>, sem descanso entre elas. Se alguma foi diferente, use Desfazer e conclua uma a uma.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-full">Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { confirmAll?.run(); setConfirmAll(null); }} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmFinish} onOpenChange={setConfirmFinish}>
         <AlertDialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto rounded-3xl">
@@ -570,7 +627,7 @@ function beep() {
   }
 }
 
-function RestCountdown({ endsAt, next, onAdd, onDone }: { endsAt: number; next: string; onAdd: (seconds: number) => void; onDone: () => void }) {
+function RestCountdown({ endsAt, next, onAdd, onSkip, onDone }: { endsAt: number; next: string; onAdd: (seconds: number) => void; onSkip: () => void; onDone: () => void }) {
   const [now, setNow] = useState(() => Date.now());
   const left = Math.max(0, endsAt - now);
 
@@ -579,11 +636,20 @@ function RestCountdown({ endsAt, next, onAdd, onDone }: { endsAt: number; next: 
     return () => clearInterval(id);
   }, []);
 
+  // With the app on screen the beep does the job, so the server push is called off just before it fires.
+  // With the screen off this never runs (the page is asleep) and the push arrives.
+  const closeToEnd = left <= 3000;
+  useEffect(() => {
+    if (closeToEnd && left > 0 && document.visibilityState === "visible") cancelRestPush();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeToEnd]);
+
   useEffect(() => {
     if (left > 0) return;
     navigator.vibrate?.([300, 150, 300]);
     beep();
-    void notifyRestOver(next);
+    // Devices with push on get the server's notification instead (it also works with the screen off).
+    if (!deviceId()) void notifyRestOver(next);
     toast("Descanso acabou! Hora da próxima série", { description: next });
     onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -598,7 +664,7 @@ function RestCountdown({ endsAt, next, onAdd, onDone }: { endsAt: number; next: 
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => onAdd(15)} className="rounded-full border border-primary-foreground/30 px-3 py-1.5 text-sm font-semibold">+15s</button>
-          <button type="button" onClick={onDone} className="rounded-full bg-accent px-3 py-1.5 text-sm font-bold text-accent-foreground">Pular</button>
+          <button type="button" onClick={onSkip} className="rounded-full bg-accent px-3 py-1.5 text-sm font-bold text-accent-foreground">Pular</button>
         </div>
       </div>
       <div className="mt-2 text-xs opacity-75">Próxima: {next}</div>
@@ -607,6 +673,11 @@ function RestCountdown({ endsAt, next, onAdd, onDone }: { endsAt: number; next: 
 }
 
 const kgNumber = (kg: number) => kg.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+/** Weight as typed in the field: decimal comma, no thousands separator. */
+const kgInput = (kg: number) => String(kg).replace(".", ",");
+
+const formatRest = (seconds: number) => (seconds % 60 === 0 ? `${seconds / 60} min` : seconds > 60 ? `${Math.floor(seconds / 60)} min ${seconds % 60}s` : `${seconds}s`);
 
 function formatDiff(kg: number) {
   return kg === 0 ? "igual" : `${kg > 0 ? "+" : "−"}${kgNumber(Math.abs(kg))} kg`;
@@ -760,7 +831,7 @@ function LoadHistory({ entries, onDelete }: { entries: LoadEntry[]; onDelete: (i
         <span className="text-xs text-muted-foreground">{entries.length} registro(s)</span>
       </div>
       {entries.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">Registre uma carga no treino para começar o histórico.</p>
+        <p className="mt-3 text-sm text-muted-foreground">A carga entra aqui sozinha quando você conclui as séries com peso: fica a mais alta de cada treino.</p>
       ) : (
         <>
           <div className="mt-3 h-52 w-full" aria-label="Gráfico de evolução de carga">

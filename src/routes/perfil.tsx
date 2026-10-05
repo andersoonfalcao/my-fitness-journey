@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import { logout, useAuth } from "@/lib/auth";
 import { InvitesPanel } from "@/components/InvitesPanel";
 import { StravaCard } from "@/components/StravaCard";
+import { SettingsPanel } from "@/components/SettingsPanel";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -170,6 +171,8 @@ function PerfilPage() {
       <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
         Salvar e gerar meu plano de treino
       </button>
+
+      <SettingsPanel />
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
         <div>

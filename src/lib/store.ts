@@ -227,6 +227,8 @@ export const KEYS = {
   history: "forma.history",
   /** Workouts done when the sequence was last restarted from the first workout. */
   cycle: "forma.cycle",
+  /** Rest between sets and the daily reminder (src/lib/push.ts). */
+  settings: "forma.settings",
 };
 
 export const today = () => {

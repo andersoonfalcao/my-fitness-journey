@@ -2,8 +2,11 @@
 // Strava tokens never reach the browser: they live in KV keyed by the Firebase user id, and every request
 // must carry that user's Firebase ID token. The Strava client secret is a Worker secret.
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { pushRoute, runDaily, type NotifyEnv } from "./notify";
 
-export interface Env {
+export { RestTimer } from "./notify";
+
+export interface Env extends NotifyEnv {
   TOKENS: KVNamespace;
   STRAVA_CLIENT_ID: string;
   STRAVA_CLIENT_SECRET: string;
@@ -32,7 +35,8 @@ async function firebaseUid(request: Request, env: Env) {
 function cors(request: Request, env: Env): Record<string, string> {
   const origin = request.headers.get("Origin") ?? "";
   const allowed = env.ALLOWED_ORIGINS.split(",").map((o) => o.trim());
-  return allowed.includes(origin)
+  // Firebase preview channels (apptreino--<channel>.web.app) are used to review changes before publishing.
+  return allowed.includes(origin) || /^https:\/\/apptreino--[a-z0-9-]+\.web\.app$/.test(origin)
     ? { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", Vary: "Origin" }
     : {};
 }
@@ -84,6 +88,9 @@ export default {
     if (!uid) return json({ error: "não autenticado" }, 401, headers);
 
     try {
+      const pushed = await pushRoute(path, request, env, uid);
+      if (pushed) return json(pushed[0], pushed[1], headers);
+
       if (path === "/connect" && request.method === "POST") {
         const { code } = (await request.json()) as { code?: string };
         if (!code) return json({ error: "código ausente" }, 400, headers);
@@ -194,5 +201,9 @@ export default {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "erro" }, 502, headers);
     }
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runDaily(env));
   },
 };
