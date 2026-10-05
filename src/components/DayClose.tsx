@@ -72,16 +72,16 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   };
 
   // Each item opens its section: where to fill it in while missing, where to see it once done.
-  type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string };
+  type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string; history?: true };
   const checks: [string, boolean, string, Target][] = [
     ["Refeições", eaten.length > 0, eaten.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g` : "nada registrado", { to: "/alimentacao", hash: eaten.length ? "refeicoes" : "registrar" }],
     ["Água", waterMl >= t.waterMl * 0.8, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
-    ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje", trained ? { to: "/treinos", hash: "historico" } : { to: "/treinos" }],
+    ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
     ["Peso", weighed, weighed ? `${num(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)", { to: "/corpo", hash: weighed ? "evolucao" : "pesagem" }],
   ];
   if (stravaToday.length) {
     const kcalOut = stravaToday.reduce((s, a) => s + (a.kcal ?? 0), 0);
-    checks.push(["Strava", true, `${stravaToday.map((a) => `${sportLabel(a.sport)}${a.distanceM ? ` ${km(a.distanceM)} km` : ""}`).join(", ")}${kcalOut ? ` · ${kcalOut} kcal gastas` : ""}`, { to: "/treinos", hash: "strava" }]);
+    checks.push(["Strava", true, `${stravaToday.map((a) => `${sportLabel(a.sport)}${a.distanceM ? ` ${km(a.distanceM)} km` : ""}`).join(", ")}${kcalOut ? ` · ${kcalOut} kcal gastas` : ""}`, { to: "/treinos", hash: "strava", history: true }]);
   }
 
   return (
@@ -108,7 +108,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
       <ul className="grid gap-2 sm:grid-cols-2">
         {checks.map(([label, ok, detail, target]) => (
           <li key={label}>
-            <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} aria-label={`${label}: ${detail}. ${ok ? "Ver" : "Preencher"}`}
+            <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} {...(target.history ? { search: { aba: "historico" as const } } : {})} aria-label={`${label}: ${detail}. ${ok ? "Ver" : "Preencher"}`}
               className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted active:bg-muted">
               <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
                 {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, ListChecks, Play, RefreshCw, RotateCcw, Share2, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -31,10 +31,13 @@ export const Route = createFileRoute("/treinos")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  // ?aba=historico opens the history tab (used by the "Fechar o dia" shortcuts).
+  validateSearch: (search: Record<string, unknown>): { aba?: "historico" } => (search["aba"] === "historico" ? { aba: "historico" } : {}),
   component: TreinosPage,
 });
 
 function TreinosPage() {
+  const tab = Route.useSearch().aba ?? "treino";
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [plan, setPlan] = useLocal<Plan | null>(KEYS.plan, null);
   const [doneLog, setDone] = useLocal<string[]>(KEYS.done, []);
@@ -213,6 +216,18 @@ function TreinosPage() {
         <button onClick={() => { if (confirm("Gerar um novo plano? Suas trocas serão perdidas.")) { setPlan(generatePlan(profile)); toast.success("Novo plano gerado"); } }}
           className="inline-flex items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold"><RefreshCw className="h-4 w-4" />Regerar</button>
       </div>
+
+      {/* The gym screen stays short: what was done (history, Strava, weekly sets) lives in its own tab. */}
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1" role="tablist" aria-label="Treinos">
+        {([["treino", "Treino", {}], ["historico", `Histórico (${history.length})`, { aba: "historico" }]] as const).map(([value, label, search]) => (
+          <Link key={value} to="/treinos" search={search} replace role="tab" aria-selected={tab === value}
+            className={`rounded-full py-2 text-center text-sm font-bold ${tab === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            {label}
+          </Link>
+        ))}
+      </div>
+
+      {tab === "treino" && (<>
       <p className="max-w-3xl text-muted-foreground">{plan.summary}</p>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -480,6 +495,7 @@ function TreinosPage() {
         </button>
       )}
       <p className="text-center text-sm text-muted-foreground">{doneLog.length} treino(s) concluído(s) até agora.</p>
+      </>)}
 
       <AlertDialog open={!!confirmAll} onOpenChange={(open) => !open && setConfirmAll(null)}>
         <AlertDialogContent className="w-[calc(100%-2rem)] rounded-3xl">
@@ -521,11 +537,17 @@ function TreinosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WeeklyVolume records={history} />
-
-      <StravaActivities />
-
-      <WorkoutHistory records={history} onDelete={(id) => setHistory((records) => records.filter((r) => r.id !== id))} onShare={setShare} />
+      {tab === "historico" && (<>
+        {session && (
+          <Link to="/treinos" search={{}} replace className="flex items-center justify-between gap-3 rounded-3xl bg-primary px-5 py-3 text-primary-foreground">
+            <span className="flex items-center gap-2 text-sm font-bold"><Timer className="h-5 w-5 text-accent" />{session.dayName} em andamento</span>
+            <span className="text-sm font-semibold underline underline-offset-4">Voltar ao treino</span>
+          </Link>
+        )}
+        <WorkoutHistory records={history} onDelete={(id) => setHistory((records) => records.filter((r) => r.id !== id))} onShare={setShare} />
+        <WeeklyVolume records={history} />
+        <StravaActivities />
+      </>)}
       <ShareDialog request={share} onClose={() => setShare(null)} />
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
@@ -728,7 +750,7 @@ const workoutShare = (record: WorkoutRecord, previous: WorkoutRecord | undefined
 
 function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord[]; onDelete: (id: string) => void; onShare: (request: ShareRequest) => void }) {
   return (
-    <section id="historico" className="scroll-mt-24 space-y-3 border-t border-border pt-6">
+    <section id="historico" className="scroll-mt-24 space-y-3">
       <h2 className="text-2xl font-bold">Histórico de treinos</h2>
       {records.length === 0 ? (
         <p className="text-sm text-muted-foreground">Conclua um treino para ver aqui a data, o tempo e as séries de cada exercício.</p>
