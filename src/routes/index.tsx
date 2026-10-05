@@ -5,7 +5,7 @@ import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { CalendarDays, CheckCheck, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +35,8 @@ function Index() {
   const sum = day.reduce((a, f) => ({ kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
   const current = weights.length ? [...weights].sort((a, b) => a.date.localeCompare(b.date)).at(-1)!.kg : profile.weight;
   const next = plan ? plan.days[nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length)] ?? null : null;
+  // A workout finished today closes the card for the day; the following one only shows up tomorrow.
+  const doneToday = doneLog.filter((d) => d.startsWith(`${today()}|`)).map((d) => d.slice(11));
   const left = t.kcal - Math.round(sum.kcal);
 
   return (
@@ -69,11 +71,19 @@ function Index() {
         </Link>
       </div>
 
-      {next && (
+      {doneToday.length > 0 ? (
+        <Link to="/treinos" search={{ aba: "historico" }} className="flex items-center gap-4 rounded-3xl border border-accent bg-accent/5 p-6">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><CheckCheck className="h-6 w-6" /></span>
+          <div>
+            <div className="text-sm font-bold uppercase tracking-widest text-accent">Treino de hoje</div>
+            <h2 className="text-2xl font-bold">{doneToday.join(" e ")} concluído</h2>
+          </div>
+        </Link>
+      ) : next && (
         <section className="rounded-3xl border border-border bg-card p-6">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <div className="text-sm font-bold uppercase tracking-widest text-accent">Próximo treino</div>
+              <div className="text-sm font-bold uppercase tracking-widest text-accent">Treino de hoje</div>
               <h2 className="text-2xl font-bold">{next.name} · {next.focus}</h2>
             </div>
             <Link to="/treinos" className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground">Ver treino</Link>

@@ -122,7 +122,8 @@ export type Profile = {
   method?: import("./methods").MethodId | undefined;
 };
 
-export type MealType = "cafe" | "almoco" | "lanche" | "jantar";
+/** "suplementos" holds supplements taken (src/lib/supplements.ts); it is not counted as a meal. */
+export type MealType = "cafe" | "almoco" | "lanche" | "jantar" | "suplementos";
 export type FoodEntry = {
   id: string;
   date: string;
@@ -133,6 +134,10 @@ export type FoodEntry = {
   p: number;
   c: number;
   f: number;
+  /** Routine supplement this entry marks as taken. */
+  suppId?: string | undefined;
+  /** Dose shown instead of grams for supplements ("5 g", "1 cápsula(s)"). */
+  dose?: string | undefined;
 };
 export type WeightEntry = { date: string; kg: number };
 /** One bioimpedance reading; every measure is optional because scales report different sets. */
@@ -200,10 +205,22 @@ export type DayRecord = {
   day: {
     kcal: number; protein: number; carbs: number; fat: number; waterMl: number; meals: number;
     targets: { kcal: number; protein: number; carbs: number; fat: number; waterMl: number };
-    workout: { name: string; minutes: number | null; setsDone: number; setsPlanned: number; volumeKg: number; volumeDiffKg: number | null } | null;
+    workout: {
+      name: string; minutes: number | null; setsDone: number; setsPlanned: number; volumeKg: number; volumeDiffKg: number | null;
+      /** What was trained (exercise and muscle); missing in older records. */
+      exercises?: { name: string; muscle: string }[] | undefined;
+    } | null;
     weightKg: number | null;
     /** Strava activities of the day (missing in records closed before the integration). */
-    strava?: { sport: string; km: number; minutes: number; kcal: number | null; avgHr: number | null }[] | undefined;
+    strava?: {
+      sport: string; km: number; minutes: number; kcal: number | null; avgHr: number | null;
+      /** Added 2026-10-05 for the AI review; missing in older records. */
+      name?: string | undefined; maxHr?: number | null | undefined; elevationM?: number | undefined; pace?: string | null | undefined; kmh?: number | null | undefined;
+      /** Strava relative effort (suffer score), from the activity detail. */
+      effort?: number | null | undefined;
+    }[] | undefined;
+    /** Daily routine supplements (taken or not) plus any other taken that day; missing in older records. */
+    supplements?: { name: string; dose: string; taken: boolean; daily: boolean }[] | undefined;
   };
   sinceStart: {
     startDate: string; days: number;

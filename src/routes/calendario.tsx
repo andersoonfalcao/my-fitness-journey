@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Dumbbell, Share2 } from "lucide-react";
-import { NeedProfile } from "@/components/AppShell";
+import { ChevronLeft, ChevronRight, Dumbbell, Share2, X } from "lucide-react";
+import { NeedProfile, useCloseCalendar } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DaySummary, dayShare } from "@/components/DayClose";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
@@ -39,7 +39,7 @@ export const Route = createFileRoute("/calendario")({
 });
 
 const WEEK = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
-const MEAL_LABEL: Record<MealType, string> = { cafe: "Café da manhã", almoco: "Almoço", lanche: "Lanche", jantar: "Jantar" };
+const MEAL_LABEL: Record<MealType, string> = { cafe: "Café da manhã", almoco: "Almoço", lanche: "Lanche", jantar: "Jantar", suplementos: "Suplementos" };
 const num = (n: number, digits = 1) => n.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -53,6 +53,7 @@ function monthGrid(month: string) {
 }
 
 function CalendarPage() {
+  const closeCalendar = useCloseCalendar();
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [month, setMonth] = useState(today().slice(0, 7));
   const [selected, setSelected] = useState<string | null>(null);
@@ -123,9 +124,12 @@ function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h1 className="text-3xl font-extrabold sm:text-4xl">Calendário</h1>
-        <div className="flex items-center gap-1">
+      {/* Phone: title and X on top, months below. Wider screens: one row with the X at the end. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h1 className="flex-1 text-3xl font-extrabold sm:text-4xl">Calendário</h1>
+        <button type="button" onClick={closeCalendar} aria-label="Fechar calendário" title="Fechar"
+          className="rounded-full border border-input p-2 hover:bg-muted sm:order-last"><X className="h-5 w-5" /></button>
+        <div className="flex w-full items-center justify-center gap-1 sm:w-auto">
           <button type="button" onClick={() => shift(-1)} aria-label="Mês anterior" className="rounded-full p-2 hover:bg-muted"><ChevronLeft className="h-5 w-5" /></button>
           <span className="min-w-36 text-center font-display text-lg font-bold">{monthName}</span>
           <button type="button" onClick={() => shift(1)} disabled={month >= now.slice(0, 7)} aria-label="Próximo mês" className="rounded-full p-2 hover:bg-muted disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>

@@ -81,9 +81,10 @@ const liters = (ml: number) => `${(ml / 1000).toLocaleString("pt-BR", { maximumF
 /** What is still missing today, same rules as the app: the four meals, the water target, the week's workouts and closing the day. */
 export async function dailySummary(env: NotifyEnv, uid: string, refreshToken: string, date: string): Promise<Message> {
   const month = date.slice(0, 7);
-  const docs = await readUserDocs(env, uid, refreshToken, ["forma.profile", `forma.foods.${month}`, `forma.water.${month}`, `forma.days.${month}`, "forma.done"]);
+  const docs = await readUserDocs(env, uid, refreshToken, ["forma.profile", `forma.foods.${month}`, `forma.water.${month}`, `forma.days.${month}`, "forma.done", "forma.supplements"]);
   const profile = docs["forma.profile"] as { weight?: number; days?: number } | undefined;
-  const foods = ((docs[`forma.foods.${month}`] as { date: string; meal: string }[] | undefined) ?? []).filter((f) => f.date === date);
+  const foods = ((docs[`forma.foods.${month}`] as { date: string; meal: string; suppId?: string }[] | undefined) ?? []).filter((f) => f.date === date);
+  const routine = (docs["forma.supplements"] as { id: string; name: string }[] | undefined) ?? [];
   const waterMl = ((docs[`forma.water.${month}`] as Record<string, number> | undefined) ?? {})[date] ?? 0;
   const closed = ((docs[`forma.days.${month}`] as { date: string }[] | undefined) ?? []).some((d) => d.date === date);
   const done = ((docs["forma.done"] as string[] | undefined) ?? []).map((d) => d.split("|")[0]!);
@@ -98,6 +99,8 @@ export async function dailySummary(env: NotifyEnv, uid: string, refreshToken: st
   const from = weekStart(date);
   const weekWorkouts = done.filter((d) => d >= from && d <= date).length;
   if (!done.includes(date) && profile?.days && weekWorkouts < profile.days) missing.push(`treino (${weekWorkouts} de ${profile.days} na semana)`);
+  const supplements = routine.filter((sup) => !foods.some((f) => f.suppId === sup.id)).map((sup) => sup.name);
+  if (supplements.length) missing.push(`suplementos: ${supplements.join(", ")}`);
   if (!closed) missing.push("fechar o dia");
 
   return missing.length

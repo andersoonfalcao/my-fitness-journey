@@ -7,6 +7,7 @@ import { searchFoods, type Food } from "@/lib/foods";
 import { estimateFood } from "@/lib/ai-food";
 import { WaterCard } from "@/components/WaterCard";
 import { ProductPanel } from "@/components/ProductPanel";
+import { SupplementsCard } from "@/components/SupplementsCard";
 import { MacroBar, NeedProfile } from "@/components/AppShell";
 
 export const Route = createFileRoute("/alimentacao")({
@@ -92,6 +93,8 @@ function FoodPage() {
 
       <WaterCard date={date} targetMl={t.waterMl} />
 
+      <SupplementsCard date={date} />
+
       <section id="registrar" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
         <div className="flex flex-wrap gap-2">
           {MEALS.map((m) => (
@@ -175,8 +178,9 @@ function FoodPage() {
       </section>
 
       <div id="refeicoes" className="grid scroll-mt-24 gap-4 md:grid-cols-2">
-        {MEALS.map((m) => {
+        {[...MEALS, { v: "suplementos" as const, t: "Suplementos" }].map((m) => {
           const items = day.filter((f) => f.meal === m.v);
+          if (m.v === "suplementos" && items.length === 0) return null;
           const kcal = items.reduce((a, f) => a + f.kcal, 0);
           return (
             <section key={m.v} className="rounded-3xl border border-border bg-card p-5">
@@ -185,7 +189,7 @@ function FoodPage() {
                 <ul className="mt-2 divide-y divide-border">
                   {items.map((f) => (
                     <li key={f.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                      <div><div className="font-semibold">{f.name}</div><div className="text-muted-foreground">{f.grams}g · P {f.p} · C {f.c} · G {f.f}</div></div>
+                      <div><div className="font-semibold">{f.name}</div><div className="text-muted-foreground">{f.dose ?? `${f.grams}g`} · P {f.p} · C {f.c} · G {f.f}</div></div>
                       <div className="flex items-center gap-3"><span className="font-semibold">{f.kcal}</span>
                         <button aria-label="Remover" onClick={() => setFoods((fs) => fs.filter((x) => x.id !== f.id))} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button></div>
                     </li>

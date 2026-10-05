@@ -2,7 +2,9 @@ import { BEST_MODELS, generateJson, Schema } from "./ai";
 import { foodsKey, readCloudOnce, waterKey } from "./cloud-store";
 import { targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
 import { lastRecordBefore, recordTotal } from "./workout-stats";
-import { sportLabel, stravaKey, type StravaActivity } from "./strava";
+import { byId, GROUP_LABEL } from "./exercises";
+import { sportLabel, stravaActivityDetail, stravaKey, type StravaActivity, type StravaDetail } from "./strava";
+import { doseLabel, SUPPLEMENTS_KEY, type Supplement } from "./supplements";
 
 const FOCUS_LABEL: Record<Profile["focus"], string> = {
   perder: "perder gordura",
@@ -16,7 +18,9 @@ Escreva em português do Brasil, com tom próximo, direto e encorajador, sem exa
 Use SOMENTE os números recebidos; não invente dados. Escreva números no formato brasileiro (80,4 kg; 2.065 kcal; 1,55 L). Se algo não foi registrado (refeições, água, treino, peso), diga isso com naturalidade e incentive o registro.
 Não dê diagnóstico médico nem recomende remédios ou suplementos específicos.
 Campos:
-- overview: 2 a 3 frases sobre o dia.
+Sobre a musculação, use hoje.treino: diga o que foi treinado e quais músculos, e compare a carga total do treino (soma de peso × repetições de todos os exercícios) com a última vez que esse mesmo treino foi feito: cargaTotalHoje e cargaTotalUltimaVez, no formato "de 3.400 kg para 3.650 kg" (nunca use ×). Não compare exercício por exercício e não fale de séries nem de repetições.
+Analise também cada atividade do Strava em hoje.strava e relacione com o resto do dia (calorias, proteína, água, descanso). Em todas, use o tempo em movimento (minutes), a frequência cardíaca média e máxima (avgHr, maxHr), as calorias (kcal) e o esforço relativo do Strava (effort, quanto maior mais puxado). Nas que têm distância, use também distância, ritmo ou velocidade e desnível; em musculação e outras sem distância, ignore distância, ritmo e desnível.
+- overview: 2 a 4 frases sobre o dia, citando o treino e as atividades do Strava quando houver.
 - goingWell: 2 a 4 pontos curtos do que foi bem hoje ou no acompanhamento.
 - improve: 2 a 4 pontos curtos, cada um com uma ação concreta.
 - sinceStart: 2 a 3 frases sobre a evolução desde o início (peso, treinos, constância na alimentação, volume de treino).
@@ -31,6 +35,19 @@ const SCHEMA = Schema.object({
     tomorrow: Schema.string(),
   },
 });
+
+const muscleOf = (exId: string) => {
+  const ex = byId(exId);
+  return ex ? GROUP_LABEL[ex.group] : "";
+};
+/** Running pace (min/km) for foot sports, speed (km/h) for the rest. */
+function paceOf(a: StravaActivity) {
+  if (!a.distanceM || !a.movingS) return { pace: null, kmh: null };
+  const foot = /Run|Walk|Hike/.test(a.sport);
+  if (!foot) return { pace: null, kmh: Math.round((a.distanceM / a.movingS) * 36) / 10 };
+  const secPerKm = a.movingS / (a.distanceM / 1000);
+  return { pace: `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, "0")} min/km`, kmh: null };
+}
 
 const addDays = (date: string, n: number) => {
   const d = new Date(`${date}T12:00:00`);
@@ -61,10 +78,11 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
   const start = [sortedWeights[0]?.date, history[0]?.date].filter((d): d is string => !!d).sort()[0] ?? date;
 
   const months = monthsBetween(start < date ? start : date, date);
-  const [foodMonths, waterMonths, stravaMonths] = await Promise.all([
+  const [foodMonths, waterMonths, stravaMonths, routine] = await Promise.all([
     Promise.all(months.map((m) => readCloudOnce<FoodEntry[]>(uid, foodsKey(`${m}-01`), []))),
     Promise.all(months.map((m) => readCloudOnce<WaterLog>(uid, waterKey(`${m}-01`), {}))),
     Promise.all(months.map((m) => readCloudOnce<StravaActivity[]>(uid, stravaKey(`${m}-01`), []))),
+    readCloudOnce<Supplement[]>(uid, SUPPLEMENTS_KEY, []),
   ]);
   const strava = stravaMonths.flat().filter((a) => a.date >= start && a.date <= date);
   const foods = foodMonths.flat().filter((f) => f.date >= start && f.date <= date);
@@ -73,10 +91,20 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
   const byDay = new Map<string, { kcal: number; p: number; c: number; f: number; meals: Set<string> }>();
   for (const f of foods) {
     const d = byDay.get(f.date) ?? { kcal: 0, p: 0, c: 0, f: 0, meals: new Set<string>() };
-    d.kcal += f.kcal; d.p += f.p; d.c += f.c; d.f += f.f; d.meals.add(f.meal);
+    d.kcal += f.kcal; d.p += f.p; d.c += f.c; d.f += f.f; if (f.meal !== "suplementos") d.meals.add(f.meal);
     byDay.set(f.date, d);
   }
   const todayFood = byDay.get(date);
+  // The synced list is only a summary; the detail (what the activity card shows) brings calories and relative effort,
+  // which matter most for weight training, where there is no distance. Without signal the summary is used.
+  const stravaToday = strava.filter((a) => a.date === date);
+  const details = await Promise.all(stravaToday.map((a) => stravaActivityDetail(uid, a).catch((): StravaDetail | null => null)));
+  // The routine, each marked taken or not, followed by any one-off supplement taken today.
+  const todaySupplements = foods.filter((f) => f.date === date && f.meal === "suplementos");
+  const supplements = [
+    ...routine.map((s) => ({ name: s.name, dose: doseLabel(s), taken: todaySupplements.some((f) => f.suppId === s.id), daily: true })),
+    ...todaySupplements.filter((f) => !routine.some((s) => s.id === f.suppId)).map((f) => ({ name: f.name, dose: f.dose ?? `${f.grams} g`, taken: true, daily: false })),
+  ];
   const logged = [...byDay.values()];
   const avg = (fn: (d: (typeof logged)[number]) => number) => (logged.length ? Math.round(logged.reduce((s, d) => s + fn(d), 0) / logged.length) : 0);
 
@@ -93,6 +121,7 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       setsPlanned: todaysWorkout.exercises.reduce((s, e) => s + e.setsPlanned, 0),
       volumeKg: Math.round(volumeKg),
       volumeDiffKg: volumeKg > 0 && beforeKg > 0 ? Math.round(volumeKg - beforeKg) : null,
+      exercises: todaysWorkout.exercises.map((e) => ({ name: e.name, muscle: muscleOf(e.exId) })),
     };
   }
 
@@ -116,9 +145,14 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       targets: { kcal: t.kcal, protein: t.protein, carbs: t.carbs, fat: t.fat, waterMl: t.waterMl },
       workout,
       weightKg: weights.find((w) => w.date === date)?.kg ?? null,
-      strava: strava
-        .filter((a) => a.date === date)
-        .map((a) => ({ sport: sportLabel(a.sport), km: Math.round(a.distanceM / 100) / 10, minutes: Math.round(a.movingS / 60), kcal: a.kcal, avgHr: a.avgHr })),
+      strava: stravaToday.map((a, i) => {
+        const d = details[i];
+        return {
+          sport: sportLabel(a.sport), name: a.name, km: Math.round(a.distanceM / 100) / 10, minutes: Math.round((d?.movingS ?? a.movingS) / 60),
+          kcal: d?.kcal ?? a.kcal, avgHr: d?.avgHr ?? a.avgHr, maxHr: d?.maxHr ?? a.maxHr, elevationM: a.elevationM, effort: d?.sufferScore ?? null, ...paceOf(a),
+        };
+      }),
+      supplements,
     },
     sinceStart: {
       startDate: start,
@@ -147,8 +181,17 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
   const prompt = JSON.stringify({
     aluno: { nome: profile.name, objetivo: FOCUS_LABEL[profile.focus], nivel: profile.level, treinosPorSemana: profile.days },
     unidades: "calorias em kcal, macros em g, água em ml, peso em kg, volume de treino = soma de peso × repetições em kg",
+    suplementos: "hoje.supplements lista os suplementos da rotina diária (daily = true), com taken = tomado ou não, e os avulsos do dia; comente quando faltar algum da rotina",
     observacao: "atividades do Strava (corrida, pedal etc.) são gasto extra informativo; a meta de calorias do dia não muda por causa delas",
-    hoje: numbers.day,
+    // The AI sees what was trained, the muscles and the load comparison only (no sets or reps).
+    hoje: { ...numbers.day, workout: undefined, treino: numbers.day.workout && {
+      nome: numbers.day.workout.name,
+      minutos: numbers.day.workout.minutes,
+      musculos: [...new Set(numbers.day.workout.exercises?.map((e) => e.muscle).filter(Boolean))],
+      exercicios: numbers.day.workout.exercises?.map((e) => ({ exercicio: e.name, musculo: e.muscle })),
+      cargaTotalHoje: numbers.day.workout.volumeKg || null,
+      cargaTotalUltimaVez: numbers.day.workout.volumeDiffKg === null ? null : numbers.day.workout.volumeKg - numbers.day.workout.volumeDiffKg,
+    } },
     desdeOInicio: numbers.sinceStart,
   });
   const ai = (await generateJson(SYSTEM, SCHEMA, prompt, { models: BEST_MODELS, timeoutMs: 40_000 })) as Partial<DayRecord["ai"]>;

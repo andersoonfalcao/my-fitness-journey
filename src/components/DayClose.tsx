@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { closeDay } from "@/lib/day-close";
 import { km, sportLabel, stravaKey, type StravaActivity } from "@/lib/strava";
+import { SUPPLEMENTS_KEY, type Supplement } from "@/lib/supplements";
 import {
   daysKey,
   foodsKey,
@@ -24,6 +25,7 @@ import {
   type WorkoutRecord,
 } from "@/lib/store";
 
+const MEAL_NAMES = [["cafe", "café da manhã"], ["almoco", "almoço"], ["lanche", "lanche"], ["jantar", "jantar"]] as const;
 const num = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 const longDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 const prevMonth = (date: string) => {
@@ -42,12 +44,17 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const [days, setDays] = useLocal<DayRecord[]>(daysKey(date), []);
   const [earlier] = useLocal<DayRecord[]>(daysKey(prevMonth(date)), []);
   const [stravaMonth] = useLocal<StravaActivity[]>(stravaKey(date), []);
+  const [routine] = useLocal<Supplement[]>(SUPPLEMENTS_KEY, []);
   const stravaToday = stravaMonth.filter((a) => a.date === date);
   const [busy, setBusy] = useState(false);
   const [share, setShare] = useState<ShareRequest | null>(null);
 
   const t = targets(profile);
   const eaten = foods.filter((f) => f.date === date);
+  const meals = eaten.filter((f) => f.meal !== "suplementos");
+  const missingMeals = MEAL_NAMES.filter(([m]) => !meals.some((f) => f.meal === m)).map(([, label]) => label);
+  const supplementsTaken = new Set(eaten.map((f) => f.suppId).filter(Boolean));
+  const supplementsDone = routine.filter((s) => supplementsTaken.has(s.id)).length;
   const kcal = Math.round(eaten.reduce((s, f) => s + f.kcal, 0));
   const protein = Math.round(eaten.reduce((s, f) => s + f.p, 0));
   const waterMl = water[date] ?? 0;
@@ -74,11 +81,16 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   // Each item opens its section: where to fill it in while missing, where to see it once done.
   type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string; history?: true };
   const checks: [string, boolean, string, Target][] = [
-    ["Refeições", eaten.length > 0, eaten.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g` : "nada registrado", { to: "/alimentacao", hash: eaten.length ? "refeicoes" : "registrar" }],
-    ["Água", waterMl >= t.waterMl * 0.8, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
+    // Complete only with all four meals logged, and the water target fully reached.
+    ["Refeições", missingMeals.length === 0, meals.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g${missingMeals.length ? ` · falta: ${missingMeals.join(", ")}` : ""}` : "nada registrado", { to: "/alimentacao", hash: missingMeals.length ? "registrar" : "refeicoes" }],
+    ["Água", waterMl >= t.waterMl, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
     ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
     ["Peso", weighed, weighed ? `${num(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)", { to: "/corpo", hash: weighed ? "evolucao" : "pesagem" }],
   ];
+  if (routine.length) {
+    const pendingNames = routine.filter((s) => !supplementsTaken.has(s.id)).map((s) => s.name);
+    checks.push(["Suplementos", supplementsDone === routine.length, `${supplementsDone} de ${routine.length} tomados${pendingNames.length ? ` · falta: ${pendingNames.join(", ")}` : ` (${routine.map((s) => s.name).join(", ")})`}`, { to: "/alimentacao", hash: "suplementos" }]);
+  }
   if (stravaToday.length) {
     const kcalOut = stravaToday.reduce((s, a) => s + (a.kcal ?? 0), 0);
     checks.push(["Strava", true, `${stravaToday.map((a) => `${sportLabel(a.sport)}${a.distanceM ? ` ${km(a.distanceM)} km` : ""}`).join(", ")}${kcalOut ? ` · ${kcalOut} kcal gastas` : ""}`, { to: "/treinos", hash: "strava", history: true }]);
@@ -165,6 +177,9 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
     ["Água", `${num(day.waterMl / 1000)} / ${num(day.targets.waterMl / 1000)} L`],
     ["Treino", day.workout ? `${day.workout.setsDone}/${day.workout.setsPlanned} séries${day.workout.volumeKg ? ` · ${num(day.workout.volumeKg)} kg` : ""}` : "—"],
   ];
+  const supplements = day.supplements ?? [];
+  const dailySupplements = supplements.filter((s) => s.daily);
+  if (dailySupplements.length) stats.push(["Suplementos", `${dailySupplements.filter((s) => s.taken).length} / ${dailySupplements.length} da rotina`]);
   if (day.strava?.length) {
     const kcalOut = day.strava.reduce((s, a) => s + (a.kcal ?? 0), 0);
     stats.push(["Strava", `${day.strava.map((a) => a.sport).join(", ")}${kcalOut ? ` · ${kcalOut} kcal` : ""}`]);
@@ -179,6 +194,15 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
           </div>
         ))}
       </div>
+      {supplements.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label="Suplementos do dia">
+          {supplements.map((s) => (
+            <li key={s.name} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${s.taken ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground line-through"}`}>
+              {s.taken ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}{s.name} · {s.dose}
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="leading-relaxed">{ai.overview}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Bullets title="Indo bem" items={ai.goingWell} tone="good" />
