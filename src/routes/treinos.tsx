@@ -76,7 +76,9 @@ function TreinosPage() {
   const day = plan.days[active] ?? plan.days[0]!;
   const finishDay = plan.days[sessionIdx] ?? day;
   // Set tracking belongs to the day being trained; other tabs are view-only while a session runs.
-  const tracksSets = !session || sessionIdx === active || sessionIdx < 0;
+  // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
+  // so only the next one can be started (going back takes "Recomeçar"). Other tabs are view-only.
+  const tracksSets = session ? sessionIdx === active || sessionIdx < 0 : active === nextIdx;
 
   /**
    * The load history (evolution chart, "Última") fills itself: each session keeps one entry per exercise with its
@@ -220,6 +222,7 @@ function TreinosPage() {
             <div className="font-display font-bold">{d.name}</div>
             <div className="text-xs opacity-75">{d.focus}</div>
             {i === nextIdx && <div className="mt-1 text-[10px] font-bold uppercase tracking-wider text-accent">próximo</div>}
+            {i < nextIdx && <div className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider opacity-75"><Check className="h-3 w-3" />feito</div>}
           </button>
         ))}
       </div>
@@ -259,11 +262,22 @@ function TreinosPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : active === nextIdx ? (
         <button onClick={() => { askRestNotifications(); setSession({ dayName: day.name, startedAt: Date.now() }); }}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 font-display text-lg font-bold text-primary-foreground">
           <Play className="h-5 w-5" />Iniciar {day.name}
         </button>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-muted/60 px-5 py-4">
+          <p className="text-sm">
+            {active < nextIdx
+              ? <><b>{day.name} já foi feito nesta sequência.</b> Aqui é só para consulta.</>
+              : <><b>{day.name} vem depois.</b> A sequência segue pelo {plan.days[nextIdx]!.name}.</>}
+          </p>
+          <button onClick={() => setDayIdx(nextIdx)} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">
+            <Play className="h-4 w-4" />Ir para o {plan.days[nextIdx]!.name}
+          </button>
+        </div>
       )}
 
       <div className="space-y-3">
@@ -459,10 +473,12 @@ function TreinosPage() {
         })}
       </div>
 
-      <button onClick={() => (pendingItems.length > 0 ? setConfirmFinish(true) : finishWorkout())}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
-        <Check className="h-5 w-5" />Concluir {finishDay.name}
-      </button>
+      {(session || active === nextIdx) && (
+        <button onClick={() => (pendingItems.length > 0 ? setConfirmFinish(true) : finishWorkout())}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
+          <Check className="h-5 w-5" />Concluir {finishDay.name}
+        </button>
+      )}
       <p className="text-center text-sm text-muted-foreground">{doneLog.length} treino(s) concluído(s) até agora.</p>
 
       <AlertDialog open={!!confirmAll} onOpenChange={(open) => !open && setConfirmAll(null)}>
