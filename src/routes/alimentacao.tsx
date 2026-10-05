@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Search, Sparkles, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { KEYS, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
+import { foodsKey, KEYS, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
 import { searchFoods, type Food } from "@/lib/foods";
 import { estimateFood } from "@/lib/ai-food";
 import { MacroBar, NeedProfile } from "@/components/AppShell";
@@ -29,8 +29,8 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 
 function FoodPage() {
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
-  const [foods, setFoods] = useLocal<FoodEntry[]>(KEYS.foods, []);
   const [date, setDate] = useState(today());
+  const [foods, setFoods] = useLocal<FoodEntry[]>(foodsKey(date), []);
   const [meal, setMeal] = useState<MealType>("almoco");
   const [mode, setMode] = useState<"busca" | "ia">("busca");
   const [q, setQ] = useState("");

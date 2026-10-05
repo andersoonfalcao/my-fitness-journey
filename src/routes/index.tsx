@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry } from "@/lib/store";
+import { foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry } from "@/lib/store";
 import type { Plan } from "@/lib/plan";
 import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
-  const [foods] = useLocal<FoodEntry[]>(KEYS.foods, []);
+  const [foods] = useLocal<FoodEntry[]>(foodsKey(today()), []);
   const [weights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [plan] = useLocal<Plan | null>(KEYS.plan, null);
   const [doneLog] = useLocal<string[]>(KEYS.done, []);

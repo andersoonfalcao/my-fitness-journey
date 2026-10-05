@@ -1,48 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "./auth";
+import { readCloud, subscribeCloud, writeCloud } from "./cloud-store";
 
-const EVT = "forma-store";
+export { foodsKey } from "./cloud-store";
 
-export function readLocal<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-/** Hydration-safe localStorage state shared across components. */
+/**
+ * State of one key in the signed-in user's account (Firestore, cached on the device), shared across components.
+ * Kept the old name and shape so screens didn't change when storage moved from localStorage to the cloud.
+ */
 export function useLocal<T>(key: string, fallback: T) {
-  const [value, setValue] = useState<T>(fallback);
-  const [ready, setReady] = useState(false);
+  const userId = useAuth().user?.uid;
+  const [, rerender] = useState(0);
 
   useEffect(() => {
-    setValue(readLocal(key, fallback));
-    setReady(true);
-    const sync = (e: Event) => {
-      const k = (e as CustomEvent<string>).detail ?? (e as StorageEvent).key;
-      if (k === key) setValue(readLocal(key, fallback));
-    };
-    window.addEventListener(EVT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(EVT, sync);
-      window.removeEventListener("storage", sync);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+    if (!userId) return;
+    return subscribeCloud(userId, key, () => rerender((n) => n + 1));
+  }, [userId, key]);
+
+  const { value, ready } = userId ? readCloud(userId, key, fallback) : { value: fallback, ready: false };
 
   const update = useCallback(
     (next: T | ((prev: T) => T)) => {
-      const prev = readLocal(key, fallback);
-      const v = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
-      localStorage.setItem(key, JSON.stringify(v));
-      setValue(v);
-      window.dispatchEvent(new CustomEvent(EVT, { detail: key }));
+      if (!userId) return;
+      const prev = readCloud(userId, key, fallback).value;
+      writeCloud(userId, key, typeof next === "function" ? (next as (p: T) => T)(prev) : next);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [key],
+    [userId, key],
   );
 
   return [value, update, ready] as const;

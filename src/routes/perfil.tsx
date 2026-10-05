@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { KEYS, targets, today, useLocal, type Focus, type Level, type Profile, type WeightEntry } from "@/lib/store";
 import { generatePlan, type Plan } from "@/lib/plan";
+import { LogOut } from "lucide-react";
+import { logout, useAuth } from "@/lib/auth";
+import { InvitesPanel } from "@/components/InvitesPanel";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -16,7 +19,7 @@ export const Route = createFileRoute("/perfil")({
   component: PerfilPage,
 });
 
-const DEFAULT: Profile = { name: "Anderson", sex: "m", age: 30, height: 175, weight: 80, goalWeight: 75, activity: 1.55, focus: "perder", days: 4, level: "intermediario", minutes: 60 };
+const DEFAULT: Profile = { name: "", sex: "m", age: 30, height: 175, weight: 80, goalWeight: 75, activity: 1.55, focus: "perder", days: 4, level: "intermediario", minutes: 60 };
 
 const FOCUS: { v: Focus; t: string; d: string }[] = [
   { v: "perder", t: "Perder gordura", d: "Déficit calórico + musculação para manter músculo" },
@@ -43,7 +46,11 @@ function PerfilPage() {
   const [p, setP] = useState<Profile>(DEFAULT);
   const nav = useNavigate();
 
-  useEffect(() => { if (ready && saved) setP(saved); }, [ready, saved]);
+  const { user, isAdmin } = useAuth();
+  useEffect(() => {
+    if (ready && saved) setP(saved);
+    else if (ready && user?.displayName) setP((o) => (o.name ? o : { ...o, name: user.displayName!.split(" ")[0]! }));
+  }, [ready, saved, user]);
 
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((o) => ({ ...o, [k]: v }));
   const t = targets(p);
@@ -162,6 +169,19 @@ function PerfilPage() {
       <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
         Salvar e gerar meu plano de treino
       </button>
+
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+        <div>
+          <h2 className="text-xl font-bold">Conta</h2>
+          <p className="text-sm text-muted-foreground">{user?.email}{isAdmin ? " · administrador" : ""}</p>
+        </div>
+        <button onClick={() => { if (confirm("Sair da sua conta neste aparelho?")) void logout(); }}
+          className="inline-flex items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold">
+          <LogOut className="h-4 w-4" />Sair
+        </button>
+      </section>
+
+      {isAdmin && <InvitesPanel />}
     </div>
   );
 }

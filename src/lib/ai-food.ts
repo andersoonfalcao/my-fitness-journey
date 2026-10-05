@@ -1,15 +1,5 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAI, getGenerativeModel, GoogleAIBackend, Schema } from "firebase/ai";
-
-// Public web config of the Firebase project "apptreino" (safe to ship; access is limited by App Check).
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyD944jrfTQDIGiAH6uskT3o8rJgpxYbGsA",
-  authDomain: "apptreino-f3677.firebaseapp.com",
-  projectId: "apptreino-f3677",
-  storageBucket: "apptreino-f3677.firebasestorage.app",
-  messagingSenderId: "825704581793",
-  appId: "1:825704581793:web:0fc8921ff11aa3ce4b7ee0",
-};
+import { firebaseApp } from "./firebase";
 
 export type EstimatedFood = { name: string; grams: number; kcal: number; p: number; c: number; f: number };
 
@@ -40,8 +30,7 @@ let model: ReturnType<typeof getGenerativeModel> | null = null;
 
 function foodModel() {
   if (!model) {
-    const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
-    const ai = getAI(app, { backend: new GoogleAIBackend() });
+    const ai = getAI(firebaseApp(), { backend: new GoogleAIBackend() });
     model = getGenerativeModel(ai, {
       model: "gemini-3.8-flash",
       systemInstruction: SYSTEM,
