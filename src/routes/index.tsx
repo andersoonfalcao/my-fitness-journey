@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry } from "@/lib/store";
-import type { Plan } from "@/lib/plan";
+import { nextWorkoutIndex, type Plan } from "@/lib/plan";
 import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
+import { DayClose } from "@/components/DayClose";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,6 +24,7 @@ function Index() {
   const [weights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [plan] = useLocal<Plan | null>(KEYS.plan, null);
   const [doneLog] = useLocal<string[]>(KEYS.done, []);
+  const [cycleStart] = useLocal<number>(KEYS.cycle, 0);
 
   if (!ready) return null;
   if (!profile) return <NeedProfile />;
@@ -31,7 +33,7 @@ function Index() {
   const day = foods.filter((f) => f.date === today());
   const sum = day.reduce((a, f) => ({ kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
   const current = weights.length ? [...weights].sort((a, b) => a.date.localeCompare(b.date)).at(-1)!.kg : profile.weight;
-  const next = plan ? plan.days[doneLog.length % plan.days.length] ?? null : null;
+  const next = plan ? plan.days[nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length)] ?? null : null;
   const left = t.kcal - Math.round(sum.kcal);
 
   return (
@@ -88,6 +90,8 @@ function Index() {
           </div>
         </section>
       )}
+
+      <DayClose profile={profile} date={today()} />
     </div>
   );
 }

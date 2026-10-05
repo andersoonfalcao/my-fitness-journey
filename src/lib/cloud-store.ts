@@ -94,6 +94,19 @@ export async function migrateLocalData(uid: string) {
 
 /** Food entries are kept one document per month (a document holds at most 1 MB). */
 export const foodsKey = (date: string) => `forma.foods.${date.slice(0, 7)}`;
+/** Water intake per month: { "YYYY-MM-DD": ml }. */
+export const waterKey = (date: string) => `forma.water.${date.slice(0, 7)}`;
+/** Closed days (summary + AI review) per month. */
+export const daysKey = (date: string) => `forma.days.${date.slice(0, 7)}`;
+
+/** One-off read of a key (for summaries that look at past months without subscribing). */
+export async function readCloudOnce<T>(uid: string, key: string, fallback: T): Promise<T> {
+  const cached = entries.get(id(uid, key));
+  if (cached?.ready && cached.value !== undefined) return cached.value as T;
+  const snap = await getDoc(ref(uid, key));
+  const json = snap.exists() ? (snap.data()["json"] as string | undefined) : undefined;
+  return json === undefined ? fallback : (JSON.parse(json) as T);
+}
 
 /** Drops cached values when the user signs out, so the next account never sees them. */
 export function resetCloudCache() {

@@ -1,5 +1,4 @@
-import { getAI, getGenerativeModel, GoogleAIBackend, Schema } from "firebase/ai";
-import { firebaseApp } from "./firebase";
+import { generateJson, Schema } from "./ai";
 
 export type EstimatedFood = { name: string; grams: number; kcal: number; p: number; c: number; f: number };
 
@@ -26,45 +25,9 @@ const SCHEMA = Schema.object({
   },
 });
 
-let model: ReturnType<typeof getGenerativeModel> | null = null;
-
-function foodModel() {
-  if (!model) {
-    const ai = getAI(firebaseApp(), { backend: new GoogleAIBackend() });
-    model = getGenerativeModel(ai, {
-      model: "gemini-3.8-flash",
-      systemInstruction: SYSTEM,
-      generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA },
-    });
-  }
-  return model;
-}
-
-/** Estimates portions and macros of a free-text meal description with Gemini (Firebase AI Logic, free tier). */
+/** Estimates portions and macros of a free-text meal description. */
 export async function estimateFood(text: string): Promise<EstimatedFood[]> {
-  let raw = "";
-  // The free tier sometimes answers 500/503 "high demand". Retry once only: every attempt, failed or not,
-  // counts against the free limit of 5 requests per minute.
-  for (let attempt = 1; ; attempt++) {
-    try {
-      raw = (await foodModel().generateContent(text)).response.text();
-      break;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      const busy = /\b(500|503)\b|high demand|overloaded|unavailable/i.test(message);
-      if (busy && attempt < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 4000));
-        continue;
-      }
-      if (busy) throw new Error("A IA gratuita está ocupada agora. Tente de novo em alguns instantes.");
-      if (/429|quota|resource.?exhausted/i.test(message)) {
-        const wait = /retry in (\d+)/i.exec(message)?.[1];
-        throw new Error(wait ? `Limite gratuito por minuto atingido. Tente de novo em ${wait} segundos.` : "Limite gratuito da IA atingido por agora. Tente mais tarde.");
-      }
-      throw new Error("Não foi possível falar com a IA. Verifique a internet e tente de novo.");
-    }
-  }
-  const items = (JSON.parse(raw) as { items?: unknown }).items;
+  const items = ((await generateJson(SYSTEM, SCHEMA, text)) as { items?: unknown }).items;
   if (!Array.isArray(items)) return [];
   const num = (v: unknown) => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : 0);
   return items.map((i: Record<string, unknown>) => ({

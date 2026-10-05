@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "./auth";
 import { readCloud, subscribeCloud, writeCloud } from "./cloud-store";
 
-export { foodsKey } from "./cloud-store";
+export { daysKey, foodsKey, waterKey } from "./cloud-store";
 
 /**
  * State of one key in the signed-in user's account (Firestore, cached on the device), shared across components.
@@ -105,6 +105,29 @@ export type WorkoutRecord = {
   }[];
 };
 
+/** Water drunk per day in a month document: { "YYYY-MM-DD": ml }. */
+export type WaterLog = Record<string, number>;
+
+/** A closed day: the day's numbers, the numbers since the start, and the AI review written from them. */
+export type DayRecord = {
+  date: string;
+  closedAt: number;
+  day: {
+    kcal: number; protein: number; carbs: number; fat: number; waterMl: number; meals: number;
+    targets: { kcal: number; protein: number; carbs: number; fat: number; waterMl: number };
+    workout: { name: string; minutes: number | null; setsDone: number; setsPlanned: number; volumeKg: number; volumeDiffKg: number | null } | null;
+    weightKg: number | null;
+  };
+  sinceStart: {
+    startDate: string; days: number;
+    weightStart: number; weightNow: number; weightGoal: number;
+    workouts: number; workoutsLast7Days: number;
+    daysLogged: number; avgKcal: number; avgProtein: number; daysOnCalories: number; daysOnProtein: number;
+    volumeTrend: { name: string; firstKg: number; lastKg: number }[];
+  };
+  ai: { overview: string; goingWell: string[]; improve: string[]; sinceStart: string; tomorrow: string };
+};
+
 export const KEYS = {
   profile: "forma.profile",
   foods: "forma.foods",
@@ -114,6 +137,8 @@ export const KEYS = {
   done: "forma.done",
   session: "forma.session",
   history: "forma.history",
+  /** Workouts done when the sequence was last restarted from the first workout. */
+  cycle: "forma.cycle",
 };
 
 export const today = () => {
@@ -167,11 +192,15 @@ export function targets(p: Profile) {
   const fat = Math.round(Math.max((kcal * 0.25) / 9, p.weight * 0.6));
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
 
+  // ~35 ml per kg of body weight is the usual practical guide for active adults; kept within 1.5–4 L.
+  const waterMl = Math.round(Math.min(4000, Math.max(1500, p.weight * 35)) / 50) * 50;
+
   const notes = [
     energyNote,
     `proteína ${proteinPerKg.toLocaleString("pt-BR")} g/kg${proteinWeight !== p.weight ? " do peso-meta" : ""}`,
     "gordura ~25% das calorias",
     "carboidratos completam o restante",
+    "água ~35 ml/kg",
   ];
-  return { kcal, protein, carbs, fat, tdee: Math.round(tdee), notes };
+  return { kcal, protein, carbs, fat, waterMl, tdee: Math.round(tdee), notes };
 }

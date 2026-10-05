@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { foodsKey, KEYS, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
 import { searchFoods, type Food } from "@/lib/foods";
 import { estimateFood } from "@/lib/ai-food";
+import { WaterCard } from "@/components/WaterCard";
 import { MacroBar, NeedProfile } from "@/components/AppShell";
 
 export const Route = createFileRoute("/alimentacao")({
@@ -87,6 +88,8 @@ function FoodPage() {
           <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--secondary)" />
         </div>
       </section>
+
+      <WaterCard date={date} targetMl={t.waterMl} />
 
       <section className="rounded-3xl border border-border bg-card p-6">
         <div className="flex flex-wrap gap-2">

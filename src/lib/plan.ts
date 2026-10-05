@@ -43,6 +43,14 @@ function prescription(p: Profile, ex: Exercise): Omit<PlanItem, "exId"> {
   }
 }
 
+/**
+ * Index of the next workout: the plan days follow each other in order. `cycleStart` is how many workouts
+ * were done when the user last chose "start again from the first workout" (0 if never).
+ */
+export function nextWorkoutIndex(doneCount: number, cycleStart: number, days: number) {
+  return days ? (((doneCount - cycleStart) % days) + days) % days : 0;
+}
+
 /** Reps target for an exercise under the profile, used when an exercise is swapped. */
 export const repsFor = (p: Profile, ex: Exercise) => prescription(p, ex).reps;
 

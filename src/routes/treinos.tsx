@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, Play, RefreshCw, Save, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
+import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, Play, RefreshCw, RotateCcw, Save, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { KEYS, today, uid, useLocal, type LoadEntry, type Profile, type WorkoutRecord, type WorkoutSession } from "@/lib/store";
-import { generatePlan, normalizePlan, repsCount, repsFor, type Plan } from "@/lib/plan";
+import { generatePlan, nextWorkoutIndex, normalizePlan, repsCount, repsFor, type Plan } from "@/lib/plan";
 import { alternatives, byId, GROUP_LABEL, youtubeSearchUrl, type Exercise } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
+import { lastRecordBefore, recordTotal, repsOfSet, sumKg, volume, type SetValues } from "@/lib/workout-stats";
 
 export const Route = createFileRoute("/treinos")({
   head: () => ({
@@ -32,6 +33,7 @@ function TreinosPage() {
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [plan, setPlan] = useLocal<Plan | null>(KEYS.plan, null);
   const [doneLog, setDone] = useLocal<string[]>(KEYS.done, []);
+  const [cycleStart, setCycleStart] = useLocal<number>(KEYS.cycle, 0);
   const [loads, setLoads] = useLocal<LoadEntry[]>(KEYS.loads, []);
   const [session, setSession] = useLocal<WorkoutSession | null>(KEYS.session, null);
   const [history, setHistory] = useLocal<WorkoutRecord[]>(KEYS.history, []);
@@ -58,7 +60,7 @@ function TreinosPage() {
     );
   }
 
-  const nextIdx = doneLog.length % plan.days.length;
+  const nextIdx = nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length);
   const sessionIdx = session ? plan.days.findIndex((d) => d.name === session.dayName) : -1;
   const active = dayIdx ?? (sessionIdx >= 0 ? sessionIdx : nextIdx);
   const day = plan.days[active] ?? plan.days[0]!;
@@ -187,6 +189,19 @@ function TreinosPage() {
           </button>
         ))}
       </div>
+      {nextIdx !== 0 && !session && (
+        <button
+          onClick={() => {
+            if (!confirm(`Recomeçar a sequência? O próximo treino passa a ser o ${plan.days[0]!.name}. Seu histórico não muda.`)) return;
+            setCycleStart(doneLog.length);
+            setDayIdx(null);
+            toast.success(`Sequência recomeçada: próximo é o ${plan.days[0]!.name}`);
+          }}
+          className="-mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          <RotateCcw className="h-4 w-4" />Recomeçar do {plan.days[0]!.name}
+        </button>
+      )}
 
       {session ? (
         <div className="sticky top-[4.25rem] z-20 rounded-3xl bg-primary px-5 py-3 text-primary-foreground shadow-lg">
@@ -556,33 +571,10 @@ function RestCountdown({ endsAt, next, onAdd, onDone }: { endsAt: number; next: 
   );
 }
 
-/** Total weight of an exercise = sum of the weight used in each set (sets without weight count as zero). */
-function sumKg(kgs: (number | null)[] | undefined) {
-  return (kgs ?? []).reduce<number>((sum, kg) => sum + (kg ?? 0), 0);
-}
-
-function recordTotal(record: WorkoutRecord | undefined) {
-  return record?.exercises.reduce((sum, e) => sum + volume(e.setKgs, e.setReps, e.reps), 0) ?? 0;
-}
-
-function lastRecordBefore(records: WorkoutRecord[], dayName: string) {
-  return [...records].reverse().find((r) => r.dayName === dayName);
-}
-
-const kgNumber =(kg: number) => kg.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+const kgNumber = (kg: number) => kg.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
 function formatDiff(kg: number) {
   return kg === 0 ? "igual" : `${kg > 0 ? "+" : "−"}${kgNumber(Math.abs(kg))} kg`;
-}
-
-type SetValues = (number | null)[] | undefined;
-
-/** Reps of set `j`: what was typed, else the plan target (null for time-based work such as plank). */
-const repsOfSet = (setReps: SetValues, j: number, reps: string) => setReps?.[j] ?? repsCount(reps);
-
-/** Training volume = Σ weight × reps of each set; time-based work (plank) has no volume. */
-function volume(kgs: SetValues, setReps: SetValues, reps: string) {
-  return (kgs ?? []).reduce<number>((sum, kg, j) => sum + (kg ?? 0) * (repsOfSet(setReps, j, reps) ?? 0), 0);
 }
 
 function formatSetKgs(kgs: (number | null)[], setReps: SetValues, reps: string) {
