@@ -1,5 +1,6 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Utensils, Scale, Dumbbell, User } from "lucide-react";
+import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sun, User } from "lucide-react";
+import { useTheme } from "@/lib/theme";
 import { useEffect, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
 
@@ -27,12 +28,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Links like /alimentacao#agua: the section only exists once the account data loads, so wait for it a little.
   const { pathname, hash } = useLocation();
   const closeCalendar = useCloseCalendar();
-  // Tapping the calendar again while it is open closes it.
-  const toggleCalendar = (event: { preventDefault: () => void }) => {
-    if (pathname !== "/calendario") return;
+  const [theme, toggleTheme] = useTheme();
+  // Tapping the calendar (or the gear) again while it is open closes it.
+  const toggle = (to: string) => (event: { preventDefault: () => void }) => {
+    if (pathname !== to) return;
     event.preventDefault();
     closeCalendar();
   };
+  const toggleCalendar = toggle("/calendario");
+  const toggleSettings = toggle("/configuracoes");
   useEffect(() => {
     if (!hash) return;
     let tries = 0;
@@ -65,9 +69,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2 text-muted-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
-            <CalendarDays className="h-6 w-6" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
+              <CalendarDays className="h-6 w-6" />
+            </Link>
+            <button type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={theme === "dark" ? "Desativar modo escuro" : "Ativar modo escuro"}
+              title={theme === "dark" ? "Modo claro" : "Modo escuro"} className="rounded-full p-2.5 text-muted-foreground hover:text-foreground">
+              {theme === "dark" ? <Sun className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
+            </button>
+            <Link to="/configuracoes" onClick={toggleSettings} aria-label={pathname === "/configuracoes" ? "Fechar configurações" : "Configurações"} title="Configurações" className="rounded-full p-2.5 text-muted-foreground hover:text-foreground" activeProps={{ className: "!text-accent" }}>
+              <Settings className="h-6 w-6" />
+            </Link>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>

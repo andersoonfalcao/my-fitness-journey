@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Search, Sparkles, Trash2, Loader2, ScanBarcode } from "lucide-react";
+import { ChevronDown, Pencil, Search, Sparkles, Trash2, Loader2, ScanBarcode } from "lucide-react";
 import { toast } from "sonner";
 import { foodsKey, KEYS, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
 import { searchFoods, type Food } from "@/lib/foods";
@@ -9,6 +9,7 @@ import { WaterCard } from "@/components/WaterCard";
 import { ProductPanel } from "@/components/ProductPanel";
 import { SupplementsCard } from "@/components/SupplementsCard";
 import { MacroBar, NeedProfile } from "@/components/AppShell";
+import { MacrosCard } from "@/components/MacrosCard";
 
 export const Route = createFileRoute("/alimentacao")({
   head: () => ({
@@ -19,6 +20,8 @@ export const Route = createFileRoute("/alimentacao")({
       { property: "og:description", content: "Contagem de calorias e macros com busca de alimentos e estimativa por IA." },
     ],
   }),
+  // ?aba=historico opens the history (7-day macros and past days); the default tab is for logging the day.
+  validateSearch: (search: Record<string, unknown>): { aba?: "historico" } => (search["aba"] === "historico" ? { aba: "historico" } : {}),
   component: FoodPage,
 });
 
@@ -31,6 +34,8 @@ const MEALS: { v: MealType; t: string }[] = [
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 function FoodPage() {
+  const tab = Route.useSearch().aba ?? "hoje";
+  const navigate = useNavigate();
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [date, setDate] = useState(today());
   const [foods, setFoods] = useLocal<FoodEntry[]>(foodsKey(date), []);
@@ -74,21 +79,40 @@ function FoodPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-4xl font-extrabold">Alimentação</h1>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border border-input bg-card px-3 py-2" />
+      <h1 className="text-4xl font-extrabold">Alimentação</h1>
+
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1" role="tablist" aria-label="Alimentação">
+        {([["hoje", "Registrar", {}], ["historico", "Histórico", { aba: "historico" }]] as const).map(([value, label, search]) => (
+          <Link key={value} to="/alimentacao" search={search} replace role="tab" aria-selected={tab === value}
+            className={`rounded-full py-2 text-center text-sm font-bold ${tab === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            {label}
+          </Link>
+        ))}
       </div>
 
-      <section className="grid gap-4 rounded-3xl bg-primary p-6 text-primary-foreground sm:grid-cols-[auto_1fr] sm:items-center">
-        <div>
-          <div className="text-sm opacity-75">Consumido</div>
-          <div className="font-display text-4xl font-extrabold">{Math.round(sum.kcal)}<span className="text-lg opacity-75"> / {t.kcal} kcal</span></div>
+      {tab === "historico" ? (
+        <FoodHistory t={t} onEdit={(d) => { setDate(d); void navigate({ to: "/alimentacao", search: {}, replace: true }); window.scrollTo({ top: 0 }); }} />
+      ) : (<>
+      <section className="rounded-3xl bg-primary p-5 text-primary-foreground sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-semibold opacity-90">
+            {date === today() ? "Hoje" : new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}
+          </div>
+          <label className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-xs font-semibold">
+            Outro dia
+            <input type="date" value={date} max={today()} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Registrar em outro dia"
+              className="w-[8.5rem] bg-transparent text-primary-foreground [color-scheme:dark]" />
+          </label>
         </div>
-        <div className="grid gap-3 sm:pl-6 [&_span]:!text-primary-foreground/80">
-          <MacroBar name="Proteína" value={sum.p} max={t.protein} color="var(--chart-3)" />
-          <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--accent)" />
-          <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--secondary)" />
+        <div className="mt-1 font-display text-4xl font-extrabold">{Math.round(sum.kcal)}<span className="text-lg opacity-75"> / {t.kcal} kcal</span></div>
+        <div className="mt-4 grid gap-3 [&_span]:!text-primary-foreground/80">
+          <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--chart-1)" />
+          <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--chart-3)" />
+          <MacroBar name="Proteínas" value={sum.p} max={t.protein} color="var(--chart-2)" />
         </div>
+        {date !== today() && (
+          <button type="button" onClick={() => setDate(today())} className="mt-4 text-sm font-semibold underline underline-offset-4">Voltar para hoje</button>
+        )}
       </section>
 
       <WaterCard date={date} targetMl={t.waterMl} />
@@ -200,6 +224,77 @@ function FoodPage() {
           );
         })}
       </div>
+      </>)}
+    </div>
+  );
+}
+
+const DAYS_SHOWN = 30;
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Histórico: the 7-day macros and the last days with what was eaten, each one reopenable for corrections. */
+function FoodHistory({ t, onEdit }: { t: ReturnType<typeof targets>; onEdit: (date: string) => void }) {
+  const end = today();
+  const start = new Date(`${end}T12:00:00`);
+  start.setDate(start.getDate() - (DAYS_SHOWN - 1));
+  // Food logs are one document per month: the last 30 days span this month and the one before.
+  const [thisMonth] = useLocal<FoodEntry[]>(foodsKey(end), []);
+  const [prevMonth] = useLocal<FoodEntry[]>(foodsKey(iso(start)), []);
+  const foods = foodsKey(iso(start)) === foodsKey(end) ? thisMonth : [...prevMonth, ...thisMonth];
+  const days = Array.from({ length: DAYS_SHOWN }, (_, i) => {
+    const d = new Date(`${end}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const date = iso(d);
+    const items = foods.filter((f) => f.date === date);
+    const sum = items.reduce((a, f) => ({ kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
+    return { date, d, items, sum };
+  }).filter((x) => x.items.length > 0);
+
+  return (
+    <div className="space-y-4">
+      <MacrosCard t={t} />
+      <section className="space-y-2">
+        <h2 className="px-1 text-xl font-bold">Dias anteriores</h2>
+        {days.length === 0 ? (
+          <p className="px-1 text-sm text-muted-foreground">Nenhuma refeição registrada nos últimos {DAYS_SHOWN} dias.</p>
+        ) : days.map(({ date, d, items, sum }) => (
+          <details key={date} className="group rounded-3xl border border-border bg-card px-4 py-3">
+            <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {date === end ? "Hoje" : d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
+                </span>
+                <span className="block font-display text-lg font-bold tabular-nums">
+                  {Math.round(sum.kcal)} <span className="text-sm font-semibold text-muted-foreground">/ {t.kcal} kcal · {Math.round((sum.kcal / t.kcal) * 100)}%</span>
+                </span>
+                <span className="block text-xs tabular-nums text-muted-foreground">
+                  <b style={{ color: "var(--chart-1)" }}>C</b> {Math.round(sum.c)} g · <b style={{ color: "var(--chart-3)" }}>G</b> {Math.round(sum.f)} g · <b style={{ color: "var(--chart-2)" }}>P</b> {Math.round(sum.p)} g
+                </span>
+              </span>
+              <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+            </summary>
+            <div className="mt-3 border-t border-border pt-2">
+              {[...MEALS, { v: "suplementos" as const, t: "Suplementos" }].map((m) => {
+                const list = items.filter((f) => f.meal === m.v);
+                if (!list.length) return null;
+                return (
+                  <div key={m.v} className="py-1.5">
+                    <div className="flex justify-between text-sm font-bold"><span>{m.t}</span><span className="text-accent">{list.reduce((a, f) => a + f.kcal, 0)} kcal</span></div>
+                    <ul className="text-sm text-muted-foreground">
+                      {list.map((f) => (
+                        <li key={f.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">{f.name} · {f.dose ?? `${f.grams}g`}</span><span className="shrink-0 tabular-nums">{f.kcal}</span></li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+              <button type="button" onClick={() => onEdit(date)} className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-input px-4 py-2 text-sm font-semibold">
+                <Pencil className="h-4 w-4" />Editar este dia
+              </button>
+            </div>
+          </details>
+        ))}
+      </section>
     </div>
   );
 }

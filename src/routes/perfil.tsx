@@ -1,15 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { KEYS, targets, today, useLocal, type Focus, type Level, type Profile, type WeightEntry } from "@/lib/store";
+import { fmtKg, KEYS, roundKg, targets, today, useLocal, type Focus, type Level, type Profile, type WeightEntry } from "@/lib/store";
 import { generatePlan, type Plan } from "@/lib/plan";
-import { LogOut, RefreshCw } from "lucide-react";
-import { logout, useAuth } from "@/lib/auth";
-import { InvitesPanel } from "@/components/InvitesPanel";
-import { StravaCard } from "@/components/StravaCard";
-import { SettingsPanel } from "@/components/SettingsPanel";
+import { Activity, ArrowRight, CalendarDays, Clock, Dumbbell, Eye, Pencil, RefreshCw, Target, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import { MethodPicker } from "@/components/MethodPicker";
 import { RegenerateDialog } from "@/components/RegenerateDialog";
+import { musclesOf } from "@/components/WeekPlan";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -49,33 +47,54 @@ function PerfilPage() {
   const [doneLog] = useLocal<string[]>(KEYS.done, []);
   const [, setCycleStart] = useLocal<number>(KEYS.cycle, 0);
   const [regen, setRegen] = useState(false);
-  const [, setWeights] = useLocal<WeightEntry[]>(KEYS.weights, []);
+  const [weights, setWeights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [p, setP] = useState<Profile>(DEFAULT);
+  // A saved profile opens read-only, so entering the tab can't change anything by accident.
+  const [editing, setEditing] = useState(false);
   const nav = useNavigate();
 
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   useEffect(() => {
     if (ready && saved) setP(saved);
     else if (ready && user?.displayName) setP((o) => (o.name ? o : { ...o, name: user.displayName!.split(" ")[0]! }));
   }, [ready, saved, user]);
 
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((o) => ({ ...o, [k]: v }));
-  const t = targets(p);
+  // The current weight is the last weighing from Corpo; the profile keeps the one the goals were calculated with.
+  const sortedWeights = [...weights].sort((a, b) => a.date.localeCompare(b.date));
+  const latest = sortedWeights.at(-1);
+  const updateGoalsWeight = () => {
+    if (!saved || !latest) return;
+    setProfile({ ...saved, weight: latest.kg });
+    toast.success("Metas recalculadas com o peso da última pesagem");
+  };
+  const showForm = editing || !saved;
+  const t = targets(showForm ? p : saved);
+  const dirty = !!saved && JSON.stringify(p) !== JSON.stringify(saved);
+
+  const view = () => {
+    if (dirty && !confirm("Descartar as alterações que você não salvou?")) return;
+    if (saved) setP(saved);
+    setEditing(false);
+  };
 
   const save = () => {
     setProfile(p);
     setPlan(generatePlan(p, { variation: plan?.variation }));
     setCycleStart(doneLog.length);
     setWeights((w) => (w.length ? w : [{ date: today(), kg: p.weight }]));
+    setEditing(false);
     toast.success("Perfil salvo e plano de treino gerado!");
     nav({ to: "/treinos" });
   };
 
-  const num = (k: keyof Profile, label: string, suffix: string) => (
+  // Weights take two decimals (78,45 kg); the other numbers are whole.
+  const num = (k: keyof Profile, label: string, suffix: string, decimals = false) => (
     <label className="block">
       <span className="text-sm font-semibold">{label}</span>
       <div className="mt-1 flex items-center rounded-xl border border-input bg-card px-3">
-        <input type="number" value={p[k] as number} onChange={(e) => set(k, Number(e.target.value) as never)}
+        <input type="number" step={decimals ? 0.01 : 1} inputMode={decimals ? "decimal" : "numeric"} value={p[k] as number}
+          onChange={(e) => set(k, (decimals ? roundKg(Number(e.target.value)) : Number(e.target.value)) as never)}
           className="w-full bg-transparent py-2.5 outline-none" />
         <span className="text-sm text-muted-foreground">{suffix}</span>
       </div>
@@ -84,11 +103,36 @@ function PerfilPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-sm font-bold uppercase tracking-widest text-accent">Questionário</p>
-        <h1 className="mt-1 text-4xl font-extrabold">Seu objetivo</h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">Usamos a fórmula Mifflin-St Jeor para calorias e um método de divisão de treino adequado aos seus dias disponíveis.</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-widest text-accent">{showForm ? "Questionário" : "Perfil"}</p>
+          <h1 className="mt-1 text-4xl font-extrabold">{showForm ? "Seu objetivo" : "Seu perfil"}</h1>
+          {showForm && <p className="mt-2 max-w-xl text-muted-foreground">Usamos a fórmula Mifflin-St Jeor para calorias e um método de divisão de treino adequado aos seus dias disponíveis.</p>}
+        </div>
+        {saved && (
+          <div className="inline-flex rounded-full border border-border bg-card p-1" role="tablist" aria-label="Modo do perfil">
+            {([[false, "Visualizar", Eye], [true, "Editar", Pencil]] as const).map(([mode, label, Icon]) => (
+              <button key={label} type="button" role="tab" aria-selected={editing === mode}
+                onClick={() => (mode ? setEditing(true) : view())}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${editing === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                <Icon className="h-4 w-4" />{label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {!showForm && saved ? <>
+        {latest && Math.abs(latest.kg - saved.weight) >= 0.5 && (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
+            <p className="min-w-0 flex-1 text-sm">
+              Sua última pesagem foi <b>{fmtKg(latest.kg)} kg</b> em {new Date(`${latest.date}T12:00:00`).toLocaleDateString("pt-BR")}. As metas de calorias e macros ainda usam <b>{fmtKg(saved.weight)} kg</b>.
+            </p>
+            <button type="button" onClick={updateGoalsWeight} className="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">Atualizar metas</button>
+          </section>
+        )}
+        <ProfileSummary p={saved} current={latest?.kg ?? saved.weight} start={sortedWeights[0]} />
+      </> : <>
 
       <section className="rounded-3xl border border-border bg-card p-6">
         <h2 className="text-xl font-bold">1. Sobre você</h2>
@@ -106,8 +150,8 @@ function PerfilPage() {
           </label>
           {num("age", "Idade", "anos")}
           {num("height", "Altura", "cm")}
-          {num("weight", "Peso atual", "kg")}
-          {num("goalWeight", "Meta de peso", "kg")}
+          {num("weight", "Peso atual", "kg", true)}
+          {num("goalWeight", "Meta de peso", "kg", true)}
           <label className="block">
             <span className="text-sm font-semibold">Nível de atividade</span>
             <select value={p.activity} onChange={(e) => set("activity", Number(e.target.value))}
@@ -171,6 +215,7 @@ function PerfilPage() {
         </div>
         <MethodPicker profile={p} value={p.method} onChange={(method) => set("method", method)} />
       </section>
+      </>}
 
       <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
         <h2 className="text-xl font-bold">Suas metas diárias</h2>
@@ -182,35 +227,114 @@ function PerfilPage() {
         <p className="mt-3 text-sm opacity-75">Gasto estimado: {t.tdee} kcal/dia. Como calculamos: {t.notes.join(" · ")}.</p>
       </section>
 
-      <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
-        Salvar e gerar meu plano de treino
-      </button>
-      {saved && plan && (
-        <div className="-mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
-          <span className="text-muted-foreground">Plano atual: <b className="text-foreground">{plan.method}</b></span>
-          <button type="button" onClick={() => setRegen(true)} className="inline-flex items-center gap-1.5 font-semibold text-primary underline-offset-4 hover:underline">
-            <RefreshCw className="h-4 w-4" />Regerar treino (exercícios ou método)
+      {showForm && (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
+            Salvar e gerar meu plano de treino
           </button>
+          {saved && (
+            <button type="button" onClick={view} className="rounded-full border border-input px-8 py-4 font-semibold sm:shrink-0">
+              Cancelar
+            </button>
+          )}
         </div>
       )}
+      {!showForm && plan && (
+        <section className="rounded-3xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Dumbbell className="h-4 w-4 shrink-0 text-accent" aria-hidden />Plano atual
+          </div>
+          <div className="mt-2 font-display text-2xl font-bold leading-tight">{plan.method}</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {plan.days.length} treino{plan.days.length === 1 ? "" : "s"} na sequência · gerado em {new Date(plan.createdAt).toLocaleDateString("pt-BR")} · {doneLog.length} treino{doneLog.length === 1 ? "" : "s"} concluído{doneLog.length === 1 ? "" : "s"} até agora
+          </div>
+          <ul className="mt-4 divide-y divide-border rounded-2xl bg-muted/60 px-4">
+            {plan.days.map((d) => (
+              <li key={d.name} className="flex items-baseline justify-between gap-3 py-2.5 text-sm">
+                <span className="shrink-0 font-bold">{d.name}</span>
+                <span className="min-w-0 text-right text-muted-foreground">{musclesOf(d.items.map((it) => it.exId))}</span>
+              </li>
+            ))}
+          </ul>
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer font-semibold">Sobre o método</summary>
+            <p className="mt-2 text-muted-foreground">{plan.summary}</p>
+          </details>
+          <button type="button" onClick={() => setRegen(true)}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 font-bold text-primary-foreground">
+            <RefreshCw className="h-4 w-4" />Regerar treino
+          </button>
+          <p className="mt-2 text-center text-xs text-muted-foreground">Troque os exercícios ou mude o método. Seu histórico não muda.</p>
+        </section>
+      )}
       <RegenerateDialog open={regen} onOpenChange={setRegen} onDone={() => nav({ to: "/treinos" })} />
+    </div>
+  );
+}
 
-      <SettingsPanel />
+/** One weight of the profile summary: label, big number with a smaller "kg", optional line below. */
+function WeightFigure({ label, value, sub, className = "" }: { label: string; value: number | undefined; sub?: string | undefined; className?: string }) {
+  return (
+    <div className={`shrink-0 text-center ${className}`}>
+      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="whitespace-nowrap font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+        {value !== undefined ? <>{fmtKg(value)}<span className="text-base sm:text-xl"> kg</span></> : "—"}
+      </div>
+      {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
+    </div>
+  );
+}
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
-        <div>
-          <h2 className="text-xl font-bold">Conta</h2>
-          <p className="text-sm text-muted-foreground">{user?.email}{isAdmin ? " · administrador" : ""}</p>
+/** Read-only view of the saved answers; editing happens only after tapping Editar. */
+function ProfileSummary({ p, current, start }: { p: Profile; current: number; start: WeightEntry | undefined }) {
+  const focus = FOCUS.find((f) => f.v === p.focus);
+  const kg = (n: number) => `${fmtKg(n)} kg`;
+  const diff = roundKg(p.goalWeight - current);
+  const bmi = current / (p.height / 100) ** 2;
+  const about = [p.sex === "m" ? "Masculino" : "Feminino", `${p.age} anos`, `${p.height} cm`, `IMC ${bmi.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}`];
+  const cards: { icon: LucideIcon; label: string; value: string; sub?: string | undefined }[] = [
+    { icon: Target, label: "Foco", value: focus?.t ?? "—", sub: focus?.d },
+    { icon: CalendarDays, label: "Frequência", value: `${p.days}× por semana` },
+    { icon: Clock, label: "Duração", value: `${p.minutes} min por treino` },
+    { icon: Dumbbell, label: "Experiência", value: LEVELS.find((l) => l.v === p.level)?.t.replace(/ \(.*\)$/, "") ?? "—" },
+    { icon: Activity, label: "Atividade no dia a dia", value: ACT.find((a) => a.v === p.activity)?.t ?? "—" },
+  ];
+  return (
+    <div className="space-y-4">
+      <section className="rounded-3xl border border-border bg-card p-6">
+        {/* Phone: start on its own line, then current → what is left → goal. Wider screens: one line. */}
+        <div className="flex flex-wrap items-start justify-center gap-y-4 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] sm:gap-6">
+          <WeightFigure label="Início" value={start?.kg} sub={start ? new Date(`${start.date}T12:00:00`).toLocaleDateString("pt-BR") : undefined} className="w-full sm:w-auto" />
+          <div className="flex w-full min-w-0 items-start justify-center gap-2 sm:contents">
+            <WeightFigure label="Peso atual" value={current} />
+            <div className="flex min-w-[5.5rem] flex-1 flex-col items-center gap-1 pt-5">
+              <span className={`rounded-full px-2.5 py-1 text-center text-xs font-bold leading-tight sm:text-sm ${diff === 0 ? "bg-[#3f9d6b]/10 text-[#3f9d6b]" : "bg-destructive/10 text-destructive"}`}>
+                {diff === 0 ? "Na meta" : <>{diff > 0 ? "Ganhar" : "Perder"} <span className="whitespace-nowrap">{kg(Math.abs(diff))}</span></>}
+              </span>
+              <span className={`flex w-full items-center ${diff === 0 ? "text-[#3f9d6b]" : "text-destructive"}`} aria-hidden>
+                <span className="h-px flex-1 bg-current opacity-50" />
+                <ArrowRight className="-ml-1 h-4 w-4" />
+              </span>
+            </div>
+            <WeightFigure label="Meta" value={p.goalWeight} className="text-[#3f9d6b]" />
+          </div>
         </div>
-        <button onClick={() => { if (confirm("Sair da sua conta neste aparelho?")) void logout(); }}
-          className="inline-flex items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold">
-          <LogOut className="h-4 w-4" />Sair
-        </button>
+        <div className="mt-5 flex flex-wrap justify-center gap-2 border-t border-border pt-4">
+          {about.map((a) => <span key={a} className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">{a}</span>)}
+        </div>
       </section>
 
-      <StravaCard />
-
-      {isAdmin && <InvitesPanel />}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        {cards.map(({ icon: Icon, label, value, sub }) => (
+          <div key={label} className={`rounded-2xl border border-border bg-card p-4 ${label === "Foco" ? "col-span-2" : ""}`}>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Icon className="h-4 w-4 shrink-0 text-accent" aria-hidden />{label}
+            </div>
+            <div className="mt-2 font-display text-lg font-bold leading-tight">{value}</div>
+            {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

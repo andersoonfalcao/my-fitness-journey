@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeftRight, Check, CheckCheck, ChevronDown, Info, ListChecks, Play, RefreshCw, RotateCcw, Share2, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
+import { ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Info, ListChecks, Play, RotateCcw, Share2, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { KEYS, today, uid, useHistory, useLocal, type LoadEntry, type Profile, t
 import { generatePlan, nextWorkoutIndex, normalizePlan, repsCount, repsFor, type Plan } from "@/lib/plan";
 import { alternatives, byId, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
-import { RegenerateDialog } from "@/components/RegenerateDialog";
+import { defaultTrainingDays, musclesOf, WeekPlan } from "@/components/WeekPlan";
+import { BodyMap } from "@/components/BodyMap";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
 import { StravaActivities } from "@/components/StravaActivities";
@@ -50,12 +51,15 @@ function TreinosPage() {
   const [loadInputs, setLoadInputs] = useState<Record<string, string>>({});
   const [repsInputs, setRepsInputs] = useState<Record<string, string>>({});
   const [dayIdx, setDayIdx] = useState<number | null>(null);
+  // Exercises are collapsed cards; one opens at a time to show its sets, reps and loads.
+  const [openItem, setOpenItem] = useState<number | null>(null);
+  const [viewRecords, setViewRecords] = useState<WorkoutRecord[] | null>(null);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [swap, setSwap] = useState<{ d: number; i: number } | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
-  const [regen, setRegen] = useState(false);
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
   const [settings] = useSettings();
+  const [schedule, setSchedule] = useLocal<number[] | null>(KEYS.schedule, null);
 
   useWakeLock(!!session);
 
@@ -75,6 +79,7 @@ function TreinosPage() {
     );
   }
 
+  const trainingDays = schedule?.length ? schedule : defaultTrainingDays(profile.days);
   const nextIdx = nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length);
   const sessionIdx = session ? plan.days.findIndex((d) => d.name === session.dayName) : -1;
   const active = dayIdx ?? (sessionIdx >= 0 ? sessionIdx : nextIdx);
@@ -116,6 +121,7 @@ function TreinosPage() {
     const pending = day.items.map((it, j) => j).filter((j) => (sets[j] ?? 0) < day.items[j]!.sets);
     if (pending.length === 0) {
       setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+      setOpenItem(null);
       toast.success("Todas as séries feitas! Agora é só concluir o treino.");
       return;
     }
@@ -126,6 +132,7 @@ function TreinosPage() {
       const next = `Série ${(sets[nextJ] ?? 0) + 1} de ${nextItem.sets} · ${byId(nextItem.exId).name}`;
       if (nextJ > i) {
         setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+        setOpenItem(nextJ);
         toast(`Próximo: ${byId(nextItem.exId).name}`);
         document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
@@ -135,9 +142,13 @@ function TreinosPage() {
       scheduleRestPush(endsAt, next);
       return;
     }
-    // After the exercise's last set there is no countdown: moving to the next machine is the rest.
+    // After the exercise's last set there is no countdown: moving to the next machine is the rest,
+    // so its card closes and the next pending one opens.
     if (done >= item.sets) {
       setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+      const nextJ = pending.find((j) => j > i) ?? pending[0]!;
+      setOpenItem(nextJ);
+      setTimeout(() => document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
       return;
     }
     const next = `Série ${done + 1} de ${item.sets} · ${byId(item.exId).name}`;
@@ -160,6 +171,11 @@ function TreinosPage() {
   const pendingItems = finishDay.items
     .map((it, i) => ({ it, i, done: finishSets[i] ?? 0 }))
     .filter(({ it, done }) => done < it.sets);
+
+  // The class being trained is numbered after every workout finished so far; other days are just for reference.
+  const isCurrentClass = tracksSets;
+  const classesDone = Math.max(doneLog.length, history.length);
+  const classNumber = classesDone + 1;
 
   const finishWorkout = () => {
     const finishedAt = Date.now();
@@ -226,14 +242,7 @@ function TreinosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest text-accent">{plan.method}</p>
-          <h1 className="mt-1 text-4xl font-extrabold">Seu plano de treino</h1>
-        </div>
-        <button onClick={() => setRegen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold"><RefreshCw className="h-4 w-4" />Regerar</button>
-      </div>
+      <h1 className="text-4xl font-extrabold">Treinos</h1>
 
       {/* The gym screen stays short: what was done (history, Strava, weekly sets) lives in its own tab. */}
       <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1" role="tablist" aria-label="Treinos">
@@ -246,19 +255,17 @@ function TreinosPage() {
       </div>
 
       {tab === "treino" && (<>
-      <p className="max-w-3xl text-muted-foreground">{plan.summary}</p>
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {plan.days.map((d, i) => (
-          <button key={i} onClick={() => setDayIdx(i)}
-            className={`shrink-0 rounded-2xl border-2 px-4 py-3 text-left ${i === active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}>
-            <div className="font-display font-bold">{d.name}</div>
-            <div className="text-xs opacity-75">{d.focus}</div>
-            {i === nextIdx && <div className="mt-1 text-[10px] font-bold uppercase tracking-wider text-accent">próximo</div>}
-            {i < nextIdx && <div className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider opacity-75"><Check className="h-3 w-3" />feito</div>}
-          </button>
-        ))}
-      </div>
+      <WeekPlan
+        plan={plan}
+        history={history}
+        nextIdx={nextIdx}
+        trainingDays={trainingDays}
+        activeIdx={active}
+        profileDays={profile.days}
+        onSelect={(i) => { setDayIdx(i); setOpenItem(null); }}
+        onChangeDays={setSchedule}
+        onOpenDone={setViewRecords}
+      />
       {nextIdx !== 0 && !session && (
         <button
           onClick={() => {
@@ -273,6 +280,22 @@ function TreinosPage() {
         </button>
       )}
 
+      <section className="flex items-center gap-3 rounded-3xl bg-primary p-4 text-primary-foreground sm:p-5">
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-bold uppercase tracking-widest text-accent">
+            {isCurrentClass ? `Aula ${classNumber}` : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
+          </div>
+          <h2 className="mt-1 font-display text-xl font-extrabold leading-tight sm:text-3xl">{musclesOf(day.items.map((it) => it.exId))}</h2>
+          <p className="mt-1 text-sm opacity-75">{day.items.length} exercícios · {plan.method}</p>
+          {openItem !== null && day.items[openItem] && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />agora: {byId(day.items[openItem]!.exId).name}
+            </p>
+          )}
+        </div>
+        <BodyMap exIds={day.items.map((it) => it.exId)} focus={openItem !== null ? day.items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-card/95 px-2 py-2 text-foreground" />
+      </section>
+
       {session ? (
         <div className="sticky top-[4.25rem] z-20 rounded-3xl bg-primary px-5 py-3 text-primary-foreground shadow-lg">
           <div className="flex items-center justify-between gap-3">
@@ -286,14 +309,6 @@ function TreinosPage() {
             <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setSession(null); setLoadInputs({}); setRepsInputs({}); } }}
               className="text-sm font-semibold underline-offset-4 opacity-75 hover:underline">Cancelar</button>
           </div>
-          {(todayTotal > 0 || lastFinishTotal > 0) && (
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-2 border-t border-primary-foreground/20 pt-2 text-sm">
-              <span className="opacity-75">Peso total</span>
-              <b className="font-display tabular-nums">{formatKg(todayTotal)}</b>
-              {lastFinishTotal > 0 && <span className="opacity-75">de {formatKg(lastFinishTotal)} da última vez</span>}
-              {lastFinishTotal > 0 && todayTotal > lastFinishTotal && <b className="text-accent">{formatDiff(todayTotal - lastFinishTotal)}</b>}
-            </div>
-          )}
         </div>
       ) : active === nextIdx ? (
         <button onClick={() => { askRestNotifications(); setSession({ dayName: day.name, startedAt: Date.now() }); }}
@@ -354,62 +369,69 @@ function TreinosPage() {
             setConfirmAll({ name: ex.name, count, detail, run: () => completeSets(i, setKg, reps, count) });
           };
           const setsLeft = it.sets - setsDone;
+          const finished = tracksSets && setsDone >= it.sets;
+          const open = openItem === i;
+          const exTotal = volume(kgsToday, repsToday, it.reps);
           return (
-            <article key={i} id={`exercicio-${i}`} className={`flex scroll-mt-28 gap-4 rounded-3xl border p-3 sm:p-4 ${setsDone >= it.sets ? "border-accent bg-accent/5" : "border-border bg-card"}`}>
-              <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{GROUP_LABEL[ex.group]} · {ex.equipment}</div>
-                <h3 className="font-display text-lg font-bold leading-tight">{ex.name}</h3>
-                <div className="mt-1 flex flex-wrap gap-x-4 text-sm">
-                  <span><b className="font-display text-accent">{it.sets}</b> séries</span>
-                  <span><b className="font-display text-accent">{it.reps}</b> {repsCount(it.reps) ? "reps" : "por série"}</span>
-                  <span>descanso <b>{formatRest(settings.restSeconds)}</b></span>
+            <article key={i} id={`exercicio-${i}`} className={`scroll-mt-28 overflow-hidden rounded-3xl border-2 ${finished ? "border-[#3f9d6b] bg-[#3f9d6b]/5" : open ? "border-primary bg-card" : "border-border bg-card"}`}>
+              <button type="button" onClick={() => setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
+                className="flex w-full items-center gap-3 p-3 text-left sm:p-4">
+                <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{GROUP_LABEL[ex.group]} · {ex.equipment}</span>
+                  <span className="block font-display text-base font-bold leading-tight">{ex.name}</span>
+                  <span className="mt-0.5 block text-sm">
+                    {finished ? (
+                      <b className="text-[#3f9d6b]">Peso total: {exTotal > 0 ? formatKg(exTotal) : "sem carga"}</b>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        <b className="font-display text-foreground">{it.sets}x{it.reps}</b>{repsCount(it.reps) ? "" : " por série"}
+                        {setsDone > 0 && ` · ${setsDone} de ${it.sets} feitas`}
+                      </span>
+                    )}
+                  </span>
+                </span>
+                {finished ? (
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#3f9d6b] text-white"><Check className="h-5 w-5" aria-label="Exercício concluído" /></span>
+                ) : (
+                  <ChevronRight className={`h-6 w-6 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} aria-hidden />
+                )}
+              </button>
+              {open && (
+              <div id={`exercicio-${i}-corpo`} className="border-t border-border p-3 sm:p-4">
+                <div className="flex gap-3">
+                  <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
+                  <div className="flex min-w-0 flex-1 flex-wrap content-start gap-2">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setSwap({ d: active, i })} className="rounded-full"><ArrowLeftRight />Trocar</Button>
+                    <Button asChild variant="secondary" size="sm" className="rounded-full">
+                      <a href={youtubeSearchUrl(ex)} target="_blank" rel="noopener noreferrer" aria-label={`Ver execução de ${ex.name} no YouTube (abre em nova aba)`}>
+                        <Youtube />YouTube
+                      </a>
+                    </Button>
+                  </div>
+                  <BodyMap exIds={[ex.id]} size="sm" className="shrink-0" />
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setSwap({ d: active, i })} className="rounded-full"><ArrowLeftRight />Trocar</Button>
-                  <Button asChild variant="secondary" size="sm" className="rounded-full">
-                    <a href={youtubeSearchUrl(ex)} target="_blank" rel="noopener noreferrer" aria-label={`Ver execução de ${ex.name} no YouTube (abre em nova aba)`}>
-                      <Youtube />YouTube
-                    </a>
-                  </Button>
-                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  <b className="font-display text-foreground">{it.sets}x{it.reps}</b>{repsCount(it.reps) ? "" : " por série"} · descanso <b className="text-foreground">{formatRest(settings.restSeconds)}</b> entre séries
+                </p>
+                <SetTable sets={it.sets} reps={it.reps} done={tracksSets ? setsDone : 0} kgs={kgsToday} repsDone={repsToday} prevKgs={prev?.setKgs} prevReps={prev?.setReps} prevPlanReps={prev?.reps} />
                 {tracksSets && (
                   <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                     <div className="flex gap-1" role="img" aria-label={`${setsDone} de ${it.sets} séries feitas`}>
                       {Array.from({ length: it.sets }, (_, s) => (
-                        <span key={s} className={`h-2.5 w-5 rounded-full ${s < setsDone ? "bg-accent" : "bg-muted"}`} />
+                        <span key={s} className={`h-2.5 w-5 rounded-full ${s < setsDone ? "bg-[#3f9d6b]" : "bg-muted"}`} />
                       ))}
                     </div>
                     {setsDone < it.sets ? (
                       <span className="text-sm font-semibold text-muted-foreground">Série {setsDone + 1} de {it.sets}</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-sm font-bold text-accent"><CheckCheck className="h-4 w-4" />Exercício concluído</span>
+                      <span className="inline-flex items-center gap-1 text-sm font-bold text-[#3f9d6b]"><CheckCheck className="h-4 w-4" />Exercício concluído</span>
                     )}
                     {setsDone > 0 && (
-                      <button type="button" onClick={() => undoSet(i)} className="text-xs font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
+                      <button type="button" onClick={() => undoSet(i)} className="px-1 py-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
                     )}
                   </div>
-                )}
-                {tracksSets && (kgsToday.length > 0 || sumKg(prev?.setKgs) > 0) && (
-                  <dl className="mt-2 space-y-0.5 text-xs">
-                    {kgsToday.length > 0 && (
-                      <div className="flex flex-wrap gap-x-1">
-                        <dt className="font-bold">Hoje:</dt>
-                        <dd className="tabular-nums">{formatSetKgs(kgsToday, repsToday, it.reps)}</dd>
-                      </div>
-                    )}
-                    {sumKg(prev?.setKgs) > 0 && (
-                      <div className="flex flex-wrap gap-x-1 text-muted-foreground">
-                        <dt className="font-bold">Última vez:</dt>
-                        <dd className="tabular-nums">{formatSetKgs(prev!.setKgs!, prev!.setReps, prev!.reps)}</dd>
-                        {kgsToday.length > 0 && setsDone >= it.sets && (() => {
-                          const diff = volume(kgsToday, repsToday, it.reps) - volume(prev!.setKgs, prev!.setReps, prev!.reps);
-                          return <dd className={`font-bold ${diff >= 0 ? "text-accent" : "text-destructive"}`}>{formatDiff(diff)}</dd>;
-                        })()}
-                      </div>
-                    )}
-                  </dl>
                 )}
                 <div className="mt-3 border-t border-border pt-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-xs">
@@ -501,18 +523,19 @@ function TreinosPage() {
                   />
                 )}
               </div>
+              )}
             </article>
           );
         })}
       </div>
 
-      {(session || active === nextIdx) && (
+      {(session || active === nextIdx) && (<>
+        <SessionCompare previous={lastRecordOf(finishDay.name)} previousTotal={lastFinishTotal} currentTotal={todayTotal} dayName={finishDay.name} />
         <button onClick={() => (pendingItems.length > 0 ? setConfirmFinish(true) : finishWorkout())}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
           <Check className="h-5 w-5" />Concluir {finishDay.name}
         </button>
-      )}
-      <p className="text-center text-sm text-muted-foreground">{doneLog.length} treino(s) concluído(s) até agora.</p>
+      </>)}
       </>)}
 
       <AlertDialog open={!!confirmAll} onOpenChange={(open) => !open && setConfirmAll(null)}>
@@ -567,7 +590,7 @@ function TreinosPage() {
         <StravaActivities />
       </>)}
       <ShareDialog request={share} onClose={() => setShare(null)} />
-      <RegenerateDialog open={regen} onOpenChange={setRegen} onDone={() => setDayIdx(null)} />
+      <RecordDialog records={viewRecords} all={history} onClose={() => setViewRecords(null)} />
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         {/* Flex column + shrink-0: in the default grid the max height squeezed the square media over the text below. */}
@@ -639,6 +662,73 @@ function TreinosPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** End of the class: total weight (load × reps) of the previous session of this workout next to the current one. */
+function SessionCompare({ previous, previousTotal, currentTotal, dayName }: { previous: WorkoutRecord | undefined; previousTotal: number; currentTotal: number; dayName: string }) {
+  const diff = currentTotal - previousTotal;
+  const pct = previousTotal > 0 ? Math.round((diff / previousTotal) * 100) : null;
+  return (
+    <section className="rounded-3xl border-2 border-primary bg-card p-4">
+      <h2 className="font-display text-lg font-bold">Peso total da sessão</h2>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-muted/60 p-3">
+          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sessão anterior</div>
+          <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{previousTotal > 0 ? formatKg(previousTotal) : "—"}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{previous ? `${dayName} · ${formatDate(previous.date)}` : `primeira vez do ${dayName}`}</div>
+        </div>
+        <div className="rounded-2xl bg-primary p-3 text-primary-foreground">
+          <div className="text-xs font-bold uppercase tracking-wider opacity-75">Sessão atual</div>
+          <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{formatKg(currentTotal)}</div>
+          <div className="mt-1 text-xs opacity-75">até agora</div>
+        </div>
+      </div>
+      {previousTotal > 0 && currentTotal > 0 && (
+        <p className={`mt-3 text-center text-sm font-bold ${diff >= 0 ? "text-[#3f9d6b]" : "text-muted-foreground"}`}>
+          {diff === 0 ? "Igual à sessão anterior" : diff > 0 ? `${formatDiff(diff)}${pct ? ` (+${pct}%)` : ""} em relação à sessão anterior` : `Faltam ${kgNumber(-diff)} kg para igualar a sessão anterior`}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Sets of an exercise: reps and load done today, else the target, next to last time's load. */
+function SetTable({ sets, reps, done, kgs, repsDone, prevKgs, prevReps, prevPlanReps }: {
+  sets: number; reps: string; done: number; kgs: SetValues; repsDone: SetValues; prevKgs: SetValues; prevReps: SetValues; prevPlanReps: string | undefined;
+}) {
+  const timed = repsCount(reps) === null;
+  const kgText = (kg: number | null | undefined) => (kg == null ? "—" : formatKg(kg));
+  return (
+    <table className="mt-3 w-full text-sm">
+      <thead>
+        <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+          <th className="py-1 font-bold">Série</th>
+          <th className="py-1 font-bold">{timed ? "Tempo" : "Reps"}</th>
+          <th className="py-1 font-bold">Carga</th>
+          <th className="py-1 text-right font-bold">Última vez</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+        {Array.from({ length: sets }, (_, s) => {
+          const isDone = s < done;
+          const prevKg = prevKgs?.[s];
+          const last = prevKg != null ? `${kgText(prevKg)}${timed ? "" : ` × ${repsOfSet(prevReps, s, prevPlanReps ?? reps)}`}` : "—";
+          return (
+            <tr key={s} className={isDone ? "font-semibold" : "text-muted-foreground"}>
+              <td className="py-2">
+                <span className="inline-flex items-center gap-1.5">
+                  {isDone ? <Check className="h-4 w-4 text-[#3f9d6b]" aria-label="feita" /> : <span className="inline-block h-4 w-4" />}{s + 1}
+                </span>
+              </td>
+              <td className="py-2 tabular-nums">{timed ? reps : isDone ? repsOfSet(repsDone, s, reps) : reps}</td>
+              <td className="py-2 tabular-nums">{isDone ? kgText(kgs?.[s]) : "—"}</td>
+              <td className="py-2 text-right tabular-nums">{last}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -751,6 +841,74 @@ function formatClock(ms: number) {
   return new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+/** Time, sets and total weight of a finished workout. */
+function RecordStats({ r, done, planned, total, diff }: { r: WorkoutRecord; done: number; planned: number; total: number; diff: number | null }) {
+  return (
+    <div className="mt-2 grid grid-cols-3 gap-2">
+      <HistoryStat label="tempo" value={r.durationMs !== undefined ? formatDuration(r.durationMs) : "—"} />
+      <HistoryStat label="séries" value={`${done}/${planned}`} />
+      <HistoryStat label="peso total" value={total > 0 ? formatKg(total) : "—"}
+        extra={diff !== null ? <span className={diff >= 0 ? "text-accent" : "text-destructive"}>{formatDiff(diff)}</span> : undefined} />
+    </div>
+  );
+}
+
+/** Each exercise of a finished workout with its sets, loads and reps. */
+function RecordExercises({ r, prs }: { r: WorkoutRecord; prs: Set<string> }) {
+  return (
+    <ul className="mt-3 divide-y divide-border border-t border-border text-sm">
+      {r.exercises.map((e, i) => (
+        <li key={i} className="py-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0">{e.name}{prs.has(e.exId) && <span className="ml-1" role="img" aria-label="recorde pessoal">🏆</span>}</span>
+            <span className={`shrink-0 font-semibold tabular-nums ${e.setsDone >= e.setsPlanned ? "text-accent" : ""}`}>{e.setsDone}/{e.setsPlanned} séries</span>
+          </div>
+          <div className="text-xs tabular-nums text-muted-foreground">
+            {e.setKgs && sumKg(e.setKgs) > 0 ? formatSetKgs(e.setKgs, e.setReps, e.reps) : `${e.reps}${repsCount(e.reps) ? " reps" : ""}${e.kg !== undefined ? ` · carga ${formatKg(e.kg)}` : ""}`}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A finished day opened from the week, read-only, with the same numbers as the history. */
+function RecordDialog({ records, all, onClose }: { records: WorkoutRecord[] | null; all: WorkoutRecord[]; onClose: () => void }) {
+  return (
+    <Dialog open={!!records} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        {records && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl">
+                {new Date(`${records[0]!.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}
+              </DialogTitle>
+            </DialogHeader>
+            {records.map((r) => {
+              const index = all.findIndex((x) => x.id === r.id);
+              const earlier = all.slice(0, Math.max(0, index));
+              const total = recordTotal(r);
+              const beforeTotal = recordTotal(lastRecordBefore(earlier, r.dayName));
+              return (
+                <section key={r.id}>
+                  <h3 className="font-display text-lg font-bold">{r.dayName}</h3>
+                  <p className="text-sm text-muted-foreground">{musclesOf(r.exercises.map((e) => e.exId))}</p>
+                  <RecordStats r={r} done={r.exercises.reduce((n, e) => n + e.setsDone, 0)} planned={r.exercises.reduce((n, e) => n + e.setsPlanned, 0)}
+                    total={total} diff={total > 0 && beforeTotal > 0 ? total - beforeTotal : null} />
+                  <RecordExercises r={r} prs={new Set(personalRecords(earlier, r).map((p) => p.exId))} />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {r.startedAt !== undefined ? `Início ${formatClock(r.startedAt)} · fim ${formatClock(r.finishedAt)}` : `Concluído às ${formatClock(r.finishedAt)}`}
+                  </p>
+                </section>
+              );
+            })}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function HistoryStat({ label, value, extra }: { label: string; value: string; extra?: ReactNode }) {
   return (
     <div className="rounded-2xl bg-muted/60 px-3 py-2">
@@ -797,26 +955,9 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
                   </div>
                   <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <HistoryStat label="tempo" value={r.durationMs !== undefined ? formatDuration(r.durationMs) : "—"} />
-                  <HistoryStat label="séries" value={`${done}/${planned}`} />
-                  <HistoryStat label="peso total" value={total > 0 ? formatKg(total) : "—"}
-                    extra={diff !== null ? <span className={diff >= 0 ? "text-accent" : "text-destructive"}>{formatDiff(diff)}</span> : undefined} />
-                </div>
+                <RecordStats r={r} done={done} planned={planned} total={total} diff={diff} />
               </summary>
-              <ul className="mt-3 divide-y divide-border border-t border-border text-sm">
-                {r.exercises.map((e, i) => (
-                  <li key={i} className="py-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="min-w-0">{e.name}{prs.has(e.exId) && <span className="ml-1" role="img" aria-label="recorde pessoal">🏆</span>}</span>
-                      <span className={`shrink-0 font-semibold tabular-nums ${e.setsDone >= e.setsPlanned ? "text-accent" : ""}`}>{e.setsDone}/{e.setsPlanned} séries</span>
-                    </div>
-                    <div className="text-xs tabular-nums text-muted-foreground">
-                      {e.setKgs && sumKg(e.setKgs) > 0 ? formatSetKgs(e.setKgs, e.setReps, e.reps) : `${e.reps}${repsCount(e.reps) ? " reps" : ""}${e.kg !== undefined ? ` · carga ${formatKg(e.kg)}` : ""}`}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <RecordExercises r={r} prs={prs} />
               <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>{r.startedAt !== undefined ? `Início ${formatClock(r.startedAt)} · fim ${formatClock(r.finishedAt)}` : `Concluído às ${formatClock(r.finishedAt)}, sem cronômetro`}</span>
                 <span className="flex shrink-0 gap-4">

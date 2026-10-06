@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { disconnectStrava, startStravaConnect, stravaStatus, syncStrava } from "@/lib/strava";
 
-/** Perfil: connect, sync or disconnect the user's own Strava account. */
+/** Configurações: connect, sync or disconnect the user's own Strava account. */
 export function StravaCard() {
   const uid = useAuth().user?.uid;
   const [status, setStatus] = useState<{ connected: boolean; athlete?: { name: string } } | null>(null);

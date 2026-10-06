@@ -17,6 +17,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { AuthProvider } from "@/lib/auth";
 import { registerServiceWorker } from "@/lib/offline";
 import { Toaster } from "@/components/ui/sonner";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -112,9 +113,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR">
+    // The theme script may add class="dark" before hydration.
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
         {children}

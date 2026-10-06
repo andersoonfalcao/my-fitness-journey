@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry } from "@/lib/store";
+import { fmtKg, foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry } from "@/lib/store";
 import { nextWorkoutIndex, type Plan } from "@/lib/plan";
 import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
-import { CalendarDays, CheckCheck, ChevronRight } from "lucide-react";
+import { CheckCheck, Moon } from "lucide-react";
+import { defaultTrainingDays, musclesOf } from "@/components/WeekPlan";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -26,6 +27,7 @@ function Index() {
   const [plan] = useLocal<Plan | null>(KEYS.plan, null);
   const [doneLog] = useLocal<string[]>(KEYS.done, []);
   const [cycleStart] = useLocal<number>(KEYS.cycle, 0);
+  const [schedule] = useLocal<number[] | null>(KEYS.schedule, null);
 
   if (!ready) return null;
   if (!profile) return <NeedProfile />;
@@ -37,6 +39,11 @@ function Index() {
   const next = plan ? plan.days[nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length)] ?? null : null;
   // A workout finished today closes the card for the day; the following one only shows up tomorrow.
   const doneToday = doneLog.filter((d) => d.startsWith(`${today()}|`)).map((d) => d.slice(11));
+  // Rest days follow the week chosen in Treinos; the next workout waits for the next training day.
+  const trainingDays = schedule?.length ? schedule : defaultTrainingDays(profile.days);
+  const weekday = (offset: number) => { const d = new Date(); d.setDate(d.getDate() + offset); return { d, w: (d.getDay() + 6) % 7 }; };
+  const restToday = !trainingDays.includes(weekday(0).w);
+  const nextDay = restToday ? [1, 2, 3, 4, 5, 6, 7].map(weekday).find(({ w }) => trainingDays.includes(w))?.d : undefined;
   const left = t.kcal - Math.round(sum.kcal);
 
   return (
@@ -61,12 +68,12 @@ function Index() {
           <Link to="/alimentacao" className="mt-5 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">+ Registrar refeição</Link>
         </section>
 
-        <Link to="/corpo" className="rounded-3xl bg-primary p-6 text-primary-foreground">
+        <Link to="/corpo" search={{ aba: "evolucao" }} className="rounded-3xl bg-primary p-6 text-primary-foreground">
           <div className="text-sm opacity-75">Peso atual</div>
-          <div className="font-display text-5xl font-extrabold">{current.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}<span className="text-xl"> kg</span></div>
-          <div className="mt-4 text-sm opacity-75">Meta: {profile.goalWeight} kg</div>
+          <div className="font-display text-5xl font-extrabold">{fmtKg(current)}<span className="text-xl"> kg</span></div>
+          <div className="mt-4 text-sm opacity-75">Meta: {fmtKg(profile.goalWeight)} kg</div>
           <div className="font-display text-xl font-bold text-accent">
-            {Math.abs(current - profile.goalWeight) < 0.1 ? "Meta atingida!" : `faltam ${Math.abs(current - profile.goalWeight).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kg`}
+            {Math.abs(current - profile.goalWeight) < 0.1 ? "Meta atingida!" : `faltam ${fmtKg(Math.abs(current - profile.goalWeight))} kg`}
           </div>
         </Link>
       </div>
@@ -79,12 +86,24 @@ function Index() {
             <h2 className="text-2xl font-bold">{doneToday.join(" e ")} concluído</h2>
           </div>
         </Link>
+      ) : next && restToday ? (
+        <section className="flex items-center gap-4 rounded-3xl border border-border bg-card p-6">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Moon className="h-6 w-6" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold uppercase tracking-widest text-accent">Hoje é descanso</div>
+            <h2 className="text-xl font-bold leading-tight">
+              Próximo treino{nextDay ? `: ${nextDay.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}` : ""}
+            </h2>
+            <p className="text-sm text-muted-foreground">{next.name} · {musclesOf(next.items.map((it) => it.exId))}</p>
+          </div>
+          <Link to="/treinos" className="hidden shrink-0 rounded-full border border-input px-4 py-2 text-sm font-semibold sm:inline-flex">Ver semana</Link>
+        </section>
       ) : next && (
         <section className="rounded-3xl border border-border bg-card p-6">
           <div className="flex items-end justify-between gap-4">
             <div>
               <div className="text-sm font-bold uppercase tracking-widest text-accent">Treino de hoje</div>
-              <h2 className="text-2xl font-bold">{next.name} · {next.focus}</h2>
+              <h2 className="text-2xl font-bold">{next.name} · {musclesOf(next.items.map((it) => it.exId))}</h2>
             </div>
             <Link to="/treinos" className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground">Ver treino</Link>
           </div>
@@ -103,17 +122,6 @@ function Index() {
       )}
 
       <DayClose profile={profile} date={today()} />
-
-      <Link to="/calendario" className="flex items-center justify-between gap-3 rounded-3xl border border-border bg-card p-5 hover:border-accent">
-        <span className="flex items-center gap-3">
-          <CalendarDays className="h-6 w-6 text-accent" />
-          <span>
-            <span className="block font-display text-lg font-bold">Calendário</span>
-            <span className="block text-sm text-muted-foreground">Os números de cada dia e o resumo do mês</span>
-          </span>
-        </span>
-        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-      </Link>
     </div>
   );
 }

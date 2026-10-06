@@ -140,6 +140,9 @@ export type FoodEntry = {
   dose?: string | undefined;
 };
 export type WeightEntry = { date: string; kg: number };
+/** Body weight is shown and kept with two decimals (78,45 kg). */
+export const fmtKg = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const roundKg = (v: number) => Math.round(v * 100) / 100;
 /** One bioimpedance reading; every measure is optional because scales report different sets. */
 export type BodyEntry = {
   date: string;
@@ -152,6 +155,24 @@ export type BodyEntry = {
   boneKg?: number | undefined;
   bmrKcal?: number | undefined;
   metabolicAge?: number | undefined;
+};
+/** Tape measurements in cm, all optional (each person measures a different set). */
+export type MeasureEntry = {
+  date: string;
+  neck?: number | undefined;
+  shoulders?: number | undefined;
+  chest?: number | undefined;
+  waist?: number | undefined;
+  abdomen?: number | undefined;
+  hips?: number | undefined;
+  armR?: number | undefined;
+  armL?: number | undefined;
+  forearmR?: number | undefined;
+  forearmL?: number | undefined;
+  thighR?: number | undefined;
+  thighL?: number | undefined;
+  calfR?: number | undefined;
+  calfL?: number | undefined;
 };
 export type LoadEntry = {
   id: string;
@@ -239,6 +260,10 @@ export const KEYS = {
   foods: "forma.foods",
   weights: "forma.weights",
   body: "forma.body",
+  /** Weekdays chosen for training, 0 = Monday … 6 = Sunday; missing = the default for profile.days. */
+  schedule: "forma.schedule",
+  /** Body measurements with a tape (MeasureEntry[]). */
+  measures: "forma.measures",
   loads: "forma.loads",
   plan: "forma.plan",
   done: "forma.done",

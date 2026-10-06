@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CalendarCheck, Check, ChevronDown, ChevronRight, Loader2, RefreshCw, Share2, Sparkles, X } from "lucide-react";
+import { CalendarCheck, Check, ChevronRight, Loader2, RefreshCw, Share2, Sparkles, X } from "lucide-react";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { dayCard } from "@/lib/share-card";
 import { toast } from "sonner";
@@ -23,18 +23,13 @@ import {
   type WaterLog,
   type WeightEntry,
   type WorkoutRecord,
+  fmtKg,
 } from "@/lib/store";
 
 const MEAL_NAMES = [["cafe", "café da manhã"], ["almoco", "almoço"], ["lanche", "lanche"], ["jantar", "jantar"]] as const;
 const num = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-const longDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
-const prevMonth = (date: string) => {
-  const d = new Date(`${date.slice(0, 7)}-01T12:00:00`);
-  d.setMonth(d.getMonth() - 1);
-  return d.toISOString().slice(0, 10);
-};
 
-/** "Close the day": checklist of today's records, an AI review saved to the account, and past reviews. */
+/** "Close the day": checklist of today's records and an AI review saved to the account (past days live in the Calendário). */
 export function DayClose({ profile, date }: { profile: Profile; date: string }) {
   const uid = useAuth().user?.uid;
   const [foods] = useLocal<FoodEntry[]>(foodsKey(date), []);
@@ -42,7 +37,6 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const [weights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [history] = useHistory();
   const [days, setDays] = useLocal<DayRecord[]>(daysKey(date), []);
-  const [earlier] = useLocal<DayRecord[]>(daysKey(prevMonth(date)), []);
   const [stravaMonth] = useLocal<StravaActivity[]>(stravaKey(date), []);
   const [routine] = useLocal<Supplement[]>(SUPPLEMENTS_KEY, []);
   const stravaToday = stravaMonth.filter((a) => a.date === date);
@@ -61,7 +55,6 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const trained = history.some((r) => r.date === date);
   const weighed = weights.some((w) => w.date === date);
   const closed = days.find((d) => d.date === date);
-  const past = [...days, ...earlier].filter((d) => d.date !== date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
 
   const close = async () => {
     if (!uid) return;
@@ -79,13 +72,13 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   };
 
   // Each item opens its section: where to fill it in while missing, where to see it once done.
-  type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string; history?: true };
+  type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string; history?: true; evolution?: true };
   const checks: [string, boolean, string, Target][] = [
     // Complete only with all four meals logged, and the water target fully reached.
     ["Refeições", missingMeals.length === 0, meals.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g${missingMeals.length ? ` · falta: ${missingMeals.join(", ")}` : ""}` : "nada registrado", { to: "/alimentacao", hash: missingMeals.length ? "registrar" : "refeicoes" }],
     ["Água", waterMl >= t.waterMl, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
     ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
-    ["Peso", weighed, weighed ? `${num(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)", { to: "/corpo", hash: weighed ? "evolucao" : "pesagem" }],
+    ["Peso", weighed, weighed ? `${fmtKg(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)", weighed ? { to: "/corpo", hash: "evolucao", evolution: true } : { to: "/corpo", hash: "pesagem" }],
   ];
   if (routine.length) {
     const pendingNames = routine.filter((s) => !supplementsTaken.has(s.id)).map((s) => s.name);
@@ -120,7 +113,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
       <ul className="grid gap-2 sm:grid-cols-2">
         {checks.map(([label, ok, detail, target]) => (
           <li key={label}>
-            <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} {...(target.history ? { search: { aba: "historico" as const } } : {})} aria-label={`${label}: ${detail}. ${ok ? "Ver" : "Preencher"}`}
+            <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} {...(target.history ? { search: { aba: "historico" as const } } : target.evolution ? { search: { aba: "evolucao" as const } } : {})} aria-label={`${label}: ${detail}. ${ok ? "Ver" : "Preencher"}`}
               className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted active:bg-muted">
               <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
                 {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
@@ -136,27 +129,6 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
       {!closed && <p className="text-sm text-muted-foreground">Depois do treino e da última refeição, feche o dia para receber a análise da IA. Você pode gerar de novo se registrar algo depois.</p>}
       {closed && <DaySummary record={closed} />}
 
-      {past.length > 0 && (
-        <div className="border-t border-border pt-4">
-          <h3 className="font-bold">Dias anteriores</h3>
-          <div className="mt-2 space-y-2">
-            {past.map((d) => (
-              <details key={d.date} className="group rounded-2xl border border-border px-4 py-3">
-                <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold capitalize">{longDate(d.date)}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {d.day.kcal} kcal · {num(d.day.waterMl / 1000)} L de água · {d.day.workout ? d.day.workout.name : "sem treino"}
-                    </span>
-                  </span>
-                  <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                </summary>
-                <div className="mt-3"><DaySummary record={d} onShare={() => setShare(dayShare(d))} /></div>
-              </details>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   );
 }
@@ -211,7 +183,7 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
       <div className="rounded-2xl bg-primary p-4 text-primary-foreground">
         <h4 className="font-bold">Desde o início</h4>
         <p className="mt-0.5 text-xs opacity-75">
-          {s.days} dia(s) de acompanhamento · peso {num(s.weightStart)} → {num(s.weightNow)} kg ({weightChange >= 0 ? "+" : ""}{num(weightChange)}) · meta {num(s.weightGoal)} kg · {s.workouts} treino(s) · {s.daysLogged} dia(s) com refeições
+          {s.days} dia(s) de acompanhamento · peso {fmtKg(s.weightStart)} → {fmtKg(s.weightNow)} kg ({weightChange >= 0 ? "+" : ""}{fmtKg(weightChange)}) · meta {fmtKg(s.weightGoal)} kg · {s.workouts} treino(s) · {s.daysLogged} dia(s) com refeições
         </p>
         <p className="mt-2 text-sm leading-relaxed">{ai.sinceStart}</p>
       </div>

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AlimentacaoRouteImport } from './routes/alimentacao'
 import { Route as CalendarioRouteImport } from './routes/calendario'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as CorpoRouteImport } from './routes/corpo'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PesoRouteImport } from './routes/peso'
@@ -31,6 +32,11 @@ const AlimentacaoRoute = AlimentacaoRouteImport.update({
 const CalendarioRoute = CalendarioRouteImport.update({
   id: '/calendario',
   path: '/calendario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CorpoRoute = CorpoRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alimentacao': typeof AlimentacaoRoute
   '/calendario': typeof CalendarioRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alimentacao': typeof AlimentacaoRoute
   '/calendario': typeof CalendarioRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/alimentacao': typeof AlimentacaoRoute
   '/calendario': typeof CalendarioRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
   '/perfil': typeof PerfilRoute
   '/peso': typeof PesoRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alimentacao'
     | '/calendario'
+    | '/configuracoes'
     | '/corpo'
     | '/perfil'
     | '/peso'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alimentacao'
     | '/calendario'
+    | '/configuracoes'
     | '/corpo'
     | '/perfil'
     | '/peso'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alimentacao'
     | '/calendario'
+    | '/configuracoes'
     | '/corpo'
     | '/perfil'
     | '/peso'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlimentacaoRoute: typeof AlimentacaoRoute
   CalendarioRoute: typeof CalendarioRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
   CorpoRoute: typeof CorpoRoute
   PerfilRoute: typeof PerfilRoute
   PesoRoute: typeof PesoRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/calendario'
       fullPath: '/calendario'
       preLoaderRoute: typeof CalendarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/corpo': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlimentacaoRoute: AlimentacaoRoute,
   CalendarioRoute: CalendarioRoute,
+  ConfiguracoesRoute: ConfiguracoesRoute,
   CorpoRoute: CorpoRoute,
   PerfilRoute: PerfilRoute,
   PesoRoute: PesoRoute,

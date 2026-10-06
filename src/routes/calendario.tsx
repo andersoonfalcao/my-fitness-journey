@@ -10,6 +10,7 @@ import { workoutCard } from "@/lib/share-card";
 import { duration, km, sportLabel, stravaKey, type StravaActivity } from "@/lib/strava";
 import {
   daysKey,
+  fmtKg,
   foodsKey,
   KEYS,
   targets,
@@ -108,7 +109,7 @@ function CalendarPage() {
     ["dias na meta de calorias", String(all.filter((d) => d.onCalories).length)],
     ["dias na meta de água", String(all.filter((d) => d.waterMl >= d.goal.waterMl).length)],
     ["Strava", strava.length ? `${strava.length} ativ.${strava.some((a) => a.distanceM) ? ` · ${km(strava.reduce((s, a) => s + a.distanceM, 0))} km` : ""}` : "—"],
-    ["peso no mês", weightChange === null ? "—" : `${weightChange > 0 ? "+" : ""}${num(weightChange)} kg`],
+    ["peso no mês", weightChange === null ? "—" : `${weightChange > 0 ? "+" : ""}${fmtKg(weightChange)} kg`],
     ["dias fechados", String(closedDays.length)],
   ];
 
@@ -195,7 +196,7 @@ function CalendarPage() {
           <Stat label={`de ${sel.goal.kcal} kcal`} value={`${sel.kcal} kcal`} />
           <Stat label={`proteína de ${sel.goal.protein} g`} value={`${sel.protein} g`} />
           <Stat label={`água de ${num(sel.goal.waterMl / 1000)} L`} value={`${num(sel.waterMl / 1000)} L`} />
-          <Stat label="peso" value={sel.weight ? `${num(sel.weight)} kg` : "—"} />
+          <Stat label="peso" value={sel.weight ? `${fmtKg(sel.weight)} kg` : "—"} />
           <Stat label={`carboidratos de ${sel.goal.carbs} g`} value={`${sel.carbs} g`} />
           <Stat label={`gorduras de ${sel.goal.fat} g`} value={`${sel.fat} g`} />
           {sel.bio?.fatPct !== undefined && <Stat label="gordura corporal (bioimpedância)" value={`${num(sel.bio.fatPct)}%`} />}

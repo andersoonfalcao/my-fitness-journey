@@ -1,5 +1,5 @@
 // Share images (1080×1350, Instagram feed size) drawn on a canvas with the app's brand.
-import type { DayRecord, WorkoutRecord } from "./store";
+import { fmtKg, type DayRecord, type WorkoutRecord } from "./store";
 import { decodePolyline, duration, km, pace, sportLabel, usesPace, type StravaDetail } from "./strava";
 import { recordTotal, repsOfSet } from "./workout-stats";
 // Official "Powered by Strava" mark from Strava's brand guidelines, used unchanged.
@@ -138,9 +138,6 @@ function footer(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = C.line;
   ctx.fillRect(80, H - 150, W - 160, 2);
   logo(ctx, 80, H - 70, 56);
-  const site = "apptreino.web.app";
-  ctx.font = `600 30px ${BODY}`;
-  text(ctx, site, W - 80 - ctx.measureText(site).width, H - 80, `600 30px ${BODY}`, C.mute);
 }
 
 const toBlob = (el: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => el.toBlob((b) => (b ? resolve(b) : reject(new Error("Falha ao gerar a imagem"))), "image/png"));
@@ -273,13 +270,13 @@ export async function dayCard(record: DayRecord, bg: Background): Promise<Blob> 
   const strava = day.strava?.[0];
   const stravaKm = day.strava?.reduce((sum, a) => sum + a.km, 0) ?? 0;
   tile(ctx, 80 + half + 30, 760, half, 200,
-    strava ? (stravaKm ? `${n(stravaKm, 1)} km` : strava.sport) : day.weightKg ? `${n(day.weightKg, 1)} kg` : `${day.meals} refeiç${day.meals === 1 ? "ão" : "ões"}`,
+    strava ? (stravaKm ? `${n(stravaKm, 1)} km` : strava.sport) : day.weightKg ? `${fmtKg(day.weightKg)} kg` : `${day.meals} refeiç${day.meals === 1 ? "ão" : "ões"}`,
     strava ? `${day.strava!.map((a) => a.sport).join(", ")} no Strava` : day.weightKg ? "peso do dia" : "registradas no dia");
 
   const change = s.weightNow - s.weightStart;
   tile(ctx, 80, 990, W - 160, 170,
-    `${change <= 0 ? "−" : "+"}${n(Math.abs(change), 1)} kg em ${s.days} dia${s.days === 1 ? "" : "s"}`,
-    `desde o início · ${s.workouts} treino${s.workouts === 1 ? "" : "s"} · meta ${n(s.weightGoal, 1)} kg`, true);
+    `${change <= 0 ? "−" : "+"}${fmtKg(Math.abs(change))} kg em ${s.days} dia${s.days === 1 ? "" : "s"}`,
+    `desde o início · ${s.workouts} treino${s.workouts === 1 ? "" : "s"} · meta ${fmtKg(s.weightGoal)} kg`, true);
   footer(ctx);
   return toBlob(el);
 }

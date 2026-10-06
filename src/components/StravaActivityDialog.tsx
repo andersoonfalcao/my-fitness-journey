@@ -20,7 +20,7 @@ export function StravaActivityDialog({ activity, onClose }: { activity: StravaAc
     if (!activity || !uid) return;
     let alive = true;
     stravaActivityDetail(uid, activity).then(
-      (d) => alive && (d ? setDetail(d) : setError("O Strava foi desconectado. Conecte de novo no Perfil.")),
+      (d) => alive && (d ? setDetail(d) : setError("O Strava foi desconectado. Conecte de novo nas Configurações.")),
       (e: unknown) => alive && setError(e instanceof Error ? e.message : "Não foi possível carregar a atividade."),
     );
     return () => {

@@ -48,6 +48,7 @@
         "leaflet": "^1.9.4",
         "lucide-react": "^0.575.0",
         "react": "^19.2.0",
+        "react-body-highlighter": "2.0.5",
         "react-day-picker": "^9.14.0",
         "react-dom": "^19.2.0",
         "react-hook-form": "^7.71.2",
@@ -989,6 +990,8 @@
     "re2js": ["re2js@2.8.6", "", {}, "sha512-xLgQil4kIUCrAzVk9fRSkxkFNwmygLFjVxXrLc65aE1F0+Zsb8rxumFBy4XKyvgMCTL6kilDq3EZ0piE2dP/Dg=="],
 
     "react": ["react@19.2.8", "", {}, "sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw=="],
+
+    "react-body-highlighter": ["react-body-highlighter@2.0.5", "", { "peerDependencies": { "react": ">=16" } }, "sha512-yt37177vKIc+8TGxQw//G/3ah2aw/3E0g1oDt4N+46fMLVZ9BSelhc9S7kiwEkJRvYc3RyUSr9453uMJnvtxRg=="],
 
     "react-day-picker": ["react-day-picker@9.14.0", "", { "dependencies": { "@date-fns/tz": "^1.4.1", "@tabby_ai/hijri-converter": "1.0.5", "date-fns": "^4.1.0", "date-fns-jalali": "4.1.0-0" }, "peerDependencies": { "react": ">=16.8.0" } }, "sha512-tBaoDWjPwe0M5pGrum4H0SR6Lyk+BO9oHnp9JbKpGKW2mlraNPgP9BMfsg5pWpwrssARmeqk7YBl2oXutZTaHA=="],
 

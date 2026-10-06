@@ -8,7 +8,7 @@ import { deviceId, disablePush, enablePush, pushSupported, sendTestReminder, use
 const RESTS = [30, 45, 60, 75, 90, 120, 150, 180];
 const restLabel = (s: number) => (s < 60 ? `${s} segundos` : s % 60 === 0 ? `${s / 60} min` : `${Math.floor(s / 60)} min ${s % 60}s`);
 
-/** Perfil → Ajustes: rest between sets and the notifications of this device. */
+/** Configurações (gear in the header): rest between sets and the notifications of this device. */
 export function SettingsPanel() {
   const [settings, update] = useSettings();
   const [subscribed, setSubscribed] = useState(() => typeof window !== "undefined" && !!deviceId() && pushSupported() && Notification.permission === "granted");

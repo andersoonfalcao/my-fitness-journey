@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Area, AreaChart, CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { KEYS, today, useLocal, type BodyEntry, type Profile, type WeightEntry } from "@/lib/store";
+import { BodyMeasures } from "@/components/BodyMeasures";
+import { fmtKg, KEYS, roundKg, today, useLocal, type BodyEntry, type Profile, type WeightEntry } from "@/lib/store";
 import { NeedProfile } from "@/components/AppShell";
 
 export const Route = createFileRoute("/corpo")({
@@ -15,12 +16,16 @@ export const Route = createFileRoute("/corpo")({
       { property: "og:description", content: "Evolução do peso, IMC e composição corporal por bioimpedância." },
     ],
   }),
+  // ?aba=evolucao opens the progress (numbers, charts, history); the default tab is for logging.
+  validateSearch: (search: Record<string, unknown>): { aba?: "evolucao" } => (search["aba"] === "evolucao" ? { aba: "evolucao" } : {}),
   component: CorpoPage,
 });
 
 const fmt = (d: string) => d.split("-").reverse().slice(0, 2).join("/");
 const num = (v: number, digits = 1) => v.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 const tick = (v: number) => num(v, 0);
+/** Bioimpedance values: the weight follows the two-decimal body weight, the rest keeps one decimal. */
+const val = (key: string, v: number) => (key === "weightKg" ? fmtKg(v) : num(v));
 const parse = (s: string) => {
   const v = Number(s.replace(",", "."));
   return s.trim() && Number.isFinite(v) && v > 0 ? v : undefined;
@@ -38,7 +43,7 @@ const BMI_RANGES = [
 
 /** Bioimpedance fields: key, label, unit, whether a lower value is the better direction (null = neutral). */
 const FIELDS: { key: Exclude<keyof BodyEntry, "date">; label: string; unit: string; lowerIsBetter: boolean | null; placeholder: string }[] = [
-  { key: "weightKg", label: "Peso", unit: "kg", lowerIsBetter: null, placeholder: "78,4" },
+  { key: "weightKg", label: "Peso", unit: "kg", lowerIsBetter: null, placeholder: "78,45" },
   { key: "fatPct", label: "Gordura corporal", unit: "%", lowerIsBetter: true, placeholder: "22,5" },
   { key: "muscleKg", label: "Massa muscular", unit: "kg", lowerIsBetter: false, placeholder: "34,1" },
   { key: "leanKg", label: "Massa magra", unit: "kg", lowerIsBetter: false, placeholder: "60,2" },
@@ -50,6 +55,7 @@ const FIELDS: { key: Exclude<keyof BodyEntry, "date">; label: string; unit: stri
 ];
 
 function CorpoPage() {
+  const tab = Route.useSearch().aba ?? "registrar";
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [weights, setWeights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [body, setBody] = useLocal<BodyEntry[]>(KEYS.body, []);
@@ -70,15 +76,16 @@ function CorpoPage() {
   const add = () => {
     const v = parse(kg);
     if (!v) return;
-    setWeights((w) => [...w.filter((x) => x.date !== date), { date, kg: v }]);
+    setWeights((w) => [...w.filter((x) => x.date !== date), { date, kg: roundKg(v) }]);
     setKg("");
+    toast.success("Pesagem registrada");
   };
 
   const addBio = () => {
     const entry: BodyEntry = { date: bioDate };
     for (const f of FIELDS) {
       const v = parse(bio[f.key] ?? "");
-      if (v !== undefined) entry[f.key] = v;
+      if (v !== undefined) entry[f.key] = f.key === "weightKg" ? roundKg(v) : v;
     }
     if (Object.keys(entry).length === 1) {
       toast.error("Preencha pelo menos uma medida da bioimpedância");
@@ -86,7 +93,7 @@ function CorpoPage() {
     }
     setBody((list) => [...list.filter((b) => b.date !== bioDate), entry]);
     // The scale's weight also feeds the weight chart.
-    if (entry.weightKg) setWeights((w) => [...w.filter((x) => x.date !== bioDate), { date: bioDate, kg: entry.weightKg! }]);
+    if (entry.weightKg) setWeights((w) => [...w.filter((x) => x.date !== bioDate), { date: bioDate, kg: roundKg(entry.weightKg!) }]);
     setBio({});
     toast.success("Bioimpedância registrada");
   };
@@ -102,14 +109,27 @@ function CorpoPage() {
   const latest = readings.at(-1);
   const firstReading = readings[0];
 
+  const tabs = (
+    <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1" role="tablist" aria-label="Corpo">
+      {([["registrar", "Registrar", {}], ["evolucao", "Evolução", { aba: "evolucao" }]] as const).map(([value, label, search]) => (
+        <Link key={value} to="/corpo" search={search} replace role="tab" aria-selected={tab === value}
+          className={`rounded-full py-2 text-center text-sm font-bold ${tab === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+          {label}
+        </Link>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <h1 className="text-4xl font-extrabold">Corpo</h1>
+      {tabs}
 
+      {tab === "evolucao" ? (<>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Peso inicial" value={`${num(first)} kg`} />
-        <Stat label="Peso atual" value={`${num(last)} kg`} sub={`${last - first >= 0 ? "+" : ""}${num(last - first)} kg`} />
-        <Stat label="Meta" value={`${num(profile.goalWeight)} kg`} sub={`${Math.round(progress)}% concluído`} />
+        <Stat label="Peso inicial" value={`${fmtKg(first)} kg`} />
+        <Stat label="Peso atual" value={`${fmtKg(last)} kg`} sub={`${last - first >= 0 ? "+" : ""}${fmtKg(last - first)} kg`} />
+        <Stat label="Meta" value={`${fmtKg(profile.goalWeight)} kg`} sub={`${Math.round(progress)}% concluído`} />
       </div>
 
       <section className="rounded-3xl border border-border bg-card p-6">
@@ -120,7 +140,7 @@ function CorpoPage() {
           </div>
           <div className="text-right">
             <div className="font-display text-lg font-bold" style={{ color: range.color }}>{range.label}</div>
-            <div className="text-xs text-muted-foreground">altura {num(profile.height, 0)} cm · peso {num(last)} kg</div>
+            <div className="text-xs text-muted-foreground">altura {num(profile.height, 0)} cm · peso {fmtKg(last)} kg</div>
           </div>
         </div>
         <div className="relative mt-4">
@@ -136,7 +156,7 @@ function CorpoPage() {
           ))}
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          Para a sua altura, o peso na faixa normal (IMC 18,5 a 24,9) vai de <b className="text-foreground">{num(healthy[0]!)} a {num(healthy[1]!)} kg</b>.
+          Para a sua altura, o peso na faixa normal (IMC 18,5 a 24,9) vai de <b className="text-foreground">{fmtKg(healthy[0]!)} a {fmtKg(healthy[1]!)} kg</b>.
           O IMC não separa músculo de gordura; a bioimpedância abaixo mostra a composição.
         </p>
       </section>
@@ -155,27 +175,17 @@ function CorpoPage() {
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis domain={["dataMin - 2", "dataMax + 2"]} tickFormatter={tick} stroke="var(--muted-foreground)" fontSize={12} width={40} />
-              <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }} />
+              <Tooltip formatter={(v) => [`${fmtKg(Number(v))} kg`, "peso"]} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }} />
               <ReferenceLine y={profile.goalWeight} stroke="var(--primary)" strokeDasharray="6 4" label={{ value: "meta", fill: "var(--primary)", fontSize: 12 }} />
               <Area type="monotone" dataKey="kg" stroke="var(--accent)" strokeWidth={3} fill="url(#wg)" dot={{ r: 4, fill: "var(--accent)" }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </section>
-
-      <section id="pesagem" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
-        <h2 className="text-lg font-bold">Registrar pesagem</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <input type="date" aria-label="Data da pesagem" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border border-input bg-card px-3 py-2.5" />
-          <input inputMode="decimal" aria-label="Peso em kg" placeholder="Ex: 78,4" value={kg} onChange={(e) => setKg(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()} className="w-32 rounded-xl border border-input bg-card px-3 py-2.5" />
-          <button onClick={add} className="rounded-full bg-accent px-6 font-bold text-accent-foreground">Salvar</button>
-        </div>
-        <ul className="mt-5 divide-y divide-border">
+        <ul className="mt-4 divide-y divide-border px-2 sm:px-0">
           {[...sorted].reverse().map((w) => (
             <li key={w.date} className="flex items-center justify-between py-2.5">
               <span className="text-muted-foreground">{new Date(w.date + "T12:00").toLocaleDateString("pt-BR")}</span>
-              <span className="flex items-center gap-4 font-display font-bold">{num(w.kg)} kg
+              <span className="flex items-center gap-4 font-display font-bold">{fmtKg(w.kg)} kg
                 <button aria-label="Excluir" onClick={() => setWeights((ws) => ws.filter((x) => x.date !== w.date))} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
               </span>
             </li>
@@ -184,10 +194,8 @@ function CorpoPage() {
       </section>
 
       <section className="space-y-5 rounded-3xl border border-border bg-card p-6">
-        <div>
-          <h2 className="text-2xl font-bold">Bioimpedância</h2>
-          <p className="text-sm text-muted-foreground">Copie os números da balança ou do laudo. Preencha só o que ela mostrar.</p>
-        </div>
+        <h2 className="text-2xl font-bold">Bioimpedância</h2>
+        {!latest && <p className="text-sm text-muted-foreground">Nenhuma medição ainda. Registre na aba Registrar.</p>}
 
         {latest && (
           <div>
@@ -203,11 +211,11 @@ function CorpoPage() {
                 const good = diff === null || diff === 0 || f.lowerIsBetter === null ? null : (diff < 0) === f.lowerIsBetter;
                 return (
                   <div key={f.key} className="rounded-2xl bg-muted/60 px-3 py-2">
-                    <div className="font-display text-lg font-bold leading-tight tabular-nums">{num(now)} <span className="text-sm">{f.unit}</span></div>
+                    <div className="font-display text-lg font-bold leading-tight tabular-nums">{val(f.key, now)} <span className="text-sm">{f.unit}</span></div>
                     <div className="text-xs text-muted-foreground">
                       {f.label}
                       {diff !== null && diff !== 0 && (
-                        <b className={good === null ? "" : good ? "text-[#3f9d6b]" : "text-destructive"}> · {diff > 0 ? "+" : ""}{num(diff)}</b>
+                        <b className={good === null ? "" : good ? "text-[#3f9d6b]" : "text-destructive"}> · {diff > 0 ? "+" : ""}{val(f.key, diff)}</b>
                       )}
                     </div>
                   </div>
@@ -234,24 +242,6 @@ function CorpoPage() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-border p-4">
-          <h3 className="font-bold">Registrar bioimpedância</h3>
-          <label className="mt-3 block text-sm font-semibold">
-            Data
-            <input type="date" value={bioDate} onChange={(e) => setBioDate(e.target.value)} className="mt-1 block rounded-xl border border-input bg-card px-3 py-2.5 font-normal" />
-          </label>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {FIELDS.map((f) => (
-              <label key={f.key} className="text-sm font-semibold">
-                {f.label} <span className="font-normal text-muted-foreground">({f.unit})</span>
-                <input inputMode="decimal" placeholder={f.placeholder} value={bio[f.key] ?? ""} onChange={(e) => setBio((b) => ({ ...b, [f.key]: e.target.value }))}
-                  className="mt-1 block w-full rounded-xl border border-input bg-card px-3 py-2.5 font-normal" />
-              </label>
-            ))}
-          </div>
-          <button onClick={addBio} className="mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground">Salvar medição</button>
-        </div>
-
         {readings.length > 0 && (
           <ul className="divide-y divide-border">
             {[...readings].reverse().map((r) => (
@@ -259,7 +249,7 @@ function CorpoPage() {
                 <span className="min-w-0">
                   <span className="block font-semibold">{new Date(r.date + "T12:00").toLocaleDateString("pt-BR")}</span>
                   <span className="block text-muted-foreground">
-                    {FIELDS.filter((f) => r[f.key] !== undefined).map((f) => `${f.label.toLowerCase()} ${num(r[f.key]!)}${f.unit === "%" ? "%" : ` ${f.unit}`}`).join(" · ")}
+                    {FIELDS.filter((f) => r[f.key] !== undefined).map((f) => `${f.label.toLowerCase()} ${val(f.key, r[f.key]!)}${f.unit === "%" ? "%" : ` ${f.unit}`}`).join(" · ")}
                   </span>
                 </span>
                 <button aria-label="Excluir medição" onClick={() => { if (confirm("Excluir esta medição de bioimpedância?")) setBody((list) => list.filter((x) => x.date !== r.date)); }}
@@ -269,6 +259,49 @@ function CorpoPage() {
           </ul>
         )}
       </section>
+
+      <BodyMeasures profile={profile} part="evolucao" />
+      </>) : (<>
+      <section id="pesagem" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
+        <h2 className="text-xl font-bold">Pesagem</h2>
+        <p className="text-sm text-muted-foreground">
+          {sorted.length ? <>Última: <b className="text-foreground">{fmtKg(last)} kg</b> em {new Date(sorted.at(-1)!.date + "T12:00").toLocaleDateString("pt-BR")}</> : "Nenhuma pesagem ainda."}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input type="date" aria-label="Data da pesagem" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border border-input bg-card px-3 py-2.5" />
+          <input inputMode="decimal" aria-label="Peso da pesagem em kg" placeholder="Ex: 78,45" value={kg} onChange={(e) => setKg(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()} className="w-32 rounded-xl border border-input bg-card px-3 py-2.5" />
+          <button onClick={add} className="rounded-full bg-accent px-6 font-bold text-accent-foreground">Salvar</button>
+        </div>
+      </section>
+
+      <section id="bioimpedancia" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
+        <h2 className="text-xl font-bold">Bioimpedância</h2>
+        <p className="text-sm text-muted-foreground">
+          Copie os números da balança ou do laudo. Preencha só o que ela mostrar.
+          {latest && <> Última medição em {new Date(latest.date + "T12:00").toLocaleDateString("pt-BR")}.</>}
+        </p>
+        <label className="mt-3 block text-sm font-semibold">
+          Data
+          <input type="date" value={bioDate} onChange={(e) => setBioDate(e.target.value)} className="mt-1 block rounded-xl border border-input bg-card px-3 py-2.5 font-normal" />
+        </label>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {FIELDS.map((f) => (
+            <label key={f.key} className="flex flex-col justify-between text-sm font-semibold">
+              {f.label}
+              <span className="mt-1 flex items-center rounded-xl border border-input bg-card pr-3">
+                <input inputMode="decimal" placeholder={f.placeholder} value={bio[f.key] ?? ""} onChange={(e) => setBio((b) => ({ ...b, [f.key]: e.target.value }))}
+                  aria-label={`${f.label} em ${f.unit}`} className="w-full min-w-0 bg-transparent px-3 py-2.5 font-normal outline-none" />
+                <span className="text-sm font-normal text-muted-foreground">{f.unit}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <button onClick={addBio} className="mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground">Salvar medição</button>
+      </section>
+
+      <BodyMeasures profile={profile} part="registrar" />
+      </>)}
     </div>
   );
 }

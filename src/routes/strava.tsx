@@ -25,7 +25,7 @@ function StravaCallback() {
     const done = (text: string, ok: boolean) => {
       if (ok) toast.success(text);
       else toast.error(text);
-      void navigate({ to: "/perfil", replace: true });
+      void navigate({ to: "/configuracoes", replace: true });
     };
     if (!code) {
       done(params.get("error") === "access_denied" ? "Conexão com o Strava cancelada." : "O Strava não devolveu a autorização.", false);
