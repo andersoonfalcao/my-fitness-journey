@@ -17,8 +17,28 @@ export type Settings = {
   reminder: boolean;
   /** HH:MM, local time of the device that subscribed. */
   reminderTime: string;
+  /** Reminders the person writes, each at its own time and weekdays. */
+  custom: CustomReminder[];
 };
-export const DEFAULT_SETTINGS: Settings = { restSeconds: 60, reminder: true, reminderTime: "21:00" };
+export type CustomReminder = {
+  id: string;
+  title: string;
+  body: string;
+  /** HH:MM, local time. */
+  time: string;
+  /** Weekdays it goes out, 0 = Sunday … 6 = Saturday. */
+  days: number[];
+  on: boolean;
+};
+export const MAX_REMINDERS = 10;
+export const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
+export const DEFAULT_SETTINGS: Settings = {
+  restSeconds: 60,
+  reminder: true,
+  reminderTime: "21:00",
+  // The Mi Band only reaches the app when Mi Fitness is opened (src/lib/health.ts), so the list starts with that nudge.
+  custom: [{ id: "miband", title: "Sincronize a Mi Band", body: "Abra o Mi Fitness para o forma receber o sono, os passos e o batimento de hoje.", time: "21:45", days: EVERY_DAY, on: true }],
+};
 
 export function useSettings() {
   const [stored, setStored, ready] = useLocal<Partial<Settings>>(KEYS.settings, {});
@@ -81,10 +101,11 @@ export async function enablePush(settings: Settings) {
     refreshToken: user?.refreshToken,
     daily: settings.reminder,
     time: settings.reminderTime,
+    custom: settings.custom,
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   storage.set(DEVICE_KEY, id ?? null);
-  storage.set(SYNCED_KEY, JSON.stringify([new Date().toDateString(), settings.reminder, settings.reminderTime]));
+  storage.set(SYNCED_KEY, syncStamp(settings));
 }
 
 export async function disablePush() {
@@ -96,14 +117,15 @@ export async function disablePush() {
   await (await registration?.pushManager.getSubscription())?.unsubscribe();
 }
 
+const syncStamp = (s: Settings) => JSON.stringify([new Date().toDateString(), s.reminder, s.reminderTime, s.custom]);
+
 /**
  * On app open: a subscribed device sends its settings again when they changed or once a day, which also keeps the
  * sign-in the reminder uses fresh and follows the device to another time zone.
  */
 export async function syncPush(settings: Settings) {
   if (!deviceId() || !pushSupported() || Notification.permission !== "granted") return;
-  const stamp = JSON.stringify([new Date().toDateString(), settings.reminder, settings.reminderTime]);
-  if (storage.get(SYNCED_KEY) === stamp) return;
+  if (storage.get(SYNCED_KEY) === syncStamp(settings)) return;
   await enablePush(settings).catch(() => undefined);
 }
 

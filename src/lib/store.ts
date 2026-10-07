@@ -242,6 +242,8 @@ export type DayRecord = {
     }[] | undefined;
     /** Daily routine supplements (taken or not) plus any other taken that day; missing in older records. */
     supplements?: { name: string; dose: string; taken: boolean; daily: boolean }[] | undefined;
+    /** From the iPhone's Health app (Mi Band): last night's sleep and the day's steps, active energy, resting HR. */
+    health?: { sleepMin: number | null; steps: number | null; activeKcal: number | null; restingHr: number | null; vo2max: number | null } | null | undefined;
   };
   sinceStart: {
     startDate: string; days: number;

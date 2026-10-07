@@ -3,6 +3,7 @@ import { Bell, BellOff, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { CustomReminders } from "@/components/CustomReminders";
 import { deviceId, disablePush, enablePush, pushSupported, sendTestReminder, useSettings, type Settings } from "@/lib/push";
 
 const RESTS = [30, 45, 60, 75, 90, 120, 150, 180];
@@ -97,6 +98,10 @@ export function SettingsPanel() {
             <Send />Ver o lembrete agora
           </Button>
         )}
+      </div>
+
+      <div className="border-t border-border pt-5">
+        <CustomReminders list={settings.custom} onChange={(custom) => change({ custom })} subscribed={subscribed} />
       </div>
     </section>
   );

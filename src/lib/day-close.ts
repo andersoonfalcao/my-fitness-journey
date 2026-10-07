@@ -5,6 +5,7 @@ import { lastRecordBefore, recordTotal } from "./workout-stats";
 import { byId, GROUP_LABEL } from "./exercises";
 import { sportLabel, stravaActivityDetail, stravaKey, type StravaActivity, type StravaDetail } from "./strava";
 import { doseLabel, SUPPLEMENTS_KEY, type Supplement } from "./supplements";
+import { healthKey, type HealthMonth } from "./health";
 
 const FOCUS_LABEL: Record<Profile["focus"], string> = {
   perder: "perder gordura",
@@ -78,12 +79,17 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
   const start = [sortedWeights[0]?.date, history[0]?.date].filter((d): d is string => !!d).sort()[0] ?? date;
 
   const months = monthsBetween(start < date ? start : date, date);
-  const [foodMonths, waterMonths, stravaMonths, routine] = await Promise.all([
+  const [foodMonths, waterMonths, stravaMonths, routine, healthMonth] = await Promise.all([
     Promise.all(months.map((m) => readCloudOnce<FoodEntry[]>(uid, foodsKey(`${m}-01`), []))),
     Promise.all(months.map((m) => readCloudOnce<WaterLog>(uid, waterKey(`${m}-01`), {}))),
     Promise.all(months.map((m) => readCloudOnce<StravaActivity[]>(uid, stravaKey(`${m}-01`), []))),
     readCloudOnce<Supplement[]>(uid, SUPPLEMENTS_KEY, []),
+    readCloudOnce<HealthMonth>(uid, healthKey(date), {}),
   ]);
+  const healthDay = healthMonth[date];
+  const health = healthDay
+    ? { sleepMin: healthDay.sleepMin ?? null, steps: healthDay.steps ?? null, activeKcal: healthDay.activeKcal ?? null, restingHr: healthDay.restingHr ?? null, vo2max: healthDay.vo2max ?? null }
+    : null;
   const strava = stravaMonths.flat().filter((a) => a.date >= start && a.date <= date);
   const foods = foodMonths.flat().filter((f) => f.date >= start && f.date <= date);
   const water: WaterLog = Object.assign({}, ...waterMonths);
@@ -153,6 +159,7 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
         };
       }),
       supplements,
+      health,
     },
     sinceStart: {
       startDate: start,
@@ -183,6 +190,7 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
     unidades: "calorias em kcal, macros em g, água em ml, peso em kg, volume de treino = soma de peso × repetições em kg",
     suplementos: "hoje.supplements lista os suplementos da rotina diária (daily = true), com taken = tomado ou não, e os avulsos do dia; comente quando faltar algum da rotina",
     observacao: "atividades do Strava (corrida, pedal etc.) são gasto extra informativo; a meta de calorias do dia não muda por causa delas",
+    saude: "hoje.health vem da pulseira (Mi Band, pelo app Saúde): sleepMin = minutos dormidos na noite que terminou hoje, steps = passos, activeKcal = energia ativa em kcal (informativa, não muda a meta), restingHr = batimento em repouso em bpm, vo2max em mL/kg/min; null = não chegou. Relacione o sono e o batimento em repouso com o treino e a recuperação, e os passos com o movimento do dia; se health for null, não comente",
     // The AI sees what was trained, the muscles and the load comparison only (no sets or reps).
     hoje: { ...numbers.day, workout: undefined, treino: numbers.day.workout && {
       nome: numbers.day.workout.name,

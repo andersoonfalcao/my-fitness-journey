@@ -3,6 +3,7 @@
 // must carry that user's Firebase ID token. The Strava client secret is a Worker secret.
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { pushRoute, runDaily, type NotifyEnv } from "./notify";
+import { healthKeyRoute, ingestHealth } from "./health";
 
 export { RestTimer } from "./notify";
 
@@ -84,12 +85,23 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
     const path = new URL(request.url).pathname;
 
+    // The iPhone Shortcut signs with the personal Health key, not with a Firebase sign-in.
+    if (path === "/health/ingest") {
+      try {
+        return await ingestHealth(request, env);
+      } catch (error) {
+        return new Response(`Erro no forma: ${error instanceof Error ? error.message : "desconhecido"}`, { status: 502 });
+      }
+    }
+
     const uid = await firebaseUid(request, env);
     if (!uid) return json({ error: "não autenticado" }, 401, headers);
 
     try {
       const pushed = await pushRoute(path, request, env, uid);
       if (pushed) return json(pushed[0], pushed[1], headers);
+      const health = await healthKeyRoute(path, request, env, uid);
+      if (health) return json(health[0], health[1], headers);
 
       if (path === "/connect" && request.method === "POST") {
         const { code } = (await request.json()) as { code?: string };

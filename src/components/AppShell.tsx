@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [settings, , settingsReady] = useSettings();
   useEffect(() => {
     if (settingsReady) void syncPush(settings);
-  }, [settingsReady, settings.reminder, settings.reminderTime]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settingsReady, settings.reminder, settings.reminderTime, JSON.stringify(settings.custom)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Links like /alimentacao#agua: the section only exists once the account data loads, so wait for it a little.
   const { pathname, hash } = useLocation();

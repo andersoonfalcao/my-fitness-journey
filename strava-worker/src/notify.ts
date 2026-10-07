@@ -14,8 +14,12 @@ export interface NotifyEnv {
   VAPID_PRIVATE_JWK: string; // secret
 }
 
-type Stored = { sub: PushSubscriptionJSON; refreshToken: string };
-type Meta = { daily: boolean; time: string; tz: string; last: string };
+/** A reminder the person wrote in the app: title, optional text, HH:MM and weekdays (0 = Sunday). */
+type Custom = { id: string; title: string; body: string; time: string; days: number[]; on: boolean };
+/** `custom` and the day each one last went out (`customLast`) live in the value: they don't fit the 1 KB metadata. */
+type Stored = { sub: PushSubscriptionJSON; refreshToken: string; custom?: Custom[]; customLast?: Record<string, string> };
+/** `custom`: the device has reminders switched on, so the cron reads its value. */
+type Meta = { daily: boolean; time: string; tz: string; last: string; custom?: boolean };
 type Message = { title: string; body: string; tag: string; url: string };
 
 const vapid = (env: NotifyEnv): Vapid => ({ publicKey: env.VAPID_PUBLIC_KEY, privateJwk: JSON.parse(env.VAPID_PRIVATE_JWK), subject: "https://apptreino.web.app" });
@@ -40,7 +44,8 @@ function localNow(tz: string, at = new Date()) {
       .formatToParts(at)
       .map((p) => [p.type, p.value]),
   );
-  return { date: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
+  const date = `${parts.year}-${parts.month}-${parts.day}`;
+  return { date, minutes: Number(parts.hour) * 60 + Number(parts.minute), weekday: new Date(`${date}T12:00:00Z`).getUTCDay() };
 }
 
 /** Monday of the week of a YYYY-MM-DD date. */
@@ -50,15 +55,20 @@ function weekStart(date: string) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Reads the user's own documents with their own credentials, so Firestore's rules still apply. */
-async function readUserDocs(env: NotifyEnv, uid: string, refreshToken: string, keys: string[]) {
+/** A fresh ID token of the user from the sign-in kept on the server (fails when they signed out or changed password). */
+export async function userIdToken(env: NotifyEnv, refreshToken: string) {
   const tokenRes = await fetch(`https://securetoken.googleapis.com/v1/token?key=${env.FIREBASE_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: "https://apptreino.web.app/" },
     body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
   });
   if (!tokenRes.ok) throw new Error(`token ${tokenRes.status}`);
-  const { id_token } = (await tokenRes.json()) as { id_token: string };
+  return ((await tokenRes.json()) as { id_token: string }).id_token;
+}
+
+/** Reads the user's own documents with their own credentials, so Firestore's rules still apply. */
+export async function readUserDocs(env: NotifyEnv, uid: string, refreshToken: string, keys: string[], idToken?: string) {
+  const id_token = idToken ?? (await userIdToken(env, refreshToken));
   const base = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
   const res = await fetch(`https://firestore.googleapis.com/v1/${base}:batchGet`, {
     method: "POST",
@@ -121,25 +131,50 @@ async function dailyFor(env: NotifyEnv, key: string, uid: string, date: string) 
   return push(env, key, message, 3600);
 }
 
-/** Cron (every 5 min): sends each device's daily reminder once, within an hour after its chosen time. */
+/** Within the hour after HH:MM, local minutes. */
+const due = (time: string, minutes: number) => {
+  const [h, m] = time.split(":").map(Number);
+  const target = h! * 60 + m!;
+  return minutes >= target && minutes - target < 60;
+};
+
+/** Cron (every 5 min): sends each device's daily reminder and custom reminders once, within an hour after their times. */
 export async function runDaily(env: NotifyEnv) {
   let cursor: string | undefined;
   do {
     const page: KVNamespaceListResult<Meta> = await env.TOKENS.list<Meta>({ prefix: "push:", cursor });
     for (const k of page.keys) {
       const meta = k.metadata;
-      if (!meta?.daily) continue;
+      if (!meta) continue;
       const now = localNow(meta.tz);
-      const [h, m] = meta.time.split(":").map(Number);
-      const target = h! * 60 + m!;
-      if (meta.last === now.date || now.minutes < target || now.minutes - target >= 60) continue;
-      const stored = await env.TOKENS.get(k.name);
+      const daily = meta.daily && meta.last !== now.date && due(meta.time, now.minutes);
+      if (!daily && !meta.custom) continue;
+      const stored = await env.TOKENS.get<Stored>(k.name, "json");
       if (stored === null) continue;
-      await env.TOKENS.put(k.name, stored, { metadata: { ...meta, last: now.date } });
-      await dailyFor(env, k.name, k.name.split(":")[1]!, now.date).catch(() => undefined);
+      const customDue = (stored.custom ?? []).filter((c) => c.on && c.days.includes(now.weekday) && stored.customLast?.[c.id] !== now.date && due(c.time, now.minutes));
+      if (!daily && !customDue.length) continue;
+      // Marked as sent first, so a slow push never goes out twice from overlapping runs.
+      const customLast = { ...stored.customLast, ...Object.fromEntries(customDue.map((c) => [c.id, now.date])) };
+      await env.TOKENS.put(k.name, JSON.stringify({ ...stored, customLast } satisfies Stored), { metadata: { ...meta, ...(daily ? { last: now.date } : {}) } });
+      if (daily) await dailyFor(env, k.name, k.name.split(":")[1]!, now.date).catch(() => undefined);
+      for (const c of customDue) await push(env, k.name, { title: c.title, body: c.body, tag: `forma-lembrete-${c.id}`, url: "/" }, 3600).catch(() => undefined);
     }
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
+}
+
+/** Reminders from the app, checked and trimmed (at most 10). */
+function cleanCustom(value: unknown): Custom[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 10).flatMap((c): Custom[] => {
+    if (!c || typeof c !== "object") return [];
+    const r = c as Record<string, unknown>;
+    const title = typeof r.title === "string" ? r.title.trim().slice(0, 60) : "";
+    const time = typeof r.time === "string" && TIME.test(r.time) ? r.time : null;
+    const days = Array.isArray(r.days) ? [...new Set(r.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
+    if (!title || !time || !days.length || typeof r.id !== "string" || !/^[\w-]{1,32}$/.test(r.id)) return [];
+    return [{ id: r.id, title, body: typeof r.body === "string" ? r.body.trim().slice(0, 140) : "", time, days, on: r.on !== false }];
+  });
 }
 
 /** One per user: holds the running rest and wakes up when it ends. */
@@ -187,9 +222,12 @@ export async function pushRoute(path: string, request: Request, env: NotifyEnv, 
     const id = await deviceId(sub.endpoint);
     const key = keyOf(uid, id);
     const previous = await env.TOKENS.getWithMetadata<Meta>(key);
-    // Keep "sent today" so changing the time after the reminder went out doesn't send it twice.
-    const meta: Meta = { daily: body.daily === true, time, tz, last: previous.metadata?.last ?? "" };
-    await env.TOKENS.put(key, JSON.stringify({ sub, refreshToken } satisfies Stored), { metadata: meta });
+    const previousValue = previous.value ? (JSON.parse(previous.value) as Stored) : null;
+    const custom = cleanCustom(body.custom);
+    // Keep "sent today" (daily and each custom one) so changing a time after it went out doesn't send it twice.
+    const meta: Meta = { daily: body.daily === true, time, tz, last: previous.metadata?.last ?? "", custom: custom.some((c) => c.on) };
+    const stored: Stored = { sub, refreshToken, custom, customLast: previousValue?.customLast ?? {} };
+    await env.TOKENS.put(key, JSON.stringify(stored), { metadata: meta });
     return [{ id }, 200];
   }
 

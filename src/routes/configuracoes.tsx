@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LogOut, X } from "lucide-react";
 import { useCloseCalendar } from "@/components/AppShell";
+import { HealthPanel } from "@/components/HealthPanel";
 import { InvitesPanel } from "@/components/InvitesPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { StravaCard } from "@/components/StravaCard";
@@ -45,6 +46,8 @@ function ConfiguracoesPage() {
       </section>
 
       <StravaCard />
+
+      <HealthPanel />
 
       {isAdmin && <InvitesPanel />}
     </div>

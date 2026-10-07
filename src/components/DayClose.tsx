@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { closeDay } from "@/lib/day-close";
 import { km, sportLabel, stravaKey, type StravaActivity } from "@/lib/strava";
 import { SUPPLEMENTS_KEY, type Supplement } from "@/lib/supplements";
+import { sleepLabel } from "@/lib/health";
 import {
   daysKey,
   foodsKey,
@@ -152,6 +153,8 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
   const supplements = day.supplements ?? [];
   const dailySupplements = supplements.filter((s) => s.daily);
   if (dailySupplements.length) stats.push(["Suplementos", `${dailySupplements.filter((s) => s.taken).length} / ${dailySupplements.length} da rotina`]);
+  if (day.health?.sleepMin != null) stats.push(["Sono", sleepLabel(day.health.sleepMin)]);
+  if (day.health?.steps != null) stats.push(["Passos", day.health.steps.toLocaleString("pt-BR")]);
   if (day.strava?.length) {
     const kcalOut = day.strava.reduce((s, a) => s + (a.kcal ?? 0), 0);
     stats.push(["Strava", `${day.strava.map((a) => a.sport).join(", ")}${kcalOut ? ` · ${kcalOut} kcal` : ""}`]);

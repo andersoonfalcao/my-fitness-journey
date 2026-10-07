@@ -5,6 +5,7 @@ import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
+import { HealthToday } from "@/components/HealthToday";
 import { CheckCheck, Moon } from "lucide-react";
 import { defaultTrainingDays, musclesOf } from "@/components/WeekPlan";
 
@@ -122,6 +123,8 @@ function Index() {
           </div>
         </section>
       )}
+
+      <HealthToday date={today()} />
 
       <DayClose profile={profile} date={today()} />
     </div>
