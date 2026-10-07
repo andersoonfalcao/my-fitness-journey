@@ -82,9 +82,9 @@ function Index() {
       {doneToday.length > 0 ? (
         <Link to="/treinos" search={{ aba: "historico" }} className="flex items-center gap-4 rounded-3xl border border-accent bg-accent/5 p-6">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><CheckCheck className="h-6 w-6" /></span>
-          <div>
-            <div className="text-sm font-bold uppercase tracking-widest text-accent">Treino de hoje</div>
-            <h2 className="text-2xl font-bold">{doneToday.join(" e ")} concluído</h2>
+          <div className="min-w-0">
+            <div className="text-sm font-bold uppercase tracking-widest text-accent">Treino de hoje · concluído</div>
+            <h2 className="text-balance text-xl font-bold leading-tight sm:text-2xl">{doneToday.join(" e ")}</h2>
           </div>
         </Link>
       ) : next && restToday ? (
@@ -103,12 +103,14 @@ function Index() {
         </section>
       ) : next && (
         <section className="rounded-3xl border border-border bg-card p-6">
-          <div className="flex items-end justify-between gap-4">
-            <div>
+          {/* Name on its own line and the muscles below, so any workout (short or with five muscle groups) reads cleanly. */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
               <div className="text-sm font-bold uppercase tracking-widest text-accent">Treino de hoje</div>
-              <h2 className="text-2xl font-bold">{next.name} · {musclesOf(next.items.map((it) => it.exId))}</h2>
+              <h2 className="text-2xl font-bold leading-tight">{next.name}</h2>
+              <p className="mt-1 text-balance text-sm text-muted-foreground">{musclesOf(next.items.map((it) => it.exId))} · {next.items.length} exercícios</p>
             </div>
-            <Link to="/treinos" className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground">Ver treino</Link>
+            <Link to="/treinos" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground">Ver treino</Link>
           </div>
           <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
             {next.items.map((it, i) => {
