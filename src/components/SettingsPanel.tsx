@@ -41,44 +41,55 @@ export function SettingsPanel() {
         <span className="mt-1 block text-xs text-muted-foreground">Vale para todos os exercícios. Depois da última série de um exercício não há contagem.</span>
       </label>
 
-      <div className="space-y-3 border-t border-border pt-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="space-y-4 border-t border-border pt-5">
+        <div className="flex items-start gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${subscribed ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
+            {subscribed ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+          </span>
           <div className="min-w-0 flex-1">
-            <h3 className="font-bold">Notificações neste aparelho</h3>
-            <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-bold">Notificações</h3>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${subscribed ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
+                {subscribed ? "Ativadas" : "Desativadas"}
+              </span>
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {subscribed
-                ? "Ativadas: o fim do descanso avisa mesmo com a tela desligada."
-                : "Ative para ser avisado do fim do descanso com a tela desligada e receber o lembrete do dia."}
+                ? "Neste aparelho, o fim do descanso avisa mesmo com a tela desligada."
+                : "Avisam o fim do descanso com a tela desligada e trazem o lembrete do dia. Valem só para este aparelho."}
             </p>
           </div>
-          {subscribed ? (
-            <Button type="button" variant="secondary" disabled={busy} className="rounded-full"
-              onClick={() => run(async () => { await disablePush(); setSubscribed(false); toast.success("Notificações desativadas neste aparelho."); })}>
-              {busy ? <Loader2 className="animate-spin" /> : <BellOff />}Desativar
-            </Button>
-          ) : (
-            <Button type="button" disabled={busy} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90"
-              onClick={() => run(async () => { await enablePush(settings); setSubscribed(true); toast.success("Notificações ativadas neste aparelho."); })}>
-              {busy ? <Loader2 className="animate-spin" /> : <Bell />}Ativar
-            </Button>
-          )}
         </div>
+        {subscribed ? (
+          <Button type="button" variant="secondary" disabled={busy} className="min-h-11 w-full rounded-full"
+            onClick={() => run(async () => { await disablePush(); setSubscribed(false); toast.success("Notificações desativadas neste aparelho."); })}>
+            {busy ? <Loader2 className="animate-spin" /> : <BellOff />}Desativar notificações
+          </Button>
+        ) : (
+          <Button type="button" disabled={busy} className="min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90"
+            onClick={() => run(async () => { await enablePush(settings); setSubscribed(true); toast.success("Notificações ativadas neste aparelho."); })}>
+            {busy ? <Loader2 className="animate-spin" /> : <Bell />}Ativar notificações
+          </Button>
+        )}
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <label className="inline-flex items-center gap-3 text-sm font-semibold">
+        <div className="divide-y divide-border rounded-2xl bg-muted/60">
+          <label className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">Lembrete diário</span>
+              <span className="block text-xs text-muted-foreground">Avisa o que falta preencher no dia</span>
+            </span>
             <Switch checked={settings.reminder} onCheckedChange={(on) => change({ reminder: on })} />
-            Lembrete do que falta preencher
           </label>
-          <label className="inline-flex items-center gap-2 text-sm">
-            às
+          <label className={`flex min-h-14 items-center justify-between gap-3 px-4 py-3 ${settings.reminder ? "" : "opacity-50"}`}>
+            <span className="text-sm font-semibold">Horário</span>
             <input type="time" step={300} value={settings.reminderTime} disabled={!settings.reminder}
               onChange={(e) => e.target.value && change({ reminderTime: e.target.value })}
-              className="rounded-xl border border-input bg-card px-3 py-2 disabled:opacity-50" />
+              className="w-32 rounded-xl border border-input bg-card px-3 py-2 text-center" />
           </label>
         </div>
         <p className="text-xs text-muted-foreground">
-          Todo dia nesse horário: refeições sem registro, água abaixo da meta, treino da semana e fechar o dia.
-          {!subscribed && " Ative as notificações acima para receber."}
+          O lembrete aponta refeições sem registro, água abaixo da meta, o treino da semana e se falta fechar o dia.
+          {!subscribed && " Para recebê-lo, ative as notificações."}
         </p>
         {subscribed && settings.reminder && (
           <Button type="button" variant="secondary" size="sm" disabled={busy} className="rounded-full"

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Check, Pencil } from "lucide-react";
-import { byId, GROUP_LABEL, type Exercise, type Group } from "@/lib/exercises";
+import { useEffect, useRef, useState } from "react";
+import { Check, Moon, Pencil, X } from "lucide-react";
+import { byId, GROUP_LABEL, type Exercise } from "@/lib/exercises";
 import { today, type WorkoutRecord } from "@/lib/store";
 import type { Plan } from "@/lib/plan";
 
@@ -22,14 +22,10 @@ export function musclesOf(exIds: string[]) {
   return names.length > 1 ? `${names.slice(0, -1).join(", ")} e ${names.at(-1)}` : names[0] ?? "";
 }
 
-/** Short muscle names that fit the narrow day squares on a phone. */
-const SHORT: Record<Group, string> = {
-  peito: "Peito", costas: "Costas", quadriceps: "Quadr.", posterior: "Post.", ombros: "Ombro", biceps: "Bíceps",
-  triceps: "Tríceps", core: "Abdô.", panturrilha: "Pantur.", trapezio: "Trapé.", antebraco: "Anteb.", cardio: "Cardio",
-};
-const shortMuscles = (exIds: string[]) => [...new Set(exIds.flatMap((id) => {
+/** Muscle names one by one, for the day cards. */
+const muscleList = (exIds: string[]) => [...new Set(exIds.flatMap((id) => {
   const ex = byId(id) as Exercise | undefined;
-  return ex ? [SHORT[ex.group]] : [];
+  return ex ? [GROUP_LABEL[ex.group]] : [];
 }))];
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -79,6 +75,14 @@ export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSe
 }) {
   const [editing, setEditing] = useState(false);
   const cells = weekCells(plan, history, nextIdx, trainingDays);
+  const strip = useRef<HTMLOListElement>(null);
+
+  // Open the strip on today's card (scrollLeft only, so the page itself does not jump).
+  useEffect(() => {
+    const ol = strip.current;
+    const todayCard = ol?.querySelector<HTMLElement>("[data-today]");
+    if (ol && todayCard && ol.scrollWidth > ol.clientWidth) ol.scrollLeft = todayCard.offsetLeft - 8;
+  }, []);
 
   const toggle = (w: number) => {
     const next = trainingDays.includes(w) ? trainingDays.filter((x) => x !== w) : [...trainingDays, w].sort();
@@ -103,13 +107,15 @@ export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSe
           {trainingDays.length !== profileDays && ` (seu perfil diz ${profileDays})`}.
         </p>
       )}
-      <ol className="mt-3 grid grid-cols-7 gap-0.5 sm:gap-1">
+      {/* Phone: one big card per day in a row that slides sideways, starting at today. Wider screens: the whole week. */}
+      <ol ref={strip} className="relative mt-3 flex snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto px-2 pb-1 [scrollbar-width:none] sm:grid sm:grid-cols-7 sm:gap-1 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
         {cells.map((c) => {
           const { cell } = c;
           const selected = !editing && cell.kind === "planned" && cell.idx === activeIdx;
           const exIds = cell.kind === "done" ? cell.records.flatMap((r) => r.exercises.map((e) => e.exId))
             : cell.kind === "planned" ? plan.days[cell.idx]!.items.map((it) => it.exId) : [];
-          const muscles = shortMuscles(exIds);
+          const muscles = muscleList(exIds);
+          const dayName = cell.kind === "done" ? cell.records.map((r) => r.dayName).join(" + ") : cell.kind === "planned" ? plan.days[cell.idx]!.name : "";
           const tone = editing
             ? c.training ? "border-primary bg-primary/10" : "border-dashed border-border"
             : cell.kind === "done" ? "border-[#3f9d6b] bg-[#3f9d6b]/10"
@@ -127,24 +133,28 @@ export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSe
             : undefined;
           const body = (
             <>
-              <span className={`text-[11px] font-bold uppercase ${c.today && !selected ? "text-accent" : "opacity-70"}`}>{c.today ? "Hoje" : WEEKDAYS[c.w]}</span>
-              <span className="flex w-full flex-1 flex-col items-center justify-center gap-0.5 py-1">
-                {editing ? <span className="font-display text-lg font-extrabold">{c.training ? "Treino" : "–"}</span>
+              <span className="flex w-full items-baseline justify-between gap-1">
+                <span className={`text-xs font-bold uppercase tracking-wide ${c.today && !selected ? "text-accent" : "opacity-70"}`}>{c.today ? "Hoje" : WEEKDAYS[c.w]}</span>
+                <span className="text-xs tabular-nums opacity-70">{c.dateText}</span>
+              </span>
+              <span className="mt-2 flex w-full flex-1 flex-col items-start gap-1">
+                {editing ? <span className="font-display text-lg font-extrabold">{c.training ? "Treino" : "Descanso"}</span>
                   : cell.kind === "done" || cell.kind === "planned" ? (
                     <>
-                      {cell.kind === "done" && <Check className="h-4 w-4 text-[#3f9d6b]" aria-hidden />}
-                      {muscles.map((m) => <span key={m} className="block w-full truncate text-xs font-extrabold leading-snug tracking-tight">{m}</span>)}
+                      <span className="flex items-center gap-1 font-display text-base font-extrabold leading-tight">
+                        {cell.kind === "done" && <Check className="h-4 w-4 shrink-0 text-[#3f9d6b]" aria-hidden />}{dayName}
+                      </span>
+                      {muscles.map((m) => <span key={m} className="block text-xs font-semibold leading-tight opacity-80">{m}</span>)}
                     </>
                   )
-                  : cell.kind === "missed" ? <span className="font-display text-xl font-extrabold text-muted-foreground">✕</span>
-                  : <span className="text-xs font-semibold text-muted-foreground">desc.</span>}
+                  : cell.kind === "missed" ? <span className="flex items-center gap-1 text-sm font-bold text-muted-foreground"><X className="h-4 w-4" />Sem treino</span>
+                  : <span className="flex items-center gap-1 text-sm font-semibold text-muted-foreground"><Moon className="h-4 w-4" />Descanso</span>}
               </span>
-              <span className="text-[11px] tabular-nums opacity-70">{c.dateText}</span>
             </>
           );
-          const cls = `flex min-h-[8.5rem] w-full flex-col items-center justify-between rounded-2xl border-2 px-0 py-2 text-center ${tone}`;
+          const cls = `flex h-full min-h-[10.5rem] w-full flex-col rounded-2xl border-2 p-3 text-left ${tone}`;
           return (
-            <li key={c.date}>
+            <li key={c.date} data-today={c.today || undefined} className="w-[8.75rem] shrink-0 snap-start sm:w-auto">
               {onClick ? (
                 <button type="button" onClick={onClick} aria-pressed={editing ? c.training : selected || undefined} aria-label={label} className={cls}>{body}</button>
               ) : (
@@ -154,7 +164,6 @@ export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSe
           );
         })}
       </ol>
-      {!editing && <p className="mt-2 px-1 text-xs text-muted-foreground"><b className="text-[#3f9d6b]">Verde</b>: concluído, toque para conferir · <b>✕</b>: sem treino</p>}
     </section>
   );
 }

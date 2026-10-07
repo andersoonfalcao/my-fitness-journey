@@ -120,16 +120,16 @@ function FoodPage() {
       <SupplementsCard date={date} />
 
       <section id="registrar" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {MEALS.map((m) => (
             <button key={m.v} onClick={() => setMeal(m.v)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold ${meal === m.v ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{m.t}</button>
+              className={`min-h-11 rounded-full border px-4 py-2 text-sm font-semibold ${meal === m.v ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{m.t}</button>
           ))}
         </div>
         <div className="mt-4 grid grid-cols-3 gap-1 rounded-3xl bg-muted p-1 sm:inline-grid">
           <button onClick={() => setMode("busca")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "busca" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Search className="h-4 w-4" />Buscar</button>
           <button onClick={() => setMode("produto")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "produto" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><ScanBarcode className="h-4 w-4" />Produto</button>
-          <button onClick={() => setMode("ia")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "ia" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Sparkles className="h-4 w-4 text-accent" />Descrever com IA</button>
+          <button onClick={() => setMode("ia")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "ia" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Sparkles className="h-4 w-4 text-accent" /><span className="sm:hidden">Com IA</span><span className="hidden sm:inline">Descrever com IA</span></button>
         </div>
 
         {mode === "produto" ? (
@@ -159,7 +159,7 @@ function FoodPage() {
                     </li>
                   ))}
                   {q.trim() && searchFoods(q).length === 0 && (
-                    <li className="px-1 py-3 text-sm text-muted-foreground">Nada encontrado. Tente outra palavra ou use "Descrever com IA".</li>
+                    <li className="px-1 py-3 text-sm text-muted-foreground">Nada encontrado. Tente outra palavra ou descreva com a IA.</li>
                   )}
                 </ul>
               </>

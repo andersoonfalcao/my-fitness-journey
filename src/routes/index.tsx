@@ -91,10 +91,12 @@ function Index() {
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Moon className="h-6 w-6" /></span>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-bold uppercase tracking-widest text-accent">Hoje é descanso</div>
-            <h2 className="text-xl font-bold leading-tight">
-              Próximo treino{nextDay ? `: ${nextDay.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}` : ""}
-            </h2>
-            <p className="text-sm text-muted-foreground">{next.name} · {musclesOf(next.items.map((it) => it.exId))}</p>
+            <h2 className="text-xl font-bold leading-tight">Próximo treino</h2>
+            <p className="mt-0.5 text-sm font-semibold">
+              {nextDay && <span className="whitespace-nowrap">{nextDay.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}</span>}
+              {nextDay && " · "}<span className="whitespace-nowrap">{next.name}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">{musclesOf(next.items.map((it) => it.exId))}</p>
           </div>
           <Link to="/treinos" className="hidden shrink-0 rounded-full border border-input px-4 py-2 text-sm font-semibold sm:inline-flex">Ver semana</Link>
         </section>

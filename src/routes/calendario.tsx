@@ -108,7 +108,10 @@ function CalendarPage() {
     ["média de calorias", logged.length ? `${Math.round(logged.reduce((s, d) => s + d.kcal, 0) / logged.length)} kcal` : "—"],
     ["dias na meta de calorias", String(all.filter((d) => d.onCalories).length)],
     ["dias na meta de água", String(all.filter((d) => d.waterMl >= d.goal.waterMl).length)],
-    ["Strava", strava.length ? `${strava.length} ativ.${strava.some((a) => a.distanceM) ? ` · ${km(strava.reduce((s, a) => s + a.distanceM, 0))} km` : ""}` : "—"],
+    // Distance as the number and the count in the label, so the value fits half a phone screen.
+    strava.some((a) => a.distanceM)
+      ? [`no Strava · ${strava.length} ${strava.length === 1 ? "atividade" : "atividades"}`, `${km(strava.reduce((s, a) => s + a.distanceM, 0))} km`]
+      : [strava.length === 1 ? "atividade no Strava" : "atividades no Strava", strava.length ? String(strava.length) : "—"],
     ["peso no mês", weightChange === null ? "—" : `${weightChange > 0 ? "+" : ""}${fmtKg(weightChange)} kg`],
     ["dias fechados", String(closedDays.length)],
   ];
@@ -275,7 +278,7 @@ function CalendarPage() {
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {summary.map(([label, value]) => (
             <div key={label}>
-              <div className="font-display text-2xl font-extrabold tabular-nums">{value}</div>
+              <div className="whitespace-nowrap font-display text-2xl font-extrabold tabular-nums">{value}</div>
               <div className="text-xs opacity-75">{label}</div>
             </div>
           ))}

@@ -38,7 +38,7 @@ export function BodyMap({ exIds, focus, size = "md", className = "" }: { exIds: 
   const data: IExerciseData[] = focus
     ? [{ name: "aula", muscles: day }, { name: "agora", muscles: musclesOfExercise(focus) }]
     : [{ name: "aula", muscles: day, frequency: 2 }];
-  const width = size === "sm" ? "w-12" : "w-[4.5rem] sm:w-24";
+  const width = size === "sm" ? "w-12" : "w-14 sm:w-24";
   const view = (type: "anterior" | "posterior", label: string) => (
     <figure className="flex flex-col items-center gap-1">
       <div className={width}>

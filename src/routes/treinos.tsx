@@ -285,8 +285,8 @@ function TreinosPage() {
           <div className="text-xs font-bold uppercase tracking-widest text-accent">
             {isCurrentClass ? `Aula ${classNumber}` : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
           </div>
-          <h2 className="mt-1 font-display text-xl font-extrabold leading-tight sm:text-3xl">{musclesOf(day.items.map((it) => it.exId))}</h2>
-          <p className="mt-1 text-sm opacity-75">{day.items.length} exercícios · {plan.method}</p>
+          <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(day.items.map((it) => it.exId))}</h2>
+          <p className="mt-1 text-sm opacity-75"><span className="whitespace-nowrap">{day.items.length} exercícios</span> · <span className="whitespace-nowrap">{plan.method}</span></p>
           {openItem !== null && day.items[openItem] && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />agora: {byId(day.items[openItem]!.exId).name}
@@ -911,9 +911,10 @@ function RecordDialog({ records, all, onClose }: { records: WorkoutRecord[] | nu
 
 function HistoryStat({ label, value, extra }: { label: string; value: string; extra?: ReactNode }) {
   return (
-    <div className="rounded-2xl bg-muted/60 px-3 py-2">
-      <div className="font-display text-base font-bold leading-tight tabular-nums">{value}</div>
-      <div className="text-xs text-muted-foreground">{label}{extra && <> · <b>{extra}</b></>}</div>
+    <div className="min-w-0 rounded-2xl bg-muted/60 px-2.5 py-2">
+      <div className="whitespace-nowrap font-display text-[15px] font-bold leading-tight tabular-nums">{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      {extra && <div className="whitespace-nowrap text-xs font-bold tabular-nums">{extra}</div>}
     </div>
   );
 }
@@ -997,7 +998,7 @@ function WeeklyVolume({ records }: { records: WorkoutRecord[] }) {
           const n = sets[g] ?? 0;
           const tone = n > WEEK_SETS.max ? "bg-destructive" : n >= WEEK_SETS.min ? "bg-accent" : "bg-primary/40";
           return (
-            <li key={g} className="grid grid-cols-[6.5rem_1fr_2rem] items-center gap-2 text-sm">
+            <li key={g} className="grid grid-cols-[8.5rem_1fr_2rem] items-center gap-2 text-sm">
               <span className="truncate">{GROUP_LABEL[g]}</span>
               <span className="relative h-3 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${GROUP_LABEL[g]}: ${n} séries`}>
                 <span className="absolute inset-y-0 border-x border-accent/60 bg-accent/10" style={{ left: pct(WEEK_SETS.min), width: `calc(${pct(WEEK_SETS.max)} - ${pct(WEEK_SETS.min)})` }} />

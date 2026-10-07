@@ -37,7 +37,7 @@ const ACT = [
 ];
 const LEVELS: { v: Level; t: string }[] = [
   { v: "iniciante", t: "Iniciante (< 6 meses)" },
-  { v: "intermediario", t: "Intermediário" },
+  { v: "intermediario", t: "Intermediário (6 meses a 3 anos)" },
   { v: "avancado", t: "Avançado (> 3 anos)" },
 ];
 
@@ -124,11 +124,11 @@ function PerfilPage() {
 
       {!showForm && saved ? <>
         {latest && Math.abs(latest.kg - saved.weight) >= 0.5 && (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
+          <section className="flex flex-col gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="min-w-0 flex-1 text-sm">
               Sua última pesagem foi <b>{fmtKg(latest.kg)} kg</b> em {new Date(`${latest.date}T12:00:00`).toLocaleDateString("pt-BR")}. As metas de calorias e macros ainda usam <b>{fmtKg(saved.weight)} kg</b>.
             </p>
-            <button type="button" onClick={updateGoalsWeight} className="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">Atualizar metas</button>
+            <button type="button" onClick={updateGoalsWeight} className="min-h-11 shrink-0 self-start rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">Atualizar metas</button>
           </section>
         )}
         <ProfileSummary p={saved} current={latest?.kg ?? saved.weight} start={sortedWeights[0]} />
@@ -198,7 +198,7 @@ function PerfilPage() {
           </div>
           <div>
             <span className="text-sm font-semibold">Experiência</span>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 grid gap-2 sm:flex sm:flex-wrap">
               {LEVELS.map((l) => (
                 <button key={l.v} onClick={() => set("level", l.v)}
                   className={`rounded-full border px-4 py-2 font-semibold ${p.level === l.v ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{l.t}</button>
@@ -250,9 +250,9 @@ function PerfilPage() {
           </div>
           <ul className="mt-4 divide-y divide-border rounded-2xl bg-muted/60 px-4">
             {plan.days.map((d) => (
-              <li key={d.name} className="flex items-baseline justify-between gap-3 py-2.5 text-sm">
-                <span className="shrink-0 font-bold">{d.name}</span>
-                <span className="min-w-0 text-right text-muted-foreground">{musclesOf(d.items.map((it) => it.exId))}</span>
+              <li key={d.name} className="grid gap-0.5 py-2.5 text-sm sm:grid-cols-[8rem_1fr] sm:gap-3">
+                <span className="font-bold">{d.name}</span>
+                <span className="min-w-0 text-muted-foreground">{musclesOf(d.items.map((it) => it.exId))}</span>
               </li>
             ))}
           </ul>
@@ -294,10 +294,10 @@ function ProfileSummary({ p, current, start }: { p: Profile; current: number; st
   const about = [p.sex === "m" ? "Masculino" : "Feminino", `${p.age} anos`, `${p.height} cm`, `IMC ${bmi.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}`];
   const cards: { icon: LucideIcon; label: string; value: string; sub?: string | undefined }[] = [
     { icon: Target, label: "Foco", value: focus?.t ?? "—", sub: focus?.d },
-    { icon: CalendarDays, label: "Frequência", value: `${p.days}× por semana` },
-    { icon: Clock, label: "Duração", value: `${p.minutes} min por treino` },
+    { icon: CalendarDays, label: "Frequência", value: `${p.days}×`, sub: "por semana" },
+    { icon: Clock, label: "Duração", value: `${p.minutes} min`, sub: "por treino" },
     { icon: Dumbbell, label: "Experiência", value: LEVELS.find((l) => l.v === p.level)?.t.replace(/ \(.*\)$/, "") ?? "—" },
-    { icon: Activity, label: "Atividade no dia a dia", value: ACT.find((a) => a.v === p.activity)?.t ?? "—" },
+    { icon: Activity, label: "Atividade", value: ACT.find((a) => a.v === p.activity)?.t ?? "—", sub: "no dia a dia" },
   ];
   return (
     <div className="space-y-4">
@@ -330,7 +330,7 @@ function ProfileSummary({ p, current, start }: { p: Profile; current: number; st
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <Icon className="h-4 w-4 shrink-0 text-accent" aria-hidden />{label}
             </div>
-            <div className="mt-2 font-display text-lg font-bold leading-tight">{value}</div>
+            <div className="mt-2 text-balance font-display text-base font-bold leading-tight sm:text-lg">{value}</div>
             {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
           </div>
         ))}

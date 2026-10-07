@@ -136,7 +136,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
       <div>
         <label className="block text-sm font-semibold">
           Data
-          <input type="date" value={date} onChange={(e) => pickDate(e.target.value)} className="mt-1 block rounded-xl border border-input bg-card px-3 py-2.5 font-normal" />
+          <input type="date" value={date} onChange={(e) => pickDate(e.target.value)} className="mt-1 block w-full rounded-xl border border-input bg-card px-3 py-2.5 font-normal sm:w-auto" />
         </label>
         {GROUPS.map((g) => (
           <fieldset key={g.title} className="mt-4">

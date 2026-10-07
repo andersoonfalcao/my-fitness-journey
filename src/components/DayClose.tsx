@@ -78,7 +78,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
     ["Refeições", missingMeals.length === 0, meals.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g${missingMeals.length ? ` · falta: ${missingMeals.join(", ")}` : ""}` : "nada registrado", { to: "/alimentacao", hash: missingMeals.length ? "registrar" : "refeicoes" }],
     ["Água", waterMl >= t.waterMl, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
     ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
-    ["Peso", weighed, weighed ? `${fmtKg(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado hoje (opcional)", weighed ? { to: "/corpo", hash: "evolucao", evolution: true } : { to: "/corpo", hash: "pesagem" }],
+    ["Peso", weighed, weighed ? `${fmtKg(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado (opcional)", weighed ? { to: "/corpo", hash: "evolucao", evolution: true } : { to: "/corpo", hash: "pesagem" }],
   ];
   if (routine.length) {
     const pendingNames = routine.filter((s) => !supplementsTaken.has(s.id)).map((s) => s.name);
@@ -118,7 +118,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
               <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
                 {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
               </span>
-              <span className="min-w-0 flex-1"><b>{label}:</b> <span className="text-muted-foreground">{detail}</span></span>
+              <span className="min-w-0 flex-1 leading-tight"><b className="block">{label}</b><span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span></span>
               <span className={`shrink-0 text-xs font-semibold ${ok ? "text-muted-foreground" : "text-accent"}`}>{ok ? "ver" : "preencher"}</span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </Link>
