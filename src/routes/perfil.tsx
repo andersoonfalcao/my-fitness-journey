@@ -6,6 +6,7 @@ import { generatePlan, type Plan } from "@/lib/plan";
 import { Activity, ArrowRight, CalendarDays, Clock, Dumbbell, Eye, Pencil, RefreshCw, Target, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { MethodPicker } from "@/components/MethodPicker";
+import { CalibrationCard } from "@/components/CalibrationCard";
 import { RegenerateDialog } from "@/components/RegenerateDialog";
 import { musclesOf } from "@/components/WeekPlan";
 
@@ -79,7 +80,8 @@ function PerfilPage() {
   };
 
   const save = () => {
-    setProfile(p);
+    // Picking another activity level means the person wants the estimate again, not the measured energy.
+    setProfile(saved && p.activity !== saved.activity ? { ...p, calibratedTdee: undefined } : p);
     setPlan(generatePlan(p, { variation: plan?.variation }));
     setCycleStart(doneLog.length);
     setWeights((w) => (w.length ? w : [{ date: today(), kg: p.weight }]));
@@ -132,6 +134,7 @@ function PerfilPage() {
           </section>
         )}
         <ProfileSummary p={saved} current={latest?.kg ?? saved.weight} start={sortedWeights[0]} />
+        <CalibrationCard profile={saved} />
       </> : <>
 
       <section className="rounded-3xl border border-border bg-card p-6">
@@ -224,7 +227,7 @@ function PerfilPage() {
             <div key={a}><div className="text-sm opacity-75">{a}</div><div className="font-display text-3xl font-extrabold">{b}<span className="ml-1 text-base opacity-75">{c}</span></div></div>
           ))}
         </div>
-        <p className="mt-3 text-sm opacity-75">Gasto estimado: {t.tdee} kcal/dia. Como calculamos: {t.notes.join(" · ")}.</p>
+        <p className="mt-3 text-sm opacity-75">{(showForm ? p : saved).calibratedTdee ? "Gasto medido" : "Gasto estimado"}: {t.tdee.toLocaleString("pt-BR")} kcal/dia. Como calculamos: {t.notes.join(" · ")}.</p>
       </section>
 
       {showForm && (

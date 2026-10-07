@@ -88,6 +88,13 @@ export function SettingsPanel() {
               className="w-32 rounded-xl border border-input bg-card px-3 py-2 text-center" />
           </label>
         </div>
+        <label className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-3">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold">Resumo da semana</span>
+            <span className="block text-xs text-muted-foreground">Domingo às 20:00, abre a semana comparada com a anterior</span>
+          </span>
+          <Switch checked={settings.weeklySummary} onCheckedChange={(on) => change({ weeklySummary: on })} />
+        </label>
         <p className="text-xs text-muted-foreground">
           O lembrete aponta refeições sem registro, água abaixo da meta, o treino da semana e se falta fechar o dia.
           {!subscribed && " Para recebê-lo, ative as notificações."}

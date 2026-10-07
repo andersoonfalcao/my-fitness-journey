@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Dumbbell, Share2, X } from "lucide-react";
 import { NeedProfile, useCloseCalendar } from "@/components/AppShell";
@@ -139,6 +139,14 @@ function CalendarPage() {
           <button type="button" onClick={() => shift(1)} disabled={month >= now.slice(0, 7)} aria-label="Próximo mês" className="rounded-full p-2 hover:bg-muted disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
         </div>
       </div>
+
+      <Link to="/semana" className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+        <span className="min-w-0">
+          <span className="block font-bold">Resumo da semana</span>
+          <span className="block text-xs text-muted-foreground">A semana comparada com a anterior, com comentário da IA</span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+      </Link>
 
       <section className="rounded-3xl border border-border bg-card p-3 sm:p-5">
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold uppercase text-muted-foreground">

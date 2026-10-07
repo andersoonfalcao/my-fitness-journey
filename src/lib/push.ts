@@ -19,7 +19,10 @@ export type Settings = {
   reminderTime: string;
   /** Reminders the person writes, each at its own time and weekdays. */
   custom: CustomReminder[];
+  /** Sunday 20:00 notice that opens the weekly summary (/semana). */
+  weeklySummary: boolean;
 };
+const WEEKLY: CustomReminder = { id: "semana", title: "Sua semana no forma", body: "Veja o resumo da semana e o foco para a próxima.", time: "20:00", days: [0], on: true, url: "/semana" };
 export type CustomReminder = {
   id: string;
   title: string;
@@ -29,6 +32,8 @@ export type CustomReminder = {
   /** Weekdays it goes out, 0 = Sunday … 6 = Saturday. */
   days: number[];
   on: boolean;
+  /** Screen the notification opens (only the app's own reminders set it; the person's open Hoje). */
+  url?: string | undefined;
 };
 export const MAX_REMINDERS = 10;
 export const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
@@ -38,6 +43,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reminderTime: "21:00",
   // The Mi Band only reaches the app when Mi Fitness is opened (src/lib/health.ts), so the list starts with that nudge.
   custom: [{ id: "miband", title: "Sincronize a Mi Band", body: "Abra o Mi Fitness para o forma receber o sono, os passos e o batimento de hoje.", time: "21:45", days: EVERY_DAY, on: true }],
+  weeklySummary: true,
 };
 
 export function useSettings() {
@@ -101,7 +107,7 @@ export async function enablePush(settings: Settings) {
     refreshToken: user?.refreshToken,
     daily: settings.reminder,
     time: settings.reminderTime,
-    custom: settings.custom,
+    custom: [...settings.custom, ...(settings.weeklySummary ? [WEEKLY] : [])],
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   storage.set(DEVICE_KEY, id ?? null);
@@ -117,7 +123,7 @@ export async function disablePush() {
   await (await registration?.pushManager.getSubscription())?.unsubscribe();
 }
 
-const syncStamp = (s: Settings) => JSON.stringify([new Date().toDateString(), s.reminder, s.reminderTime, s.custom]);
+const syncStamp = (s: Settings) => JSON.stringify([new Date().toDateString(), s.reminder, s.reminderTime, s.custom, s.weeklySummary]);
 
 /**
  * On app open: a subscribed device sends its settings again when they changed or once a day, which also keeps the

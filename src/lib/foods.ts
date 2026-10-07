@@ -10,7 +10,8 @@ export type Food = {
   f: number;
   fiber?: number;
   unit?: { label: string; g: number };
-  source: "TACO" | "USDA" | "Rótulo";
+  /** "Registro": rebuilt from the person's own earlier entry (src/lib/quick-foods.ts). */
+  source: "TACO" | "USDA" | "Rótulo" | "Registro";
   /** TACO category index; prepared foods rank above raw ones when the category is cooked before eating. */
   category?: number;
 };

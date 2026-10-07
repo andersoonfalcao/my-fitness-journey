@@ -1,16 +1,33 @@
 import { Link } from "@tanstack/react-router";
 import { BedDouble, Flame, Footprints, HeartPulse } from "lucide-react";
-import { clock, sleepLabel, useHealthDay } from "@/lib/health";
+import { useLocal } from "@/lib/store";
+import { clock, DEFAULT_STEPS_GOAL, healthKey, readiness, sleepLabel, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
 
-/** Hoje: last night's sleep and the day's steps, active energy and resting heart rate from the band. */
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const addDays = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return iso(d); };
+
+const TONE = {
+  bom: "bg-[#3f9d6b]/12 text-[#2f7d54] dark:text-[#6cc495]",
+  normal: "bg-muted text-foreground",
+  baixo: "bg-accent/15 text-accent",
+} as const;
+
+/** Hoje: readiness, last night's sleep and the day's steps (against the goal), active energy and resting heart rate. */
 export function HealthToday({ date }: { date: string }) {
-  const day = useHealthDay(date);
+  const [thisMonth] = useLocal<HealthMonth>(healthKey(date), {});
+  const [prevMonth] = useLocal<HealthMonth>(healthKey(addDays(date, -14)), {});
+  const [stepsGoal] = useLocal<number>(STEPS_GOAL_KEY, DEFAULT_STEPS_GOAL);
+  const day = thisMonth[date];
   if (!day) return null;
-  const tiles: [typeof BedDouble, string, string, string | null][] = [];
-  if (day.sleepMin !== undefined) tiles.push([BedDouble, "Sono", sleepLabel(day.sleepMin), day.sleepStart && day.sleepEnd ? `${clock(day.sleepStart)}–${clock(day.sleepEnd)}` : null]);
-  if (day.steps !== undefined) tiles.push([Footprints, "Passos", day.steps.toLocaleString("pt-BR"), null]);
-  if (day.activeKcal !== undefined) tiles.push([Flame, "Energia ativa", `${day.activeKcal.toLocaleString("pt-BR")} kcal`, null]);
-  if (day.restingHr !== undefined) tiles.push([HeartPulse, "Repouso", `${day.restingHr} bpm`, null]);
+  const all = { ...prevMonth, ...thisMonth };
+  const before = Object.entries(all).filter(([d]) => d < date && d >= addDays(date, -14)).map(([, v]) => v);
+  const ready = readiness(day, before);
+
+  const tiles: [typeof BedDouble, string, string, string | null, number | null][] = [];
+  if (day.sleepMin !== undefined) tiles.push([BedDouble, "Sono", sleepLabel(day.sleepMin), day.sleepStart && day.sleepEnd ? `${clock(day.sleepStart)}–${clock(day.sleepEnd)}` : null, null]);
+  if (day.steps !== undefined) tiles.push([Footprints, "Passos", day.steps.toLocaleString("pt-BR"), `meta ${stepsGoal.toLocaleString("pt-BR")}`, Math.min(1, day.steps / stepsGoal)]);
+  if (day.activeKcal !== undefined) tiles.push([Flame, "Energia ativa", `${day.activeKcal.toLocaleString("pt-BR")} kcal`, null, null]);
+  if (day.restingHr !== undefined) tiles.push([HeartPulse, "Repouso", `${day.restingHr} bpm`, null, null]);
   if (!tiles.length) return null;
   return (
     <Link to="/corpo" search={{ aba: "evolucao" }} hash="saude" className="block rounded-3xl border border-border bg-card p-6">
@@ -18,12 +35,23 @@ export function HealthToday({ date }: { date: string }) {
         <h2 className="text-xl font-bold">Sua Mi Band hoje</h2>
         <span className="shrink-0 text-xs text-muted-foreground">atualizado {clock(new Date(day.at).toISOString())}</span>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {tiles.map(([Icon, label, value, sub]) => (
+      {ready && (
+        <div className={`mt-3 rounded-2xl px-3 py-2.5 ${TONE[ready.level]}`}>
+          <div className="text-sm font-bold">{ready.title}</div>
+          <div className="text-xs leading-snug opacity-90">{ready.detail}</div>
+        </div>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {tiles.map(([Icon, label, value, sub, progress]) => (
           <div key={label} className="rounded-2xl bg-muted/60 px-3 py-2.5">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Icon className="h-3.5 w-3.5 text-accent" aria-hidden />{label}</div>
             <div className="mt-1 whitespace-nowrap font-display text-xl font-extrabold tabular-nums">{value}</div>
-            {sub && <div className="text-xs tabular-nums text-muted-foreground">{sub}</div>}
+            {progress !== null && (
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-border" role="img" aria-label={`${Math.round(progress * 100)}% da meta de passos`}>
+                <div className={`h-full rounded-full ${progress >= 1 ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${progress * 100}%` }} />
+              </div>
+            )}
+            {sub && <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">{sub}</div>}
           </div>
         ))}
       </div>

@@ -120,6 +120,8 @@ export type Profile = {
   minutes: number;
   /** Training method chosen by the person; missing = the one recommended for goal, level and days. */
   method?: import("./methods").MethodId | undefined;
+  /** Daily energy measured from the person's logs (src/lib/calibration.ts), used instead of the formula once accepted. */
+  calibratedTdee?: { kcal: number; date: string } | undefined;
 };
 
 /** "suplementos" holds supplements taken (src/lib/supplements.ts); it is not counted as a meal. */
@@ -295,7 +297,8 @@ const KCAL_PER_KG_DAY = 7700 / 7;
  */
 export function targets(p: Profile) {
   const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "m" ? 5 : -161);
-  const tdee = bmr * p.activity;
+  // Once the person accepts the energy measured from their own logs, it replaces the activity estimate.
+  const tdee = p.calibratedTdee?.kcal ?? bmr * p.activity;
   const losing = p.goalWeight < p.weight - 0.5;
   const gaining = p.goalWeight > p.weight + 0.5;
   const deficitFor = (weeklyRate: number) => Math.min(p.weight * weeklyRate * KCAL_PER_KG_DAY, tdee * 0.25);
@@ -332,6 +335,7 @@ export function targets(p: Profile) {
   const waterMl = Math.round(Math.min(4000, Math.max(1500, p.weight * 35)) / 50) * 50;
 
   const notes = [
+    ...(p.calibratedTdee ? [`gasto calibrado pelos seus registros em ${new Date(`${p.calibratedTdee.date}T12:00:00`).toLocaleDateString("pt-BR")}`] : []),
     energyNote,
     `proteína ${proteinPerKg.toLocaleString("pt-BR")} g/kg${proteinWeight !== p.weight ? " do peso-meta" : ""}`,
     "gordura ~25% das calorias",

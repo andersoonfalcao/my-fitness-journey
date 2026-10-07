@@ -6,7 +6,9 @@ import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
 import { HealthToday } from "@/components/HealthToday";
-import { CheckCheck, Moon } from "lucide-react";
+import { CalibrationNotice } from "@/components/CalibrationCard";
+import { CheckCheck, ChevronRight, Moon } from "lucide-react";
+import { addDays, weekStart } from "@/lib/week";
 import { defaultTrainingDays, musclesOf } from "@/components/WeekPlan";
 
 export const Route = createFileRoute("/")({
@@ -124,6 +126,20 @@ function Index() {
             })}
           </div>
         </section>
+      )}
+
+      <CalibrationNotice profile={profile} />
+
+      {/* Sunday evening and Monday: the week just lived, one tap away. */}
+      {[0, 1].includes(new Date().getDay()) && (
+        <Link to="/semana" search={new Date().getDay() === 1 ? { inicio: weekStart(addDays(today(), -1)) } : {}}
+          className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+          <span className="min-w-0">
+            <span className="block text-sm font-bold uppercase tracking-widest text-accent">{new Date().getDay() === 1 ? "Semana passada" : "Domingo"}</span>
+            <span className="block font-bold">Veja o resumo da semana</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        </Link>
       )}
 
       <HealthToday date={today()} />

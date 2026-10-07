@@ -15,7 +15,7 @@ export interface NotifyEnv {
 }
 
 /** A reminder the person wrote in the app: title, optional text, HH:MM and weekdays (0 = Sunday). */
-type Custom = { id: string; title: string; body: string; time: string; days: number[]; on: boolean };
+type Custom = { id: string; title: string; body: string; time: string; days: number[]; on: boolean; url?: string };
 /** `custom` and the day each one last went out (`customLast`) live in the value: they don't fit the 1 KB metadata. */
 type Stored = { sub: PushSubscriptionJSON; refreshToken: string; custom?: Custom[]; customLast?: Record<string, string> };
 /** `custom`: the device has reminders switched on, so the cron reads its value. */
@@ -157,23 +157,25 @@ export async function runDaily(env: NotifyEnv) {
       const customLast = { ...stored.customLast, ...Object.fromEntries(customDue.map((c) => [c.id, now.date])) };
       await env.TOKENS.put(k.name, JSON.stringify({ ...stored, customLast } satisfies Stored), { metadata: { ...meta, ...(daily ? { last: now.date } : {}) } });
       if (daily) await dailyFor(env, k.name, k.name.split(":")[1]!, now.date).catch(() => undefined);
-      for (const c of customDue) await push(env, k.name, { title: c.title, body: c.body, tag: `forma-lembrete-${c.id}`, url: "/" }, 3600).catch(() => undefined);
+      for (const c of customDue) await push(env, k.name, { title: c.title, body: c.body, tag: `forma-lembrete-${c.id}`, url: c.url ?? "/" }, 3600).catch(() => undefined);
     }
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
 }
 
-/** Reminders from the app, checked and trimmed (at most 10). */
+/** Reminders from the app, checked and trimmed (10 of the person's plus the app's own, like the weekly summary). */
 function cleanCustom(value: unknown): Custom[] {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 10).flatMap((c): Custom[] => {
+  return value.slice(0, 12).flatMap((c): Custom[] => {
     if (!c || typeof c !== "object") return [];
     const r = c as Record<string, unknown>;
     const title = typeof r.title === "string" ? r.title.trim().slice(0, 60) : "";
     const time = typeof r.time === "string" && TIME.test(r.time) ? r.time : null;
     const days = Array.isArray(r.days) ? [...new Set(r.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
     if (!title || !time || !days.length || typeof r.id !== "string" || !/^[\w-]{1,32}$/.test(r.id)) return [];
-    return [{ id: r.id, title, body: typeof r.body === "string" ? r.body.trim().slice(0, 140) : "", time, days, on: r.on !== false }];
+    // Only a path inside the app (e.g. "/semana") may be opened by a tap.
+    const url = typeof r.url === "string" && /^\/[a-z0-9/?=&-]{0,60}$/.test(r.url) ? r.url : undefined;
+    return [{ id: r.id, title, body: typeof r.body === "string" ? r.body.trim().slice(0, 140) : "", time, days, on: r.on !== false, ...(url ? { url } : {}) }];
   });
 }
 

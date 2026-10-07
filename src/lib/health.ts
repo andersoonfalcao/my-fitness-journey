@@ -25,6 +25,41 @@ export function useHealthDay(date: string) {
   return month[date] ?? null;
 }
 
+/** Daily steps goal, set in Configurações → Saúde do iPhone. */
+export const STEPS_GOAL_KEY = "forma.stepsgoal";
+export const DEFAULT_STEPS_GOAL = 8000;
+
+export type Readiness = { level: "bom" | "normal" | "baixo"; title: string; detail: string };
+/** At least this many earlier days with each measure before comparing today with the person's own normal. */
+export const READINESS_MIN_DAYS = 5;
+
+/**
+ * Today's sleep and resting heart rate against the person's own average of the previous 14 days: a resting rate
+ * well above normal or a short night suggests a lighter session. Rules of thumb, not a diagnosis.
+ */
+export function readiness(day: HealthDay, before: HealthDay[]): Readiness | null {
+  const sleeps = before.map((d) => d.sleepMin).filter((n): n is number => n !== undefined);
+  const hrs = before.map((d) => d.restingHr).filter((n): n is number => n !== undefined);
+  const hasSleep = day.sleepMin !== undefined && sleeps.length >= READINESS_MIN_DAYS;
+  const hasHr = day.restingHr !== undefined && hrs.length >= READINESS_MIN_DAYS;
+  if (!hasSleep && !hasHr) return null;
+  const avgSleep = hasSleep ? sleeps.reduce((s, n) => s + n, 0) / sleeps.length : 0;
+  const avgHr = hasHr ? hrs.reduce((s, n) => s + n, 0) / hrs.length : 0;
+  const sleepDiff = hasSleep ? day.sleepMin! - avgSleep : 0;
+  const hrDiff = hasHr ? day.restingHr! - avgHr : 0;
+
+  const reasons: string[] = [];
+  if (hasSleep && (day.sleepMin! < 300 || sleepDiff <= -90)) reasons.push(`dormiu ${sleepLabel(day.sleepMin!)}${sleepDiff <= -30 ? `, ${sleepLabel(Math.round(-sleepDiff))} a menos que a sua média` : ""}`);
+  if (hasHr && hrDiff >= 5) reasons.push(`batimento em repouso ${Math.round(hrDiff)} acima do seu normal`);
+  if (reasons.length) {
+    const text = reasons.join(" e ");
+    return { level: "baixo", title: "Recuperação baixa", detail: `${text[0]!.toUpperCase()}${text.slice(1)}: considere um treino mais leve ou mais descanso entre as séries.` };
+  }
+  if ((!hasHr || hrDiff <= 1) && (!hasSleep || (day.sleepMin! >= 390 && sleepDiff >= -30)))
+    return { level: "bom", title: "Recuperado", detail: "Sono e batimento dentro ou melhor que o seu normal: bom dia para puxar carga." };
+  return { level: "normal", title: "Recuperação normal", detail: "Nada fora do comum: siga o plano do dia." };
+}
+
 export const sleepLabel = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
 export const clock = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 

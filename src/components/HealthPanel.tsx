@@ -3,7 +3,7 @@ import { Check, Copy, HeartPulse, KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { today, useLocal } from "@/lib/store";
-import { createHealthKey, HEALTH_INGEST_URL, healthKey, healthStatus, revokeHealthKey, type HealthMonth } from "@/lib/health";
+import { createHealthKey, DEFAULT_STEPS_GOAL, HEALTH_INGEST_URL, healthKey, healthStatus, revokeHealthKey, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
 
 /** Configurações: the personal key and the steps of the iPhone Shortcut that brings Health (Mi Band) data. */
 export function HealthPanel() {
@@ -12,6 +12,9 @@ export function HealthPanel() {
   const [busy, setBusy] = useState(false);
   const [month] = useLocal<HealthMonth>(healthKey(today()), {});
   const last = Math.max(0, ...Object.values(month).map((d) => d.at));
+  const [stepsGoal, setStepsGoal] = useLocal<number>(STEPS_GOAL_KEY, DEFAULT_STEPS_GOAL);
+  // Typed freely and saved on leaving the field, so clearing it to type a new number doesn't fight back.
+  const [stepsDraft, setStepsDraft] = useState<string | null>(null);
 
   useEffect(() => {
     healthStatus().then(setStatus, () => setStatus({ hasKey: false }));
@@ -74,6 +77,17 @@ export function HealthPanel() {
           {busy ? <Loader2 className="animate-spin" /> : <KeyRound />}{status?.hasKey ? "Gerar chave nova" : "Gerar chave"}
         </Button>
       )}
+
+      <label className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold">Meta de passos por dia</span>
+          <span className="block text-xs text-muted-foreground">Aparece no quadro da Mi Band, na tela Hoje</span>
+        </span>
+        <input type="number" inputMode="numeric" min={1000} max={50000} step={500} value={stepsDraft ?? stepsGoal}
+          onChange={(e) => setStepsDraft(e.target.value)}
+          onBlur={() => { const n = Number(stepsDraft); if (stepsDraft !== null && n >= 1000 && n <= 50000) setStepsGoal(Math.round(n)); setStepsDraft(null); }}
+          className="w-28 rounded-xl border border-input bg-card px-3 py-2 text-center tabular-nums" />
+      </label>
 
       <p className="text-xs text-muted-foreground">
         O lembrete “Sincronize a Mi Band” das 21:45 está em <b>Ajustes → Lembretes personalizados</b>, no topo desta tela, onde dá para mudar o horário.

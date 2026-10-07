@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronDown, Pencil, Search, Sparkles, Trash2, Loader2, ScanBarcode } from "lucide-react";
+import { ChevronDown, Pencil, Search, Sparkles, Star, Trash2, Loader2, ScanBarcode } from "lucide-react";
+import { QuickMeals } from "@/components/QuickMeals";
+import { asItem, FAV_MEALS_KEY, frequentFoods, type FavItem, type FavMeal } from "@/lib/quick-foods";
 import { toast } from "sonner";
 import { foodsKey, KEYS, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
 import { searchFoods, type Food } from "@/lib/foods";
@@ -32,6 +34,12 @@ const MEALS: { v: MealType; t: string }[] = [
   { v: "jantar", t: "Jantar" },
 ];
 const r1 = (n: number) => Math.round(n * 10) / 10;
+/** First day of the month before a date's month. */
+const monthBefore = (date: string) => {
+  const d = new Date(`${date.slice(0, 7)}-01T12:00:00`);
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
 
 function FoodPage() {
   const tab = Route.useSearch().aba ?? "hoje";
@@ -39,6 +47,8 @@ function FoodPage() {
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [date, setDate] = useState(today());
   const [foods, setFoods] = useLocal<FoodEntry[]>(foodsKey(date), []);
+  const [prevMonthFoods] = useLocal<FoodEntry[]>(foodsKey(monthBefore(date)), []);
+  const [, setFavs] = useLocal<FavMeal[]>(FAV_MEALS_KEY, []);
   const [meal, setMeal] = useState<MealType>("almoco");
   const [mode, setMode] = useState<"busca" | "produto" | "ia">("busca");
   const [q, setQ] = useState("");
@@ -60,6 +70,27 @@ function FoodPage() {
     toast.success(`${sel.name} adicionado`);
     setSel(null); setQ("");
   };
+
+  const mealLabel = MEALS.find((m) => m.v === meal)!.t;
+  /** Several items at once (yesterday's meal, a favorite), with an undo in the toast. */
+  const addItems = (items: FavItem[], what: string) => {
+    const added = items.map((i) => ({ ...i, id: uid(), date, meal }));
+    const ids = new Set(added.map((a) => a.id));
+    setFoods((fs) => [...fs, ...added]);
+    toast.success(`${what}: ${added.length} ${added.length === 1 ? "item adicionado" : "itens adicionados"} ao ${mealLabel.toLowerCase()}`, {
+      action: { label: "Desfazer", onClick: () => setFoods((fs) => fs.filter((f) => !ids.has(f.id))) },
+    });
+  };
+
+  const saveFavorite = (m: MealType, label: string, items: FoodEntry[]) => {
+    const name = prompt("Nome da refeição favorita:", `${label} padrão`)?.trim();
+    if (!name) return;
+    setFavs((list) => [...list, { id: uid(), name: name.slice(0, 40), meal: m, items: items.map(asItem) }]);
+    toast.success(`“${name}” salva nas favoritas`);
+  };
+
+  // What is logged most, with last time's grams, shown before typing (needs at least two uses).
+  const frequent = frequentFoods([...prevMonthFoods.filter((f) => f.date < date), ...foods.filter((f) => f.date <= date)]);
 
   const estimate = async () => {
     if (aiText.trim().length < 2) return;
@@ -126,6 +157,7 @@ function FoodPage() {
               className={`min-h-11 rounded-full border px-4 py-2 text-sm font-semibold ${meal === m.v ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{m.t}</button>
           ))}
         </div>
+        <QuickMeals date={date} meal={meal} mealLabel={mealLabel} onAdd={addItems} />
         <div className="mt-4 grid grid-cols-3 gap-1 rounded-3xl bg-muted p-1 sm:inline-grid">
           <button onClick={() => setMode("busca")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "busca" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><Search className="h-4 w-4" />Buscar</button>
           <button onClick={() => setMode("produto")} className={`flex flex-col items-center gap-0.5 rounded-3xl px-2 py-2 text-xs font-bold sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm ${mode === "produto" ? "bg-card shadow-sm" : "text-muted-foreground"}`}><ScanBarcode className="h-4 w-4" />Produto</button>
@@ -143,6 +175,25 @@ function FoodPage() {
               <>
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ex: frango, arroz, banana..."
                   className="w-full rounded-xl border border-input bg-background px-4 py-3" />
+                {!q.trim() && frequent.length > 0 && (
+                  <>
+                    <div className="mt-3 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Mais usados por você</div>
+                    <ul className="divide-y divide-border">
+                      {frequent.map(({ food, grams: g, count }) => (
+                        <li key={food.id}>
+                          <button onClick={() => { setSel(food); setGrams(g); }} className="flex w-full items-center justify-between gap-3 px-1 py-2.5 text-left hover:text-accent">
+                            <span className="min-w-0">
+                              <span className="block font-semibold">{food.name}</span>
+                              <span className="block text-xs text-muted-foreground">última vez {g} g · {Math.round((food.kcal * g) / 100)} kcal</span>
+                            </span>
+                            <span className="shrink-0 text-xs font-semibold text-muted-foreground">{count}×</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-3 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Sugestões</div>
+                  </>
+                )}
                 <ul className="mt-2 max-h-72 divide-y divide-border overflow-y-auto">
                   {searchFoods(q).map((f) => (
                     <li key={f.id}>
@@ -166,7 +217,7 @@ function FoodPage() {
             ) : (
               <div className="rounded-2xl bg-muted p-4">
                 <div className="font-display text-lg font-bold">{sel.name}</div>
-                <div className="text-xs text-muted-foreground">Fonte: {sel.source === "TACO" ? "TACO (Unicamp)" : sel.source === "USDA" ? "USDA FoodData Central" : "média de rótulos"}</div>
+                <div className="text-xs text-muted-foreground">Fonte: {sel.source === "TACO" ? "TACO (Unicamp)" : sel.source === "USDA" ? "USDA FoodData Central" : sel.source === "Registro" ? "o seu registro anterior" : "média de rótulos"}</div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <input type="number" value={grams} onChange={(e) => setGrams(Number(e.target.value))} className="w-24 rounded-xl border border-input bg-card px-3 py-2" />
                   <span className="text-sm">gramas</span>
@@ -219,6 +270,11 @@ function FoodPage() {
                     </li>
                   ))}
                 </ul>
+              )}
+              {items.length > 0 && m.v !== "suplementos" && (
+                <button type="button" onClick={() => saveFavorite(m.v, m.t, items)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-accent">
+                  <Star className="h-4 w-4" />Salvar como favorita
+                </button>
               )}
             </section>
           );
