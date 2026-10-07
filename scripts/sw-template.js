@@ -20,8 +20,13 @@ self.addEventListener("install", (event) => {
       await Promise.all(
         [...PRECACHE, ...STATIC_FILES, SHELL].map(async (url) => {
           const saved = url.startsWith("/assets/") ? await caches.match(url) : undefined;
-          if (saved) await cache.put(url, saved);
-          else await cache.add(new Request(url, { cache: "reload" }));
+          const response = saved ?? (await fetch(new Request(url, { cache: "reload" })));
+          if (!response.ok) throw new Error(`${url}: ${response.status}`);
+          // Two installs at once (a second register, a quick reload) fill the same cache, and Chrome rejects a
+          // put while the other one writes that URL; the file gets saved either way, so that must not fail the install.
+          await cache.put(url, response).catch((error) => {
+            if (error?.name !== "InvalidAccessError") throw error;
+          });
         }),
       );
       await self.skipWaiting();
@@ -70,10 +75,11 @@ async function refreshing(request) {
   const saved = await caches.match(request);
   const fresh = fetch(request)
     .then(async (response) => {
-      if (response.ok || response.type === "opaque") await cache.put(request, response.clone());
+      // A failed save (another write of the same file) must not throw away the answer itself.
+      if (response.ok || response.type === "opaque") await cache.put(request, response.clone()).catch(() => undefined);
       return response;
     })
-    .catch(() => saved);
+    .catch(() => saved ?? Response.error());
   return saved ?? fresh;
 }
 
@@ -109,15 +115,24 @@ self.addEventListener("push", (event) => {
     // An empty or unreadable push still shows the generic notice: browsers require one per push.
   }
   event.waitUntil(
-    self.registration.showNotification(message.title, {
-      body: message.body,
-      tag: message.tag,
-      renotify: true,
-      vibrate: [300, 150, 300],
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      data: { url: message.url },
-    }),
+    (async () => {
+      await self.registration.showNotification(message.title, {
+        body: message.body,
+        tag: message.tag,
+        renotify: true,
+        vibrate: [300, 150, 300],
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        data: { url: message.url },
+      });
+      // End of a rest with the app on screen: the page already beeped, so the notice is taken away at once.
+      // It is still shown first, since iOS cancels the subscription of an app that receives pushes without showing them.
+      if (message.tag !== "forma-descanso") return;
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      if (!windows.some((client) => client.visibilityState === "visible")) return;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      for (const notice of await self.registration.getNotifications({ tag: "forma-descanso" })) notice.close();
+    })(),
   );
 });
 

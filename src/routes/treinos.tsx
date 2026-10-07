@@ -783,13 +783,8 @@ function RestCountdown({ endsAt, next, onAdd, onSkip, onDone }: { endsAt: number
     return () => clearInterval(id);
   }, []);
 
-  // With the app on screen the beep does the job, so the server push is called off just before it fires.
-  // With the screen off this never runs (the page is asleep) and the push arrives.
-  const closeToEnd = left <= 3000;
-  useEffect(() => {
-    if (closeToEnd && left > 0 && document.visibilityState === "visible") cancelRestPush();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closeToEnd]);
+  // The server push is never called off here: the phone may be locked a moment before the rest ends, after any
+  // check the page could make. With the app on screen, the service worker clears that push itself (sw-template.js).
 
   useEffect(() => {
     if (left > 0) return;

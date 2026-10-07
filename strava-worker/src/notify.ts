@@ -160,7 +160,8 @@ export class RestTimer extends DurableObject<NotifyEnv> {
     await this.ctx.storage.delete("rest");
     // A rest that ended long ago (device offline) is no longer worth a buzz.
     if (Date.now() - rest.endsAt > 120_000) return;
-    await push(this.env, rest.key, { title: "Descanso acabou!", body: `Próxima: ${rest.next}`, tag: "forma-descanso", url: "/treinos" }, 60);
+    // Three minutes to deliver: a locked phone in low power may take a while to wake for it.
+    await push(this.env, rest.key, { title: "Descanso acabou!", body: `Próxima: ${rest.next}`, tag: "forma-descanso", url: "/treinos" }, 180);
   }
 }
 
