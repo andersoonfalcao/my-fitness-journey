@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { BedDouble, Flame, Footprints, HeartPulse } from "lucide-react";
 import { useLocal } from "@/lib/store";
-import { clock, DEFAULT_STEPS_GOAL, healthKey, readiness, sleepLabel, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
+import { clock, DEFAULT_STEPS_GOAL, healthKey, kmLabel, readiness, sleepLabel, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const addDays = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return iso(d); };
@@ -25,7 +25,7 @@ export function HealthToday({ date }: { date: string }) {
 
   const tiles: [typeof BedDouble, string, string, string | null, number | null][] = [];
   if (day.sleepMin !== undefined) tiles.push([BedDouble, "Sono", sleepLabel(day.sleepMin), day.sleepStart && day.sleepEnd ? `${clock(day.sleepStart)}–${clock(day.sleepEnd)}` : null, null]);
-  if (day.steps !== undefined) tiles.push([Footprints, "Passos", day.steps.toLocaleString("pt-BR"), `meta ${stepsGoal.toLocaleString("pt-BR")}`, Math.min(1, day.steps / stepsGoal)]);
+  if (day.steps !== undefined) tiles.push([Footprints, "Passos", day.steps.toLocaleString("pt-BR"), `${day.distanceM !== undefined ? `${kmLabel(day.distanceM)}\n` : ""}meta ${stepsGoal.toLocaleString("pt-BR")}`, Math.min(1, day.steps / stepsGoal)]);
   if (day.activeKcal !== undefined) tiles.push([Flame, "Energia ativa", `${day.activeKcal.toLocaleString("pt-BR")} kcal`, null, null]);
   if (day.restingHr !== undefined) tiles.push([HeartPulse, "Repouso", `${day.restingHr} bpm`, null, null]);
   if (!tiles.length) return null;
@@ -51,7 +51,8 @@ export function HealthToday({ date }: { date: string }) {
                 <div className={`h-full rounded-full ${progress >= 1 ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${progress * 100}%` }} />
               </div>
             )}
-            {sub && <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">{sub}</div>}
+            {/* The distance walked sits on its own line above the goal: side by side they don't fit half a phone screen. */}
+            {sub && <div className="mt-0.5 whitespace-pre-line text-xs tabular-nums text-muted-foreground">{sub}</div>}
           </div>
         ))}
       </div>

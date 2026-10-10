@@ -7,6 +7,8 @@ import { readUserDocs, userIdToken, type NotifyEnv } from "./notify";
 
 export type HealthDay = {
   steps?: number; activeKcal?: number; restingHr?: number; vo2max?: number;
+  /** Walking + running distance of the day, in metres. */
+  distanceM?: number;
   /** Sleep that ended on this day: minutes asleep and the first and last moment asleep (ISO). */
   sleepMin?: number; sleepStart?: string; sleepEnd?: string;
   /** When the Shortcut last sent this day (ms). */
@@ -193,7 +195,14 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   const kcalSamples = totalOf(list(body.kcalValues), list(body.kcalStarts), list(body.kcalEnds), list(body.kcalSources), tz, today);
   const kcal = kcalSamples?.total ?? parseNumber(body.activeKcal);
   if (kcal >= 0 && kcal < 20_000) day.activeKcal = Math.round(kcal);
-  const sources = [...new Set([...(stepSamples?.sources ?? []), ...(kcalSamples?.sources ?? [])])];
+  const distSamples = totalOf(list(body.distValues), list(body.distStarts), list(body.distEnds), list(body.distSources), tz, today);
+  if (distSamples) {
+    // Health gives the distance in km or in metres depending on the iPhone's settings; a stride (about 0,7 m) tells which.
+    const inMetres = day.steps ? distSamples.total / day.steps > 0.1 : distSamples.total > 100;
+    const metres = Math.round(distSamples.total * (inMetres ? 1 : 1000));
+    if (metres < 300_000) day.distanceM = metres;
+  }
+  const sources = [...new Set([...(stepSamples?.sources ?? []), ...(kcalSamples?.sources ?? []), ...(distSamples?.sources ?? [])])];
   const resting = restingHrOf(list(body.heartRates));
   if (resting) day.restingHr = resting;
   const vo2 = parseNumber(Array.isArray(body.vo2max) ? body.vo2max.at(-1) : body.vo2max);
@@ -222,11 +231,12 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   const parts = [
     day.sleepMin !== undefined && `sono ${Math.floor(day.sleepMin / 60)}h${String(day.sleepMin % 60).padStart(2, "0")}`,
     day.steps !== undefined && `${fmt(day.steps)} passos`,
+    day.distanceM !== undefined && `${fmt(day.distanceM / 1000, 2)} km`,
     day.activeKcal !== undefined && `${fmt(day.activeKcal)} kcal ativas`,
     day.restingHr !== undefined && `repouso ${day.restingHr} bpm`,
     day.vo2max !== undefined && `VO2 máx ${fmt(day.vo2max, 1)}`,
   ].filter(Boolean);
   // Named so a doubled total (samples that came without their source) is easy to spot on the iPhone.
-  const from = sources.length ? ` (fontes: ${sources.join(", ")})` : stepSamples || kcalSamples ? " (as amostras vieram sem a fonte: passos e calorias podem estar somados em dobro)" : "";
+  const from = sources.length ? ` (fontes: ${sources.join(", ")})` : stepSamples || kcalSamples || distSamples ? " (as amostras vieram sem a fonte: passos e calorias podem estar somados em dobro)" : "";
   return text(parts.length ? `forma recebeu: ${parts.join(" · ")}${from}` :"forma recebeu o envio, mas sem dados de hoje. Confira as permissões do atalho no app Saúde.", 200);
 }

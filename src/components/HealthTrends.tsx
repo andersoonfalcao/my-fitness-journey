@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useLocal } from "@/lib/store";
-import { healthKey, sleepLabel, type HealthMonth } from "@/lib/health";
+import { healthKey, kmLabel, sleepLabel, type HealthMonth } from "@/lib/health";
 
 const monthsBack = (n: number) => Array.from({ length: n }, (_, i) => {
   const d = new Date();
@@ -11,7 +11,7 @@ const monthsBack = (n: number) => Array.from({ length: n }, (_, i) => {
 const label = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
 const tooltip = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 };
 
-/** Corpo → Evolução: nights of sleep, resting heart rate and VO2 max sent from the iPhone's Health app. */
+/** Corpo → Evolução: nights of sleep, daily steps (with the distance walked), resting heart rate and VO2 max sent from the iPhone's Health app. */
 export function HealthTrends() {
   const [m0, m1, m2] = monthsBack(3);
   const [a] = useLocal<HealthMonth>(healthKey(m0!), {});
@@ -24,6 +24,10 @@ export function HealthTrends() {
   const resting = days.filter(([, d]) => d.restingHr !== undefined).slice(-30).map(([date, d]) => ({ label: label(date), bpm: d.restingHr! }));
   const vo2 = days.filter(([, d]) => d.vo2max !== undefined).map(([date, d]) => ({ label: label(date), vo2: d.vo2max! }));
   const avgSleep = sleep.length ? Math.round(sleep.reduce((s, d) => s + d.min, 0) / sleep.length) : null;
+  const steps = days.filter(([, d]) => d.steps !== undefined).slice(-14).map(([date, d]) => ({ label: label(date), passos: d.steps!, m: d.distanceM }));
+  const avgSteps = steps.length ? Math.round(steps.reduce((s, d) => s + d.passos, 0) / steps.length) : null;
+  const walked = steps.flatMap((d) => (d.m !== undefined ? [d.m] : []));
+  const avgWalked = walked.length ? Math.round(walked.reduce((s, m) => s + m, 0) / walked.length) : null;
 
   return (
     <section id="saude" className="scroll-mt-24 space-y-6 rounded-3xl border border-border bg-card p-4 sm:p-6">
@@ -46,6 +50,26 @@ export function HealthTrends() {
                 <YAxis stroke="var(--muted-foreground)" fontSize={12} width={28} domain={[0, (max: number) => Math.max(9, Math.ceil(max))]} />
                 <Tooltip formatter={(_v, _n, item) => [sleepLabel((item.payload as { min: number }).min), "sono"]} contentStyle={tooltip} />
                 <Bar dataKey="horas" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {steps.length > 0 && (
+        <div>
+          <div className="mb-2 flex items-baseline justify-between gap-2 px-2 sm:px-0">
+            <h3 className="font-bold">Passos</h3>
+            {avgSteps !== null && <span className="text-right text-sm text-muted-foreground">média {avgSteps.toLocaleString("pt-BR")}{avgWalked !== null ? ` · ${kmLabel(avgWalked)}` : ""}</span>}
+          </div>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={steps}>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={11} interval="preserveStartEnd" />
+                <YAxis stroke="var(--muted-foreground)" fontSize={12} width={46} tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)} mil` : String(v))} />
+                <Tooltip formatter={(v, _n, item) => { const m = (item.payload as { m?: number }).m; return [`${Number(v).toLocaleString("pt-BR")}${m !== undefined ? ` · ${kmLabel(m)}` : ""}`, "passos"]; }} contentStyle={tooltip} />
+                <Bar dataKey="passos" fill="var(--accent)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

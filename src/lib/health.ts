@@ -9,6 +9,8 @@ import { useLocal } from "./store";
  */
 export type HealthDay = {
   steps?: number; activeKcal?: number; restingHr?: number; vo2max?: number;
+  /** Walking + running distance of the day, in metres. */
+  distanceM?: number;
   /** Sleep that ended on this day: minutes asleep, first and last moment asleep (ISO). */
   sleepMin?: number; sleepStart?: string; sleepEnd?: string;
   /** When the Shortcut last sent this day (ms). */
@@ -60,7 +62,8 @@ export function readiness(day: HealthDay, before: HealthDay[]): Readiness | null
   return { level: "normal", title: "Recuperação normal", detail: "Nada fora do comum: siga o plano do dia." };
 }
 
-export const sleepLabel = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
+export const kmLabel = (metres: number) => `${(metres / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
+export const sleepLabel =(min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
 export const clock = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 async function call<T>(path: string, body?: Record<string, unknown>): Promise<T> {
