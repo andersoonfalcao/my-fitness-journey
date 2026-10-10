@@ -19,7 +19,7 @@ Escreva em português do Brasil, com tom próximo, direto e encorajador, sem exa
 Use SOMENTE os números recebidos; não invente dados. Escreva números no formato brasileiro (80,45 kg; 2.065 kcal; 1,55 L). Se algo não foi registrado (refeições, água, treino, peso), diga isso com naturalidade e incentive o registro.
 Não dê diagnóstico médico nem recomende remédios ou suplementos específicos.
 Campos:
-Sobre a musculação, use hoje.treino: diga o que foi treinado e quais músculos, e compare a carga total do treino (soma de peso × repetições de todos os exercícios) com a última vez que esse mesmo treino foi feito: cargaTotalHoje e cargaTotalUltimaVez, no formato "de 3.400 kg para 3.650 kg" (nunca use ×). Não compare exercício por exercício e não fale de séries nem de repetições.
+Sobre a musculação, use hoje.treino: diga o que foi treinado e quais músculos, e compare a carga total do treino (soma de peso × repetições de todos os exercícios) com a última vez que esse mesmo treino foi feito: cargaTotalHoje e cargaTotalUltimaVez, no formato "de 3.400 kg para 3.650 kg" (nunca use ×). Não compare exercício por exercício e não fale de séries nem de repetições. Quando hoje.treino trouxer fcMedia, fcMaxima, kcalGastas e esforco, são do Strava para esse mesmo treino (a pulseira gravou a musculação): comente o esforço e as calorias gastas como parte dele, um treino só, nunca como uma segunda atividade.
 Analise também cada atividade do Strava em hoje.strava e relacione com o resto do dia (calorias, proteína, água, descanso). Em todas, use o tempo em movimento (minutes), a frequência cardíaca média e máxima (avgHr, maxHr), as calorias (kcal) e o esforço relativo do Strava (effort, quanto maior mais puxado). Nas que têm distância, use também distância, ritmo ou velocidade e desnível; em musculação e outras sem distância, ignore distância, ritmo e desnível.
 - overview: 2 a 4 frases sobre o dia, citando o treino e as atividades do Strava quando houver.
 - goingWell: 2 a 4 pontos curtos do que foi bem hoje ou no acompanhamento.
@@ -185,6 +185,8 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
 export async function closeDay(inputs: Inputs): Promise<DayRecord> {
   const numbers = await dayNumbers(inputs);
   const { profile } = inputs;
+  // Weight training on Strava is today's workout as the band recorded it: one session, with Strava's effort and calories.
+  const gym = numbers.day.workout ? numbers.day.strava?.find((a) => a.sport === sportLabel("WeightTraining")) : undefined;
   const prompt = JSON.stringify({
     aluno: { nome: profile.name, objetivo: FOCUS_LABEL[profile.focus], nivel: profile.level, treinosPorSemana: profile.days },
     unidades: "calorias em kcal, macros em g, água em ml, peso em kg, volume de treino = soma de peso × repetições em kg",
@@ -192,9 +194,10 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
     observacao: "atividades do Strava (corrida, pedal etc.) são gasto extra informativo; a meta de calorias do dia não muda por causa delas",
     saude: "hoje.health vem da pulseira (Mi Band, pelo app Saúde): sleepMin = minutos dormidos na noite que terminou hoje, steps = passos, activeKcal = energia ativa em kcal (informativa, não muda a meta), restingHr = batimento em repouso em bpm, vo2max em mL/kg/min; null = não chegou. Relacione o sono e o batimento em repouso com o treino e a recuperação, e os passos com o movimento do dia; se health for null, não comente",
     // The AI sees what was trained, the muscles and the load comparison only (no sets or reps).
-    hoje: { ...numbers.day, workout: undefined, treino: numbers.day.workout && {
+    hoje: { ...numbers.day, workout: undefined, strava: gym ? numbers.day.strava?.filter((a) => a !== gym) : numbers.day.strava, treino: numbers.day.workout && {
       nome: numbers.day.workout.name,
-      minutos: numbers.day.workout.minutes,
+      minutos: gym?.minutes ?? numbers.day.workout.minutes,
+      ...(gym ? { fcMedia: gym.avgHr, fcMaxima: gym.maxHr ?? null, kcalGastas: gym.kcal, esforco: gym.effort ?? null } : {}),
       musculos: [...new Set(numbers.day.workout.exercises?.map((e) => e.muscle).filter(Boolean))],
       exercicios: numbers.day.workout.exercises?.map((e) => ({ exercicio: e.name, musculo: e.muscle })),
       cargaTotalHoje: numbers.day.workout.volumeKg || null,

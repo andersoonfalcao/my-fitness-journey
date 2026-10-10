@@ -19,6 +19,13 @@ export type StravaActivity = {
   kcal: number | null;
 };
 
+/**
+ * A weight training activity on a day with a workout finished here is that same workout, recorded by the band
+ * (Mi Fitness sends it to Strava). It stays listed, since the effort and the calories come from it, but it is one
+ * training session with the workout, never a second one.
+ */
+export const isGymCopy = (a: StravaActivity, history: { date: string }[]) => a.sport === "WeightTraining" && history.some((r) => r.date === a.date);
+
 /** Strava activities are kept one document per month, like food logs. */
 export const stravaKey = (date: string) => `forma.strava.${date.slice(0, 7)}`;
 const SYNC_KEY = "forma.strava.sync";

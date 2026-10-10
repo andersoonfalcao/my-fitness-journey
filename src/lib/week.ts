@@ -1,5 +1,5 @@
 import type { FoodEntry, WaterLog, WeightEntry, WorkoutRecord } from "./store";
-import type { StravaActivity } from "./strava";
+import { isGymCopy, type StravaActivity } from "./strava";
 import type { HealthMonth } from "./health";
 import { recordTotal } from "./workout-stats";
 
@@ -11,6 +11,8 @@ export type WeekStats = {
   waterDays: number;
   workouts: number; volumeKg: number; workoutMinutes: number;
   stravaCount: number; stravaKm: number;
+  /** Strava weight training that is one of `workouts` as the band recorded it (already inside stravaCount). */
+  stravaSameAsWorkouts: number;
   sleepAvg: number | null; stepsAvg: number | null; restingAvg: number | null;
 };
 
@@ -61,6 +63,7 @@ export function weekStats(start: string, last: string, x: WeekInputs): WeekStats
     volumeKg: Math.round(workouts.reduce((s, r) => s + recordTotal(r), 0)),
     workoutMinutes: Math.round(workouts.reduce((s, r) => s + (r.durationMs ?? 0), 0) / 60000),
     stravaCount: strava.length,
+    stravaSameAsWorkouts: strava.filter((a) => isGymCopy(a, workouts)).length,
     stravaKm: Math.round(strava.reduce((s, a) => s + a.distanceM, 0) / 100) / 10,
     sleepAvg: sleepAvg === null ? null : Math.round(sleepAvg),
     stepsAvg: stepsAvg === null ? null : Math.round(stepsAvg),

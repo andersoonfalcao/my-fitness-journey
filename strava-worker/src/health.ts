@@ -120,6 +120,38 @@ export function restingHrOf(values: unknown[]) {
   return Math.round(low.reduce((s, n) => s + n, 0) / low.length);
 }
 
+/**
+ * Day total of a quantity (steps, active energy) recorded by more than one source, e.g. the iPhone and the band counting
+ * the same walk. Each hour counts once, from the source that recorded the most in it, so time with only one of them on
+ * the body is kept too. Without sources every sample is treated as one source (a plain sum).
+ */
+export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], sources: unknown[], tz: string, today: string) {
+  const HOUR = 3600_000;
+  const hours = new Map<number, Map<string, number>>();
+  const seen = new Set<string>();
+  values.forEach((v, i) => {
+    const value = parseNumber(v);
+    const start = parseDate(starts[i], tz);
+    if (!(value > 0) || Number.isNaN(start) || localDate(start, tz) !== today) return;
+    const source = sources.length === values.length ? String(sources[i] ?? "").trim() : "";
+    if (source) seen.add(source);
+    const parsedEnd = parseDate(ends[i], tz);
+    const end = parsedEnd > start && parsedEnd - start < 24 * HOUR ? parsedEnd : start;
+    // A sample that crosses hours is split by the time spent in each.
+    for (let h = Math.floor(start / HOUR); h <= Math.floor(end / HOUR); h++) {
+      const share = end === start ? 1 : (Math.min(end, (h + 1) * HOUR) - Math.max(start, h * HOUR)) / (end - start);
+      if (share <= 0) continue;
+      const bySource = hours.get(h) ?? new Map<string, number>();
+      bySource.set(source, (bySource.get(source) ?? 0) + value * share);
+      hours.set(h, bySource);
+    }
+  });
+  if (!hours.size) return null;
+  let total = 0;
+  for (const bySource of hours.values()) total += Math.max(...bySource.values());
+  return { total, sources: [...seen] };
+}
+
 const text = (body: string, status: number) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 const fmt = (n: number, digits = 0) => n.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 
@@ -150,10 +182,14 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   await env.TOKENS.put(`hlast:${record.uid}`, JSON.stringify({ at: new Date(now).toISOString(), body: peek }), { expirationTtl: 7 * 86400 });
 
   const day: Partial<HealthDay> = {};
-  const steps = parseNumber(body.steps);
+  // Samples with their source (counted once per hour), or the single number older Shortcuts send.
+  const stepSamples = totalOf(list(body.stepValues), list(body.stepStarts), list(body.stepEnds), list(body.stepSources), tz, today);
+  const steps = stepSamples?.total ?? parseNumber(body.steps);
   if (steps >= 0 && steps < 200_000) day.steps = Math.round(steps);
-  const kcal = parseNumber(body.activeKcal);
+  const kcalSamples = totalOf(list(body.kcalValues), list(body.kcalStarts), list(body.kcalEnds), list(body.kcalSources), tz, today);
+  const kcal = kcalSamples?.total ?? parseNumber(body.activeKcal);
   if (kcal >= 0 && kcal < 20_000) day.activeKcal = Math.round(kcal);
+  const sources = [...new Set([...(stepSamples?.sources ?? []), ...(kcalSamples?.sources ?? [])])];
   const resting = restingHrOf(list(body.heartRates));
   if (resting) day.restingHr = resting;
   const vo2 = parseNumber(Array.isArray(body.vo2max) ? body.vo2max.at(-1) : body.vo2max);
@@ -186,5 +222,7 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
     day.restingHr !== undefined && `repouso ${day.restingHr} bpm`,
     day.vo2max !== undefined && `VO2 máx ${fmt(day.vo2max, 1)}`,
   ].filter(Boolean);
-  return text(parts.length ? `forma recebeu: ${parts.join(" · ")}` : "forma recebeu o envio, mas sem dados de hoje. Confira as permissões do atalho no app Saúde.", 200);
+  // Named so a doubled total (samples that came without their source) is easy to spot on the iPhone.
+  const from = sources.length ? ` (fontes: ${sources.join(", ")})` : stepSamples || kcalSamples ? " (as amostras vieram sem a fonte: passos e calorias podem estar somados em dobro)" : "";
+  return text(parts.length ? `forma recebeu: ${parts.join(" · ")}${from}` :"forma recebeu o envio, mas sem dados de hoje. Confira as permissões do atalho no app Saúde.", 200);
 }
