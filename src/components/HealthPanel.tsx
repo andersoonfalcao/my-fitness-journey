@@ -97,12 +97,12 @@ export function HealthPanel() {
         <summary className="cursor-pointer font-semibold">Como montar o atalho</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 leading-snug">
           <li>No app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>forma Saúde</b>.</li>
-          <li>Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, Data de Início <b>é hoje</b>. Depois <b>Calcular Estatísticas</b> → <b>Soma</b> e <b>Definir Variável</b> <i>passos</i>.</li>
-          <li>Repita para <b>Energia Ativa</b> (Soma) → variável <i>energia</i>.</li>
+          <li>Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, Data de Início <b>é hoje</b>. Depois duas vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>passos</i>, <b>Fonte</b> → <i>passosFonte</i>. (Não use Soma: o iPhone e o Mi Fitness gravam os mesmos passos, e a soma conta em dobro; o forma fica só com os do Mi Fitness.)</li>
+          <li>Repita para <b>Energia Ativa</b>: <b>Valor</b> → <i>energia</i>, <b>Fonte</b> → <i>energiaFonte</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Frequência Cardíaca</b>, Data de Início <b>está no último 1 dia</b> → variável <i>batimentos</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Análise do Sono</b>, Data de Fim <b>está no último 1 dia</b>. Em seguida, três vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>sonoTipo</i>, <b>Data de Início</b> → <i>sonoInicio</i>, <b>Data de Fim</b> → <i>sonoFim</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Preparo Cardiovascular</b>, ordenar por <b>Data de Início</b>, <b>mais recente primeiro</b>, limite <b>1</b> → variável <i>vo2</i>.</li>
-          <li><b>Obter Conteúdo do URL</b> com o <b>Endereço</b> acima, Método <b>POST</b>, Cabeçalho <b>Authorization</b> = <b>Bearer</b> + espaço + a <b>Chave</b>. Corpo <b>JSON</b>, todos como Texto: <i>steps</i> = passos, <i>activeKcal</i> = energia, <i>heartRates</i> = batimentos, <i>sleepValues</i> = sonoTipo, <i>sleepStarts</i> = sonoInicio, <i>sleepEnds</i> = sonoFim, <i>vo2max</i> = vo2.</li>
+          <li><b>Obter Conteúdo do URL</b> com o <b>Endereço</b> acima, Método <b>POST</b>, Cabeçalho <b>Authorization</b> = <b>Bearer</b> + espaço + a <b>Chave</b>. Corpo <b>JSON</b>, todos como Texto: <i>stepValues</i> = passos, <i>stepSources</i> = passosFonte, <i>energyValues</i> = energia, <i>energySources</i> = energiaFonte, <i>heartRates</i> = batimentos, <i>sleepValues</i> = sonoTipo, <i>sleepStarts</i> = sonoInicio, <i>sleepEnds</i> = sonoFim, <i>vo2max</i> = vo2.</li>
           <li>Termine com <b>Mostrar Resultado</b> (o conteúdo do URL). Rode uma vez e permita o acesso ao Saúde: deve aparecer “forma recebeu: …”.</li>
           <li>Em <b>Automação</b> → <b>+</b> → <b>App</b> → <b>Mi Fitness</b> → <b>É Aberto</b> → <b>Executar Imediatamente</b> → atalho <b>forma Saúde</b>. Assim ele roda sempre que a Mi Band sincroniza, com o iPhone desbloqueado.</li>
         </ol>
