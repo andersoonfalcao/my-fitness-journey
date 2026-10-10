@@ -121,21 +121,16 @@ export function restingHrOf(values: unknown[]) {
 }
 
 /**
- * One source's total of Health samples. The iPhone and Mi Fitness both write steps (and active energy) to Health; the
- * Health app shows each moment once, but a plain sum of every sample counts it twice. Mi Fitness wins when it sent
- * anything, otherwise the source with the largest total.
+ * Mi Fitness's total of Health samples, or null when it sent none. The iPhone and Mi Fitness both write steps (and
+ * active energy) to Health; the Health app shows each moment once, but a plain sum of every sample counts it twice.
  */
-export function sourceTotal(values: unknown[], sources: unknown[]): number | null {
-  const totals = new Map<string, number>();
+export function miFitnessTotal(values: unknown[], sources: unknown[]): number | null {
+  let total: number | null = null;
   values.forEach((v, i) => {
     const n = parseNumber(v);
-    if (!Number.isFinite(n) || n < 0) return;
-    const source = String(sources[i] ?? "").trim();
-    totals.set(source, (totals.get(source) ?? 0) + n);
+    if (Number.isFinite(n) && n >= 0 && /mi ?fitness/i.test(String(sources[i] ?? ""))) total = (total ?? 0) + n;
   });
-  if (!totals.size) return null;
-  const band = [...totals].find(([source]) => /mi ?fit|xiaomi|mi band|zepp/i.test(source));
-  return band ? band[1] : Math.max(...totals.values());
+  return total;
 }
 
 const text = (body: string, status: number) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
@@ -168,10 +163,10 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   await env.TOKENS.put(`hlast:${record.uid}`, JSON.stringify({ at: new Date(now).toISOString(), body: peek }), { expirationTtl: 7 * 86400 });
 
   const day: Partial<HealthDay> = {};
-  // Per-sample values with their source when the Shortcut sends them; the older single sum otherwise.
-  const steps = list(body.stepValues).length ? sourceTotal(list(body.stepValues), list(body.stepSources)) ?? NaN : parseNumber(body.steps);
+  // Only Mi Fitness's samples; the older single sum (`steps`, `activeKcal`) mixes in the iPhone's and is ignored.
+  const steps = miFitnessTotal(list(body.stepValues), list(body.stepSources)) ?? NaN;
   if (steps >= 0 && steps < 200_000) day.steps = Math.round(steps);
-  const kcal = list(body.energyValues).length ? sourceTotal(list(body.energyValues), list(body.energySources)) ?? NaN : parseNumber(body.activeKcal);
+  const kcal = miFitnessTotal(list(body.energyValues), list(body.energySources)) ?? NaN;
   if (kcal >= 0 && kcal < 20_000) day.activeKcal = Math.round(kcal);
   const resting = restingHrOf(list(body.heartRates));
   if (resting) day.restingHr = resting;

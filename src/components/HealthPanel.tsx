@@ -97,7 +97,7 @@ export function HealthPanel() {
         <summary className="cursor-pointer font-semibold">Como montar o atalho</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 leading-snug">
           <li>No app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>forma Saúde</b>.</li>
-          <li>Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, Data de Início <b>é hoje</b>. Depois duas vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>passos</i>, <b>Fonte</b> → <i>passosFonte</i>. (Não use Soma: o iPhone e o Mi Fitness gravam os mesmos passos, e a soma conta em dobro; o forma fica só com os do Mi Fitness.)</li>
+          <li>Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, Data de Início <b>é hoje</b>. Depois duas vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>passos</i>, <b>Fonte</b> → <i>passosFonte</i>. (Não use Soma: o iPhone e o Mi Fitness gravam os mesmos passos, e a soma conta em dobro; o forma conta só os do Mi Fitness.)</li>
           <li>Repita para <b>Energia Ativa</b>: <b>Valor</b> → <i>energia</i>, <b>Fonte</b> → <i>energiaFonte</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Frequência Cardíaca</b>, Data de Início <b>está no último 1 dia</b> → variável <i>batimentos</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Análise do Sono</b>, Data de Fim <b>está no último 1 dia</b>. Em seguida, três vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>sonoTipo</i>, <b>Data de Início</b> → <i>sonoInicio</i>, <b>Data de Fim</b> → <i>sonoFim</i>.</li>
