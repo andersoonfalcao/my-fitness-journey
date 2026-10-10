@@ -97,8 +97,8 @@ export function HealthPanel() {
         <summary className="cursor-pointer font-semibold">Como montar o atalho</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 leading-snug">
           <li>No app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>forma Saúde</b>.</li>
-          <li>Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, Data de Início <b>é hoje</b>. Depois <b>Calcular Estatísticas</b> → <b>Soma</b> e <b>Definir Variável</b> <i>passos</i>.</li>
-          <li>Repita para <b>Energia Ativa</b> (Soma) → variável <i>energia</i>.</li>
+          <li>Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, Data de Início <b>é hoje</b> e, em <b>Adicionar Filtro</b>, <b>Fonte é Mi Fitness</b> (sem esse filtro os passos do iPhone entram na soma e o total sai dobrado). Depois <b>Calcular Estatísticas</b> → <b>Soma</b> e <b>Definir Variável</b> <i>passos</i>.</li>
+          <li>Repita para <b>Energia Ativa</b>, com o mesmo filtro de Fonte (Soma) → variável <i>energia</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Frequência Cardíaca</b>, Data de Início <b>está no último 1 dia</b> → variável <i>batimentos</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Análise do Sono</b>, Data de Fim <b>está no último 1 dia</b>. Em seguida, três vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>sonoTipo</i>, <b>Data de Início</b> → <i>sonoInicio</i>, <b>Data de Fim</b> → <i>sonoFim</i>.</li>
           <li><b>Encontrar Amostras de Saúde</b>: <b>Preparo Cardiovascular</b>, ordenar por <b>Data de Início</b>, <b>mais recente primeiro</b>, limite <b>1</b> → variável <i>vo2</i>.</li>
