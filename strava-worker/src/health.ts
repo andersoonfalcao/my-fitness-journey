@@ -15,7 +15,10 @@ export type HealthDay = {
   at: number;
 };
 
-type KeyRecord = { uid: string; refreshToken: string; createdAt: number };
+/** Metres per step Mi Fitness uses for the day's distance: 3,70 km for 6.537 steps on its own screen (2026-10-09). */
+const BAND_STRIDE_M = 0.566;
+
+type KeyRecord ={ uid: string; refreshToken: string; createdAt: number };
 const sha = async (text: string) => b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
 const keyOfUser = (uid: string) => `hkeyof:${uid}`;
 
@@ -199,24 +202,19 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   const kcal = kcalSamples?.total ?? parseNumber(body.activeKcal);
   if (kcal >= 0 && kcal < 20_000) day.activeKcal = Math.round(kcal);
   const distSamples = totalOf(list(body.distValues), list(body.distStarts), list(body.distEnds), list(body.distSources), tz, today, true);
-  let distNote = "";
-  if (distSamples) {
-    // Mi Fitness sends steps to Health but not distance, which then comes from the iPhone alone and misses the steps
-    // taken without it. The iPhone's own stride (its distance over its steps) is applied to the day's steps instead.
-    const source = distSamples.sources[0] ?? "";
-    const ownSteps = stepSamples?.perSource.get(source) ?? 0;
-    const sameSource = !stepSamples || stepSamples.sources.includes(source);
+  const stepSource = stepSamples?.sources.length === 1 ? stepSamples.sources[0]! : "";
+  const distFromSteps = !!distSamples && (!stepSamples || distSamples.sources.includes(stepSource));
+  if (distSamples && (distFromSteps || /iphone/i.test(stepSource) || !stepSource)) {
     // Health gives the distance in km or in metres depending on the iPhone's settings; a stride (about 0,7 m) tells which.
-    const stepsForUnit = sameSource ? day.steps : ownSteps;
-    const inMetres = stepsForUnit ? distSamples.total / stepsForUnit > 0.1 : distSamples.total > 100;
-    let metres = distSamples.total * (inMetres ? 1 : 1000);
-    if (!sameSource && day.steps !== undefined) {
-      if (ownSteps >= 300) { metres *= day.steps / ownSteps; distNote = " (estimada pela sua passada)"; }
-      else metres = NaN;
-    }
-    if (metres >= 0 && metres < 300_000) day.distanceM = Math.round(metres);
+    const inMetres = day.steps ? distSamples.total / day.steps > 0.1 : distSamples.total > 100;
+    const metres = distSamples.total * (inMetres ? 1 : 1000);
+    if (metres < 300_000) day.distanceM = Math.round(metres);
+  } else if (stepSource && day.steps !== undefined) {
+    // Mi Fitness shows a distance but sends only the steps to Health (the distance there is the iPhone's, which
+    // misses the steps taken without it). Its own number is the steps times a fixed stride.
+    day.distanceM = Math.round(day.steps * BAND_STRIDE_M);
   }
-  const sources = [...new Set([...(stepSamples?.sources ?? []), ...(kcalSamples?.sources ?? []), ...(distSamples?.sources ?? [])])];
+  const sources = [...new Set([...(stepSamples?.sources ?? []), ...(kcalSamples?.sources ?? []), ...(distFromSteps ? distSamples!.sources : [])])];
   const resting = restingHrOf(list(body.heartRates));
   if (resting) day.restingHr = resting;
   const vo2 = parseNumber(Array.isArray(body.vo2max) ? body.vo2max.at(-1) : body.vo2max);
@@ -245,7 +243,7 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   const parts = [
     day.sleepMin !== undefined && `sono ${Math.floor(day.sleepMin / 60)}h${String(day.sleepMin % 60).padStart(2, "0")}`,
     day.steps !== undefined && `${fmt(day.steps)} passos`,
-    day.distanceM !== undefined && `${fmt(day.distanceM / 1000, 2)} km${distNote}`,
+    day.distanceM !== undefined && `${fmt(day.distanceM / 1000, 2)} km`,
     day.activeKcal !== undefined && `${fmt(day.activeKcal)} kcal ativas`,
     day.restingHr !== undefined && `repouso ${day.restingHr} bpm`,
     day.vo2max !== undefined && `VO2 máx ${fmt(day.vo2max, 1)}`,
