@@ -122,8 +122,8 @@ export function restingHrOf(values: unknown[]) {
 
 /**
  * Day total of a quantity (steps, active energy) recorded by more than one source, e.g. the iPhone and the band counting
- * the same walk. Each hour counts once, from the source that recorded the most in it, so time with only one of them on
- * the body is kept too. Without sources every sample is treated as one source (a plain sum).
+ * the same walk. Each hour counts once: from the band when it recorded anything in it, otherwise from whatever did, so
+ * time without the band is kept too. Without sources every sample is treated as one source (a plain sum).
  */
 export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], sources: unknown[], tz: string, today: string) {
   const HOUR = 3600_000;
@@ -147,8 +147,13 @@ export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], s
     }
   });
   if (!hours.size) return null;
+  // The band is the reference (its total is the one Mi Fitness shows): the main source is the one, other than the
+  // iPhone itself, with records in the most hours. The others only fill the hours it left empty.
+  const hoursOf = (s: string) => [...hours.values()].filter((bySource) => bySource.has(s)).length;
+  const candidates = [...seen].filter((s) => !/iphone/i.test(s));
+  const main = (candidates.length ? candidates : [...seen]).sort((a, b) => hoursOf(b) - hoursOf(a))[0] ?? "";
   let total = 0;
-  for (const bySource of hours.values()) total += Math.max(...bySource.values());
+  for (const bySource of hours.values()) total += bySource.get(main) ?? Math.max(...bySource.values());
   return { total, sources: [...seen] };
 }
 
