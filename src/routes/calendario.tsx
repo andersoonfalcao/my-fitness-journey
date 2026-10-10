@@ -27,6 +27,7 @@ import {
   type WeightEntry,
   type WorkoutRecord,
 } from "@/lib/store";
+import { healthKey, kmLabel, sleepLabel, type HealthMonth } from "@/lib/health";
 import { lastRecordBefore, recordTotal } from "@/lib/workout-stats";
 
 export const Route = createFileRoute("/calendario")({
@@ -63,6 +64,7 @@ function CalendarPage() {
   const [water] = useLocal<WaterLog>(waterKey(first), {});
   const [closedDays] = useLocal<DayRecord[]>(daysKey(first), []);
   const [strava] = useLocal<StravaActivity[]>(stravaKey(first), []);
+  const [health] = useLocal<HealthMonth>(healthKey(first), {});
   const [history] = useHistory();
   const [weights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [body] = useLocal<BodyEntry[]>(KEYS.body, []);
@@ -93,6 +95,7 @@ function CalendarPage() {
       strava: strava.filter((a) => a.date === date),
       weight: weights.find((w) => w.date === date)?.kg ?? null,
       bio: body.find((b) => b.date === date),
+      health: health[date],
       closed,
     };
   };
@@ -266,12 +269,24 @@ function CalendarPage() {
           </button>
         ))}
 
+        {sel.health && (
+          <div>
+            <h3 className="font-bold">Mi Band</h3>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {sel.health.sleepMin !== undefined && <Stat label="sono" value={sleepLabel(sel.health.sleepMin)} />}
+              {sel.health.steps !== undefined && <Stat label={sel.health.distanceM !== undefined ? `passos · ${kmLabel(sel.health.distanceM)}` : "passos"} value={sel.health.steps.toLocaleString("pt-BR")} />}
+              {sel.health.activeKcal !== undefined && <Stat label="energia ativa" value={`${sel.health.activeKcal.toLocaleString("pt-BR")} kcal`} />}
+              {sel.health.restingHr !== undefined && <Stat label="batimento em repouso" value={`${sel.health.restingHr} bpm`} />}
+            </div>
+          </div>
+        )}
+
         {sel.closed ? (
           <div className="border-t border-border pt-4">
             <h3 className="mb-3 font-bold">Resumo do dia</h3>
             <DaySummary record={sel.closed} onShare={() => setShare(dayShare(sel.closed!))} />
           </div>
-        ) : sel.eaten.length === 0 && sel.workouts.length === 0 && sel.strava.length === 0 && !sel.waterMl && !sel.weight && !sel.bio ? (
+        ) : sel.eaten.length === 0 && sel.workouts.length === 0 && sel.strava.length === 0 && !sel.waterMl && !sel.weight && !sel.bio && !sel.health ? (
           <p className="text-sm text-muted-foreground">Nada registrado neste dia.</p>
         ) : (
           <p className="text-sm text-muted-foreground">Este dia não foi fechado. {sel.date === now ? "Feche o dia na tela Hoje para receber o resumo da IA." : ""}</p>
