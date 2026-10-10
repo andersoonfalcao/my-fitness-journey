@@ -179,9 +179,12 @@ function cleanCustom(value: unknown): Custom[] {
   });
 }
 
+/** `message`: a notice other than the end of a rest (the closed-app test), sent at `endsAt` the same way. */
+type Rest = { key: string; endsAt: number; next: string; message?: Message };
+
 /** One per user: holds the running rest and wakes up when it ends. */
 export class RestTimer extends DurableObject<NotifyEnv> {
-  async start(rest: { key: string; endsAt: number; next: string }) {
+  async start(rest: Rest) {
     await this.ctx.storage.put("rest", rest);
     await this.ctx.storage.setAlarm(rest.endsAt);
   }
@@ -192,13 +195,13 @@ export class RestTimer extends DurableObject<NotifyEnv> {
   }
 
   async alarm() {
-    const rest = await this.ctx.storage.get<{ key: string; endsAt: number; next: string }>("rest");
+    const rest = await this.ctx.storage.get<Rest>("rest");
     if (!rest) return;
     await this.ctx.storage.delete("rest");
     // A rest that ended long ago (device offline) is no longer worth a buzz.
     if (Date.now() - rest.endsAt > 120_000) return;
     // Three minutes to deliver: a locked phone in low power may take a while to wake for it.
-    await push(this.env, rest.key, { title: "Descanso acabou!", body: `Próxima: ${rest.next}`, tag: "forma-descanso", url: "/treinos" }, 180);
+    await push(this.env, rest.key, rest.message ?? { title: "Descanso acabou!", body: `Próxima: ${rest.next}`, tag: "forma-descanso", url: "/treinos" }, 180);
   }
 }
 
@@ -243,6 +246,14 @@ export async function pushRoute(path: string, request: Request, env: NotifyEnv, 
     return [{ ok: true }, 200];
   }
   if (path === "/push/test") {
+    // Closed-app test: goes out a few seconds later, through the same alarm as the end of a rest.
+    const delay = Number(body.delay);
+    if (Number.isFinite(delay) && delay > 0) {
+      if (!(await env.TOKENS.get(key))) return [{ error: "Este aparelho não está inscrito. Desative e ative as notificações." }, 404];
+      const message: Message = { title: "Teste do forma", body: "Chegou com o app fechado: as notificações estão funcionando.", tag: "forma-teste", url: "/configuracoes" };
+      await timer().start({ key, endsAt: Date.now() + Math.min(delay, 60) * 1000, next: "", message });
+      return [{ ok: true }, 200];
+    }
     const now = localNow(typeof body.tz === "string" ? body.tz : "America/Fortaleza");
     const status = await dailyFor(env, key, uid, now.date);
     return status >= 200 && status < 300 ? [{ ok: true }, 200] : [{ error: `push ${status}` }, 502];

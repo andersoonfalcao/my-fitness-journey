@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Info, ListChecks, Play, RotateCcw, Share2, Timer, Trash2, TrendingDown, TrendingUp, Youtube } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Info, Link2, ListChecks, Minus, Play, Plus, RotateCcw, Share2, Timer, Trash2, TrendingDown, X, TrendingUp, Youtube } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { KEYS, today, uid, useHistory, useLocal, type LoadEntry, type Profile, type WorkoutRecord, type WorkoutSession } from "@/lib/store";
-import { generatePlan, nextWorkoutIndex, normalizePlan, repsCount, repsFor, type Plan } from "@/lib/plan";
-import { alternatives, byId, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
+import { generatePlan, holdSeconds, nextWorkoutIndex, normalizePlan, prescribeFor, repsCount, repsFor, withSmallMuscles, comboName, comboOf, tidyCombos, type Plan, type PlanItem } from "@/lib/plan";
+import { alternatives, byId, EXERCISES, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
 import { defaultTrainingDays, musclesOf, WeekPlan } from "@/components/WeekPlan";
 import { BodyMap } from "@/components/BodyMap";
@@ -50,12 +50,20 @@ function TreinosPage() {
   const [share, setShare] = useState<ShareRequest | null>(null);
   const [loadInputs, setLoadInputs] = useState<Record<string, string>>({});
   const [repsInputs, setRepsInputs] = useState<Record<string, string>>({});
+  // Time-based sets (plank): the time chosen for each exercise, and the countdown that is running (one at a time).
+  const [holdTimes, setHoldTimes] = useState<Record<string, number>>({});
+  const [hold, setHold] = useState<{ item: number; endsAt: number } | null>(null);
   const [dayIdx, setDayIdx] = useState<number | null>(null);
   // Exercises are collapsed cards; one opens at a time to show its sets, reps and loads.
   const [openItem, setOpenItem] = useState<number | null>(null);
   const [viewRecords, setViewRecords] = useState<WorkoutRecord[] | null>(null);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [swap, setSwap] = useState<{ d: number; i: number } | null>(null);
+  // Adding an extra exercise: the day it goes to and, once chosen, the muscle (first step of the dialog).
+  const [adding, setAdding] = useState<{ d: number; group: Group | null } | null>(null);
+  // Combining exercises (bi-set, tri-set): the day and the exercises ticked so far.
+  const [combining, setCombining] = useState<{ d: number; picked: number[] } | null>(null);
+  const [smallDismissed, setSmallDismissed] = useState(() => typeof window !== "undefined" && window.localStorage?.getItem("forma.small-muscles.dismissed") === "1");
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
   const [settings] = useSettings();
@@ -80,6 +88,8 @@ function TreinosPage() {
   }
 
   const trainingDays = schedule?.length ? schedule : defaultTrainingDays(profile.days);
+  // A plan made before calves, traps and forearms entered the split can take them in without being generated again.
+  const completed = withSmallMuscles(profile, plan);
   const nextIdx = nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length);
   const sessionIdx = session ? plan.days.findIndex((d) => d.name === session.dayName) : -1;
   const active = dayIdx ?? (sessionIdx >= 0 ? sessionIdx : nextIdx);
@@ -108,6 +118,7 @@ function TreinosPage() {
   const completeSets = (i: number, kg: number | null, reps: number | null, count: number) => {
     const item = day.items[i]!;
     unlockAudio();
+    setHold(null);
     const base = session ?? { dayName: day.name, startedAt: Date.now() };
     const before = base.sets?.[i] ?? 0;
     const done = Math.min(item.sets, before + count);
@@ -119,11 +130,39 @@ function TreinosPage() {
     syncLoad(item.exId, base.startedAt, kgs[i]!);
     cancelRestPush();
     const pending = day.items.map((it, j) => j).filter((j) => (sets[j] ?? 0) < day.items[j]!.sets);
+    // The last set of the workout finishes it: nothing is left to do but save it.
     if (pending.length === 0) {
-      setSession({ ...base, sets, kgs, repsDone, rest: undefined });
       setOpenItem(null);
-      toast.success("Todas as séries feitas! Agora é só concluir o treino.");
+      finishWorkout({ ...base, sets, kgs, repsDone, rest: undefined });
       return;
+    }
+    // Combined exercises (bi-set, tri-set): straight on to the next one of the block, with no rest; the rest comes
+    // when the round ends, and then the block starts over from its first exercise that still has sets to do.
+    const block = !plan.circuit && count === 1 ? comboOf(day.items, i) : null;
+    if (block) {
+      const open = block.members.filter((j) => (sets[j] ?? 0) < day.items[j]!.sets);
+      const goTo = (j: number) => {
+        setOpenItem(j);
+        setTimeout(() => document.getElementById(`exercicio-${j}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      };
+      const nextJ = open.find((j) => j > i);
+      if (nextJ !== undefined) {
+        setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+        toast(`Sem descanso: ${byId(day.items[nextJ]!.exId).name}`);
+        goTo(nextJ);
+        return;
+      }
+      if (open.length > 0) {
+        const firstJ = open[0]!;
+        const firstItem = day.items[firstJ]!;
+        const next = `Série ${(sets[firstJ] ?? 0) + 1} de ${firstItem.sets} · ${byId(firstItem.exId).name}`;
+        const endsAt = Date.now() + settings.restSeconds * 1000;
+        // The countdown shows on the exercise the next round starts with.
+        setSession({ ...base, sets, kgs, repsDone, rest: { item: firstJ, endsAt, next: `Fim da rodada · ${next}` } });
+        scheduleRestPush(endsAt, next);
+        goTo(firstJ);
+        return;
+      }
     }
     // Circuit: straight on to the next exercise of the round; the rest comes only when the round wraps around.
     if (plan.circuit && count === 1) {
@@ -163,6 +202,7 @@ function TreinosPage() {
   const previousOf = (record: WorkoutRecord | undefined, i: number, exId: string) =>
     record?.exercises[i]?.exId === exId ? record.exercises[i] : record?.exercises.find((e) => e.exId === exId);
 
+  const sessionNow = session;
   const finishSets = (session && sessionIdx >= 0 ? session.sets : undefined) ?? {};
   const finishKgs = (session && sessionIdx >= 0 ? session.kgs : undefined) ?? {};
   const finishReps = (session && sessionIdx >= 0 ? session.repsDone : undefined) ?? {};
@@ -177,8 +217,16 @@ function TreinosPage() {
   const classesDone = Math.max(doneLog.length, history.length);
   const classNumber = classesDone + 1;
 
-  const finishWorkout = () => {
+  /** Saves the workout. `final` is the session with the set just marked, when that set is what finishes it. */
+  const finishWorkout = (final: WorkoutSession | null = session) => {
     const finishedAt = Date.now();
+    const session = final;
+    // A saved session of a workout that is no longer in the plan has no sets that belong to this one.
+    const tracked = final && (sessionIdx >= 0 || final !== sessionNow) ? final : null;
+    const finishSets = tracked?.sets ?? {};
+    const finishKgs = tracked?.kgs ?? {};
+    const finishReps = tracked?.repsDone ?? {};
+    const todayTotal = finishDay.items.reduce((sum, it, i) => sum + volume(finishKgs[i], finishReps[i], it.reps), 0);
     const record: WorkoutRecord = {
       id: uid(),
       date: today(),
@@ -189,7 +237,9 @@ function TreinosPage() {
       exercises: finishDay.items.map((it, i) => {
         const ex = byId(it.exId);
         // Only loads logged during this session belong to this workout.
-        const kg = session ? loads.filter((l) => l.exerciseId === ex.id && (l.createdAt ?? 0) >= session.startedAt).at(-1)?.kg : undefined;
+        // That is the heaviest set of this session (what syncLoad keeps); the saved loads may not have the last set yet.
+        const top = Math.max(0, ...(finishKgs[i] ?? []).map((value) => value ?? 0));
+        const kg = top || (session ? loads.filter((l) => l.exerciseId === ex.id && (l.createdAt ?? 0) >= session.startedAt).at(-1)?.kg : undefined);
         return { exId: ex.id, name: ex.name, setsDone: finishSets[i] ?? 0, setsPlanned: it.sets, reps: it.reps, kg, setKgs: finishKgs[i] ?? [], setReps: finishReps[i] ?? [] };
       }),
     };
@@ -217,6 +267,7 @@ function TreinosPage() {
   const undoSet = (i: number) => {
     if (!session) return;
     cancelRestPush();
+    setHold(null);
     syncLoad(day.items[i]!.exId, session.startedAt, (session.kgs?.[i] ?? []).slice(0, -1));
     setSession({
       ...session,
@@ -233,6 +284,68 @@ function TreinosPage() {
     setPlan({ ...plan, days });
     toast.success(`Trocado por ${byId(newId).name}`);
     setSwap(null);
+  };
+
+  /** The extra exercise goes to the end of the workout with the sets, reps and rest of the plan's method. */
+  const addExtra = (exId: string) => {
+    if (!adding) return;
+    const ex = byId(exId);
+    const item = { exId, ...prescribeFor(profile, ex, plan), extra: true };
+    const index = plan.days[adding.d]!.items.length;
+    setPlan({ ...plan, days: plan.days.map((d, di) => (di === adding.d ? { ...d, items: [...d.items, item] } : d)) });
+    toast.success(`${ex.name} adicionado`, { description: `${item.sets}x${item.reps}, pelo método do plano` });
+    setAdding(null);
+    if (adding.d === active) {
+      setOpenItem(index);
+      setTimeout(() => document.getElementById(`exercicio-${index}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
+  };
+
+  /** Saves a day's exercises in a new order (`order[k]` = old position of the one now at `k`); a running session follows. */
+  const saveDayItems = (d: number, items: PlanItem[], order: number[]) => {
+    const moved = order.some((from, to) => from !== to);
+    if (moved && session && sessionIdx === d) {
+      const follow = <T,>(byItem: Record<number, T> | undefined) =>
+        Object.fromEntries(order.flatMap((from, to) => (byItem?.[from] === undefined ? [] : [[to, byItem[from]]]))) as Record<number, T>;
+      cancelRestPush();
+      setSession({ ...session, sets: follow(session.sets), kgs: follow(session.kgs), repsDone: follow(session.repsDone), rest: undefined });
+    }
+    setHold(null);
+    if (moved) setOpenItem(null);
+    setPlan({ ...plan, days: plan.days.map((day, di) => (di === d ? { ...day, items: tidyCombos(items) } : day)) });
+  };
+
+  /** Joins the ticked exercises in one block, side by side from where the first of them was. */
+  const combine = () => {
+    if (!combining || combining.picked.length < 2) return;
+    const items = plan.days[combining.d]!.items;
+    const picked = [...combining.picked].sort((a, b) => a - b);
+    const id = uid();
+    const others = items.map((_, j) => j).filter((j) => !picked.includes(j));
+    const order = [...others.filter((j) => j < picked[0]!), ...picked, ...others.filter((j) => j > picked[0]!)];
+    saveDayItems(combining.d, order.map((j) => (picked.includes(j) ? { ...items[j]!, combo: id } : items[j]!)), order);
+    toast.success(`${comboName(picked.length)} criado`, { description: "Faça um depois do outro, sem descanso. O descanso vem no fim da rodada." });
+    setCombining(null);
+  };
+
+  const splitCombo = (comboId: string) => {
+    const items = plan.days[active]!.items;
+    saveDayItems(active, items.map((it) => (it.combo === comboId ? { ...it, combo: undefined } : it)), items.map((_, j) => j));
+    toast.success("Exercícios separados");
+  };
+
+  /** Takes an extra exercise out; sets already marked in a running session follow the exercises that move up. */
+  const removeExtra = (i: number) => {
+    const shift = <T,>(byItem: Record<number, T> | undefined) =>
+      Object.fromEntries(Object.entries(byItem ?? {}).flatMap(([k, v]) => (Number(k) === i ? [] : [[Number(k) > i ? Number(k) - 1 : Number(k), v]]))) as Record<number, T>;
+    setHold(null);
+    if (session && sessionIdx === active) {
+      cancelRestPush();
+      setSession({ ...session, sets: shift(session.sets), kgs: shift(session.kgs), repsDone: shift(session.repsDone), rest: undefined });
+    }
+    setPlan({ ...plan, days: plan.days.map((d, di) => (di === active ? { ...d, items: tidyCombos(d.items.filter((_, ii) => ii !== i)) } : d)) });
+    setOpenItem(null);
+    toast.success(`${byId(day.items[i]!.exId).name} removido do treino`);
   };
 
   const historyFor = (exerciseId: string) =>
@@ -306,7 +419,7 @@ function TreinosPage() {
                 <WorkoutClock startedAt={session.startedAt} className="font-display text-3xl font-extrabold tabular-nums" />
               </div>
             </div>
-            <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setSession(null); setLoadInputs({}); setRepsInputs({}); } }}
+            <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); } }}
               className="text-sm font-semibold underline-offset-4 opacity-75 hover:underline">Cancelar</button>
           </div>
         </div>
@@ -325,6 +438,21 @@ function TreinosPage() {
           <button onClick={() => setDayIdx(nextIdx)} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">
             <Play className="h-4 w-4" />Ir para o {plan.days[nextIdx]!.name}
           </button>
+        </div>
+      )}
+
+      {completed !== plan && !smallDismissed && (
+        <div role="status" className="rounded-2xl border border-accent/40 bg-accent/10 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-bold">Panturrilha, trapézio e antebraço entraram na divisão</p>
+            <button type="button" aria-label="Dispensar" onClick={() => { setSmallDismissed(true); try { localStorage.setItem("forma.small-muscles.dismissed", "1"); } catch { /* private mode */ } }}
+              className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground"><X className="h-5 w-5" /></button>
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">Seu plano foi criado antes disso. Dá para incluir sem regerar: suas trocas continuam e os exercícios entram no fim dos treinos certos.</p>
+          <Button type="button" onClick={() => { setPlan(completed); toast.success("Panturrilha, trapézio e antebraço incluídos no plano"); }}
+            className="mt-3 min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+            <Plus />Incluir no plano atual
+          </Button>
         </div>
       )}
 
@@ -369,7 +497,11 @@ function TreinosPage() {
             setConfirmAll({ name: ex.name, count, detail, run: () => completeSets(i, setKg, reps, count) });
           };
           const setsLeft = it.sets - setsDone;
+          const suggestedHold = holdSeconds(it.reps);
+          const holdTime = holdTimes[ex.id] ?? suggestedHold;
+          const holding = hold?.item === i ? hold : null;
           const finished = tracksSets && setsDone >= it.sets;
+          const combo = plan.circuit ? null : comboOf(day.items, i);
           const open = openItem === i;
           const exTotal = volume(kgsToday, repsToday, it.reps);
           return (
@@ -378,7 +510,9 @@ function TreinosPage() {
                 className="flex w-full items-center gap-3 p-3 text-left sm:p-4">
                 <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{GROUP_LABEL[ex.group]} · {ex.equipment}</span>
+                  <span className="block truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {combo && <span className="text-accent">{combo.label} · {combo.position}/{combo.members.length} · </span>}{GROUP_LABEL[ex.group]} · {ex.equipment}
+                  </span>
                   <span className="block font-display text-base font-bold leading-tight">{ex.name}</span>
                   <span className="mt-0.5 block text-sm">
                     {finished ? (
@@ -404,6 +538,9 @@ function TreinosPage() {
                   <div className="flex min-w-0 flex-1 flex-wrap content-start gap-2">
                     <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
                     <Button type="button" variant="secondary" size="sm" onClick={() => setSwap({ d: active, i })} className="rounded-full"><ArrowLeftRight />Trocar</Button>
+                    {it.extra && (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => removeExtra(i)} className="rounded-full"><Trash2 />Remover</Button>
+                    )}
                     <Button asChild variant="secondary" size="sm" className="rounded-full">
                       <a href={youtubeSearchUrl(ex)} target="_blank" rel="noopener noreferrer" aria-label={`Ver execução de ${ex.name} no YouTube (abre em nova aba)`}>
                         <Youtube />YouTube
@@ -413,8 +550,18 @@ function TreinosPage() {
                   <BodyMap exIds={[ex.id]} size="sm" className="shrink-0" />
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  <b className="font-display text-foreground">{it.sets}x{it.reps}</b>{repsCount(it.reps) ? "" : " por série"} · descanso <b className="text-foreground">{formatRest(settings.restSeconds)}</b> entre séries
+                  <b className="font-display text-foreground">{it.sets}x{it.reps}</b>{repsCount(it.reps) ? "" : " por série"} · descanso <b className="text-foreground">{formatRest(settings.restSeconds)}</b> {combo ? "no fim da rodada" : "entre séries"}
                 </p>
+                {combo && (
+                  <div className="mt-2 flex items-center gap-3 rounded-2xl bg-accent/10 px-3 py-2">
+                    <Link2 className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+                    <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                      <b className="text-foreground">{combo.label}</b> com {combo.members.filter((j) => j !== i).map((j) => byId(day.items[j]!.exId).name).join(" e ")}: um depois do outro, sem descanso.
+                    </p>
+                    <button type="button" onClick={() => splitCombo(combo.id)} className="-my-2 min-h-11 shrink-0 px-1 text-xs font-semibold text-primary underline-offset-4 hover:underline">Separar</button>
+                  </div>
+                )}
+
                 <SetTable sets={it.sets} reps={it.reps} done={tracksSets ? setsDone : 0} kgs={kgsToday} repsDone={repsToday} prevKgs={prev?.setKgs} prevReps={prev?.setReps} prevPlanReps={prev?.reps} />
                 {tracksSets && (
                   <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -493,7 +640,20 @@ function TreinosPage() {
                     )}
                   </div>
                   {showAdvice && <p className="mt-1.5 text-xs text-muted-foreground">{advice.reason}</p>}
-                  {tracksSets && setsLeft > 0 && (
+                  {tracksSets && setsLeft > 0 && holdTime != null && suggestedHold != null && session?.rest?.item !== i && (
+                    <HoldTimer
+                      key={setsDone}
+                      label={`Série ${setsDone + 1} de ${it.sets}`}
+                      seconds={holdTime}
+                      suggested={suggestedHold}
+                      endsAt={holding?.endsAt ?? null}
+                      onChange={(seconds) => setHoldTimes((times) => ({ ...times, [ex.id]: seconds }))}
+                      onStart={() => { unlockAudio(); setHold({ item: i, endsAt: Date.now() + holdTime * 1000 }); }}
+                      onCancel={() => setHold(null)}
+                      onFinish={() => { setHold(null); onComplete(1); }}
+                    />
+                  )}
+                  {tracksSets && setsLeft > 0 && !holding && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button type="button" onClick={() => onComplete(1)} className="h-auto min-h-9 flex-1 basis-40 whitespace-normal rounded-full py-2">
                         <Check />Concluir série {setsDone + 1}
@@ -527,6 +687,16 @@ function TreinosPage() {
             </article>
           );
         })}
+        <button type="button" onClick={() => setAdding({ d: active, group: null })}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
+          <Plus className="h-5 w-5" />Adicionar exercício
+        </button>
+        {!plan.circuit && day.items.length > 1 && (
+          <button type="button" onClick={() => setCombining({ d: active, picked: [] })}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
+            <Link2 className="h-5 w-5" />Combinar exercícios (bi-set)
+          </button>
+        )}
       </div>
 
       {(session || active === nextIdx) && (<>
@@ -573,7 +743,7 @@ function TreinosPage() {
           </ul>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="rounded-full">Voltar ao treino</AlertDialogCancel>
-            <AlertDialogAction onClick={finishWorkout} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Concluir mesmo assim</AlertDialogAction>
+            <AlertDialogAction onClick={() => finishWorkout()} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Concluir mesmo assim</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -617,6 +787,103 @@ function TreinosPage() {
               />
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!combining} onOpenChange={(o) => !o && setCombining(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          {combining && (() => {
+            const planDay = plan.days[combining.d];
+            if (!planDay) return null;
+            const count = combining.picked.length;
+            const toggle = (j: number) => setCombining({ ...combining, picked: combining.picked.includes(j) ? combining.picked.filter((k) => k !== j) : [...combining.picked, j] });
+            return (
+              <>
+                <DialogHeader><DialogTitle className="font-display text-xl">Combinar exercícios</DialogTitle></DialogHeader>
+                <p className="text-sm text-muted-foreground">Marque dois ou mais. Eles são feitos um depois do outro, sem descanso, e o descanso vem só no fim da rodada.</p>
+                <div className="space-y-2">
+                  {planDay.items.map((it, j) => {
+                    const a = byId(it.exId);
+                    const on = combining.picked.includes(j);
+                    const current = comboOf(planDay.items, j);
+                    return (
+                      <button key={j} type="button" role="checkbox" aria-checked={on} onClick={() => toggle(j)}
+                        className={`flex w-full items-center gap-3 rounded-2xl border-2 p-2 text-left ${on ? "border-accent bg-accent/10" : "border-border"}`}>
+                        <img src={photosFor(a.id)?.[1] ?? a.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-bold leading-tight">{a.name}</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {it.sets}x{it.reps}{current && <span className="font-semibold text-accent"> · já em {current.label}</span>}
+                          </span>
+                        </span>
+                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${on ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}>
+                          {on && <Check className="h-4 w-4" />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Button type="button" disabled={count < 2} onClick={combine} className="min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+                  <Link2 />{count < 2 ? "Marque pelo menos dois" : `Combinar ${count} em ${comboName(count).toLowerCase()}`}
+                </Button>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!adding} onOpenChange={(o) => !o && setAdding(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          {adding && (() => {
+            const planDay = plan.days[adding.d];
+            if (!planDay) return null;
+            const group = adding.group;
+            if (!group) {
+              return (
+                <>
+                  <DialogHeader><DialogTitle className="font-display text-xl">Adicionar exercício</DialogTitle></DialogHeader>
+                  <p className="text-sm text-muted-foreground">Escolha o músculo. Séries, repetições e descanso seguem o método do plano ({plan.method}).</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(Object.keys(GROUP_LABEL) as Group[]).map((g) => (
+                      <button key={g} type="button" onClick={() => setAdding({ ...adding, group: g })}
+                        className="flex min-h-14 items-center justify-between gap-2 rounded-2xl border border-border px-3 py-2 text-left hover:border-accent">
+                        <span className="min-w-0 text-sm font-bold leading-tight">{GROUP_LABEL[g]}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              );
+            }
+            const inDay = new Set(planDay.items.map((it) => it.exId));
+            const options = EXERCISES.filter((e) => e.group === group).sort((a, b) => Number(b.compound) - Number(a.compound) || a.name.localeCompare(b.name, "pt-BR"));
+            return (
+              <>
+                <DialogHeader><DialogTitle className="font-display text-xl">{GROUP_LABEL[group]}</DialogTitle></DialogHeader>
+                <button type="button" onClick={() => setAdding({ ...adding, group: null })} className="-my-1 inline-flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-primary">
+                  <ArrowLeft className="h-4 w-4" />Outro músculo
+                </button>
+                <p className="text-sm text-muted-foreground">Entra no fim do {planDay.name}, com as séries e repetições que o método define para cada exercício.</p>
+                <div className="space-y-2">
+                  {options.map((a) => {
+                    const rx = prescribeFor(profile, a, plan);
+                    return (
+                      <button key={a.id} type="button" onClick={() => addExtra(a.id)} disabled={inDay.has(a.id)}
+                        className="flex w-full items-center gap-3 rounded-2xl border border-border p-2 text-left hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border">
+                        <img src={photosFor(a.id)?.[1] ?? a.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold leading-tight">{a.name}</div>
+                          <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">{a.equipment}</span>
+                          {inDay.has(a.id) && <span className="ml-2 text-xs text-muted-foreground">já está neste treino</span>}
+                        </div>
+                        <span className="shrink-0 font-display text-sm font-extrabold tabular-nums">{rx.sets}x{rx.reps}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -810,6 +1077,76 @@ function RestCountdown({ endsAt, next, onAdd, onSkip, onDone }: { endsAt: number
         </div>
       </div>
       <div className="mt-2 text-xs opacity-75">Próxima: {next}</div>
+    </div>
+  );
+}
+
+const HOLD_STEP = 5;
+const HOLD_MAX = 600;
+
+/**
+ * Countdown for a time-based set (plank). It opens on the suggested time, which can be changed before starting;
+ * the set is marked done when it reaches zero, or earlier with "Concluir série".
+ */
+function HoldTimer({ label, seconds, suggested, endsAt, onChange, onStart, onCancel, onFinish }: {
+  label: string; seconds: number; suggested: number; endsAt: number | null;
+  onChange: (seconds: number) => void; onStart: () => void; onCancel: () => void; onFinish: () => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  const running = endsAt !== null;
+  const left = running ? Math.max(0, endsAt - now) : 0;
+  // The first set comes before the workout's own screen lock, and a dark screen would stop the count.
+  useWakeLock(running);
+
+  useEffect(() => {
+    if (!running) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [running]);
+
+  useEffect(() => {
+    if (!running || left > 0) return;
+    navigator.vibrate?.([300, 150, 300]);
+    beep();
+    onFinish();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running && left <= 0]);
+
+  if (running) {
+    return (
+      <div className="mt-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
+        <div className="text-xs font-bold uppercase tracking-wider text-accent">{label} · segure</div>
+        <div className="font-display text-5xl font-extrabold leading-tight tabular-nums text-accent" role="timer" aria-label="Tempo restante da série">{formatDuration(left + 999)}</div>
+        <div className="mt-2 flex gap-2">
+          <button type="button" onClick={onFinish} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent px-4 text-sm font-bold text-accent-foreground">
+            <Check className="h-4 w-4" />Concluir série
+          </button>
+          <button type="button" onClick={onCancel} className="min-h-11 rounded-full border border-primary-foreground/30 px-4 text-sm font-semibold">Cancelar</button>
+        </div>
+      </div>
+    );
+  }
+
+  const step = (delta: number) => onChange(Math.min(HOLD_MAX, Math.max(HOLD_STEP, seconds + delta)));
+  return (
+    <div className="mt-3 rounded-2xl bg-muted/60 px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cronômetro · {label}</span>
+        {seconds !== suggested && (
+          <button type="button" onClick={() => onChange(suggested)} className="-my-2 py-2 text-xs font-semibold text-primary underline-offset-4 hover:underline">Voltar a {formatDuration(suggested * 1000)}</button>
+        )}
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <button type="button" onClick={() => step(-HOLD_STEP)} disabled={seconds <= HOLD_STEP} aria-label={`Diminuir ${HOLD_STEP} segundos`}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-card disabled:opacity-40"><Minus className="h-5 w-5" /></button>
+        <div className="font-display text-4xl font-extrabold tabular-nums" aria-live="polite" aria-label={`Tempo da série: ${seconds} segundos`}>{formatDuration(seconds * 1000)}</div>
+        <button type="button" onClick={() => step(HOLD_STEP)} disabled={seconds >= HOLD_MAX} aria-label={`Aumentar ${HOLD_STEP} segundos`}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-card disabled:opacity-40"><Plus className="h-5 w-5" /></button>
+      </div>
+      <Button type="button" onClick={onStart} className="mt-3 min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+        <Play />Iniciar cronômetro
+      </Button>
     </div>
   );
 }

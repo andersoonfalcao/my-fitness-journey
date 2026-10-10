@@ -34,30 +34,41 @@ const PLANK_HOLD = "45 s";
 export const coreReps = (ex: Exercise) => (ex.pattern === "estabilizar-core" ? PLANK_HOLD : "15");
 export const PROGRESSION_NOTE = "Quando fizer todas as repetições em todas as séries, o app sugere subir a carga na vez seguinte.";
 
-const FULL_A: Template = { name: "Treino A", focus: "Corpo inteiro", slots: ["quadriceps", "peito", "costas", "ombros", "posterior", "core", "biceps"] };
-const FULL_B: Template = { name: "Treino B", focus: "Corpo inteiro", slots: ["posterior", "costas", "peito", "quadriceps", "biceps", "triceps", "core"] };
-const FULL_C: Template = { name: "Treino C", focus: "Corpo inteiro", slots: ["quadriceps", "costas", "peito", "ombros", "biceps", "core", "triceps"] };
-const UPPER: Template = { name: "Superior", focus: "Peito, costas, braços", slots: ["peito", "costas", "peito", "costas", "ombros", "biceps", "triceps"] };
+// Shorter sessions keep only the first slots (5 up to 45 min, 6 up to 60, else 7), so calves, traps and forearms sit
+// within the first five of the workout they belong to: every plan trains them, whatever the time available.
+// When a week has a single workout of a kind, that one carries two of them ("_ONLY").
+const FULL_A: Template = { name: "Treino A", focus: "Corpo inteiro e panturrilha", slots: ["quadriceps", "peito", "costas", "ombros", "panturrilha", "posterior", "core"] };
+const FULL_B: Template = { name: "Treino B", focus: "Corpo inteiro e trapézio", slots: ["posterior", "costas", "peito", "quadriceps", "trapezio", "biceps", "triceps"] };
+const FULL_C: Template = { name: "Treino C", focus: "Corpo inteiro e antebraço", slots: ["quadriceps", "costas", "peito", "ombros", "antebraco", "biceps", "core"] };
+const FULL_B_ONLY: Template = { name: "Treino B", focus: "Corpo inteiro, trapézio e antebraço", slots: ["posterior", "costas", "peito", "trapezio", "antebraco", "quadriceps", "biceps"] };
+const UPPER_1: Template = { name: "Superior 1", focus: "Peito, costas, ombros, trapézio e braços", slots: ["peito", "costas", "ombros", "trapezio", "biceps", "triceps", "peito"] };
+const UPPER_2: Template = { name: "Superior 2", focus: "Peito, costas, ombros, antebraço e braços", slots: ["peito", "costas", "ombros", "antebraco", "triceps", "biceps", "costas"] };
+const UPPER_ONLY: Template = { name: "Superior 1", focus: "Peito, costas, ombros, trapézio e antebraço", slots: ["peito", "costas", "ombros", "trapezio", "antebraco", "biceps", "triceps"] };
 const LOWER: Template = { name: "Inferior", focus: "Pernas, panturrilha e abdômen", slots: ["quadriceps", "posterior", "quadriceps", "posterior", "panturrilha", "core", "core"] };
 const PUSH: Template = { name: "Empurrar", focus: "Peito, ombros, tríceps", slots: ["peito", "peito", "ombros", "ombros", "triceps", "triceps", "peito"] };
-const PULL: Template = { name: "Puxar", focus: "Costas, trapézio e bíceps", slots: ["costas", "costas", "costas", "ombros", "biceps", "trapezio", "biceps"] };
+const PULL: Template = { name: "Puxar", focus: "Costas, trapézio, bíceps e antebraço", slots: ["costas", "costas", "biceps", "trapezio", "antebraco", "ombros", "costas"] };
 const LEGS: Template = { name: "Pernas", focus: "Quadríceps, posterior, panturrilha", slots: ["quadriceps", "posterior", "quadriceps", "posterior", "panturrilha", "core", "quadriceps"] };
 
 const SPLIT_A: Template = { name: "A · Peito e tríceps", focus: "Peito e tríceps", slots: ["peito", "peito", "peito", "triceps", "triceps", "peito", "triceps"] };
-const SPLIT_B: Template = { name: "B · Costas e bíceps", focus: "Costas e bíceps", slots: ["costas", "costas", "costas", "biceps", "biceps", "costas", "biceps"] };
-const SPLIT_C: Template = { name: "C · Pernas", focus: "Quadríceps, posterior e glúteos", slots: ["quadriceps", "posterior", "quadriceps", "posterior", "panturrilha", "quadriceps", "core"] };
+const SPLIT_B: Template = { name: "B · Costas e bíceps", focus: "Costas, bíceps e antebraço", slots: ["costas", "costas", "biceps", "antebraco", "costas", "biceps", "costas"] };
+// With three workouts there is no shoulders day, so traps go with the back.
+const SPLIT_B_TRAPS: Template = { name: "B · Costas e bíceps", focus: "Costas, trapézio, bíceps e antebraço", slots: ["costas", "costas", "biceps", "trapezio", "antebraco", "costas", "biceps"] };
+const SPLIT_C: Template = { name: "C · Pernas", focus: "Quadríceps, posterior, glúteos e panturrilha", slots: ["quadriceps", "posterior", "quadriceps", "posterior", "panturrilha", "quadriceps", "core"] };
 const SPLIT_D: Template = { name: "D · Ombros e abdômen", focus: "Ombros, trapézio e abdômen", slots: ["ombros", "ombros", "ombros", "trapezio", "core", "core", "ombros"] };
-const SPLIT_E: Template = { name: "E · Posterior e braços", focus: "Posterior, glúteos, braços e antebraço", slots: ["posterior", "posterior", "biceps", "triceps", "panturrilha", "antebraco", "posterior"] };
+const SPLIT_E: Template = { name: "E · Posterior e braços", focus: "Posterior, glúteos, braços e antebraço", slots: ["posterior", "posterior", "biceps", "triceps", "antebraco", "panturrilha", "posterior"] };
 
-const STRENGTH_A: Template = { name: "Força A", focus: "Agachamento, supino e remada", slots: [{ ex: "agachamento" }, { ex: "supino-reto" }, { ex: "remada-curvada" }, "posterior", "core"] };
-const STRENGTH_B: Template = { name: "Força B", focus: "Agachamento, desenvolvimento e levantamento terra", slots: [{ ex: "agachamento" }, { ex: "desenvolvimento-barra" }, { ex: "terra-convencional" }, "costas", "core"] };
-const STRENGTH_C: Template = { name: "Força C", focus: "Leg press, supino e puxada", slots: [{ ex: "leg-press" }, { ex: "supino-reto" }, { ex: "puxada" }, "triceps", "core"] };
-const STRENGTH_D: Template = { name: "Força D", focus: "Agachamento, desenvolvimento e remada", slots: [{ ex: "agachamento" }, { ex: "desenvolvimento-barra" }, { ex: "remada-baixa" }, "biceps", "core"] };
+const STRENGTH_A: Template = { name: "Força A", focus: "Agachamento, supino e remada", slots: [{ ex: "agachamento" }, { ex: "supino-reto" }, { ex: "remada-curvada" }, "posterior", "panturrilha", "core"] };
+const STRENGTH_B: Template = { name: "Força B", focus: "Agachamento, desenvolvimento e levantamento terra", slots: [{ ex: "agachamento" }, { ex: "desenvolvimento-barra" }, { ex: "terra-convencional" }, "trapezio", "core", "costas"] };
+const STRENGTH_C: Template = { name: "Força C", focus: "Leg press, supino e puxada", slots: [{ ex: "leg-press" }, { ex: "supino-reto" }, { ex: "puxada" }, "triceps", "antebraco", "core"] };
+const STRENGTH_D: Template = { name: "Força D", focus: "Agachamento, desenvolvimento e remada", slots: [{ ex: "agachamento" }, { ex: "desenvolvimento-barra" }, { ex: "remada-baixa" }, "biceps", "core", "panturrilha"] };
+// With two workouts a week the forearms go in the second one, in place of the abs it would lose anyway at five exercises.
+const STRENGTH_B_ONLY: Template = { ...STRENGTH_B, slots: [{ ex: "agachamento" }, { ex: "desenvolvimento-barra" }, { ex: "terra-convencional" }, "trapezio", "antebraco", "core"] };
 
 // Strength moves alternate with conditioning ones (swing, escalador, corda naval…) to keep the heart rate up.
-const CIRCUIT_A: Template = { name: "Circuito A", focus: "Corpo inteiro com condicionamento", slots: ["quadriceps", "peito", "cardio", "costas", "posterior", "cardio", "core"] };
-const CIRCUIT_B: Template = { name: "Circuito B", focus: "Corpo inteiro com condicionamento", slots: ["posterior", "costas", "cardio", "peito", "quadriceps", "cardio", "core"] };
-const CIRCUIT_C: Template = { name: "Circuito C", focus: "Corpo inteiro com condicionamento", slots: ["quadriceps", "costas", "cardio", "ombros", "posterior", "cardio", "core"] };
+const CIRCUIT_A: Template = { name: "Circuito A", focus: "Corpo inteiro com condicionamento", slots: ["quadriceps", "peito", "cardio", "costas", "panturrilha", "cardio", "core"] };
+const CIRCUIT_B: Template = { name: "Circuito B", focus: "Corpo inteiro com condicionamento", slots: ["posterior", "costas", "cardio", "peito", "trapezio", "cardio", "quadriceps"] };
+const CIRCUIT_C: Template = { name: "Circuito C", focus: "Corpo inteiro com condicionamento", slots: ["quadriceps", "costas", "cardio", "ombros", "antebraco", "cardio", "core"] };
+const CIRCUIT_B_ONLY: Template = { name: "Circuito B", focus: "Corpo inteiro com condicionamento", slots: ["posterior", "peito", "cardio", "trapezio", "antebraco", "cardio", "costas"] };
 
 const renamed = (t: Template, suffix: string): Template => ({ ...t, name: `${t.name} ${suffix}` });
 /** Repeats a base sequence to fill the week; repeats get a number so every workout keeps a unique name. */
@@ -68,12 +79,18 @@ function cycle(base: Template[], days: number) {
 /** Conditioning moves are done for time (40 s of effort), never counted in reps. */
 const CARDIO = { sets: 3, reps: "40 s", rest: 30 };
 
+/** Calves and forearms are small, endurance-heavy muscles: higher reps (or a timed carry) whatever the goal or method. */
+function smallMuscle(ex: Exercise): Omit<PlanItem, "exId"> | null {
+  if (ex.group !== "panturrilha" && ex.group !== "antebraco") return null;
+  return ex.pattern === "carregar" ? { sets: 3, reps: "40 s", rest: 60 } : { sets: 3, reps: "15", rest: 45 };
+}
+
 /** The hypertrophy/fat-loss prescription the app has always used, by goal. */
 function byGoal(p: Profile, ex: Exercise): Omit<PlanItem, "exId"> {
   if (ex.group === "core") return { sets: 3, reps: coreReps(ex), rest: 45 };
   if (ex.group === "cardio") return CARDIO;
-  // Calves and forearms are small, endurance-heavy muscles: higher reps whatever the goal.
-  if (ex.group === "panturrilha" || ex.group === "antebraco") return ex.pattern === "carregar" ? { sets: 3, reps: "40 s", rest: 60 } : { sets: 3, reps: "15", rest: 45 };
+  const small = smallMuscle(ex);
+  if (small) return small;
   const beginner = p.level === "iniciante";
   switch (p.focus) {
     case "forca":
@@ -94,7 +111,7 @@ export const METHODS: Record<MethodId, Method> = {
     description: "Corpo inteiro em todo treino. Cada músculo é trabalhado várias vezes na semana com pouco volume por sessão.",
     minDays: 2,
     maxDays: 6,
-    templates: (days) => cycle(days <= 2 ? [FULL_A, FULL_B] : [FULL_A, FULL_B, FULL_C], days),
+    templates: (days) => cycle(days <= 2 ? [FULL_A, FULL_B_ONLY] : [FULL_A, FULL_B, FULL_C], days),
     prescribe: (p, ex) => byGoal(p, ex),
     note: "Ideal para quem está começando ou treina poucas vezes na semana.",
   },
@@ -104,14 +121,14 @@ export const METHODS: Record<MethodId, Method> = {
     description: "Alterna parte de cima e pernas. Cada músculo treina 2x por semana com mais volume que o full body.",
     minDays: 2,
     maxDays: 6,
-    templates: (days) => cycle([{ ...UPPER, name: "Superior 1" }, { ...LOWER, name: "Inferior 1" }, { ...UPPER, name: "Superior 2" }, { ...LOWER, name: "Inferior 2" }], days),
+    templates: (days) => cycle([days <= 2 ? UPPER_ONLY : UPPER_1, { ...LOWER, name: "Inferior 1" }, UPPER_2, { ...LOWER, name: "Inferior 2" }], days),
     prescribe: (p, ex) => byGoal(p, ex),
     note: "Bom equilíbrio entre frequência e volume para 4 treinos por semana.",
   },
   ppl: {
     id: "ppl",
     name: "Push / Pull / Legs",
-    description: "Empurrar (peito, ombro, tríceps), puxar (costas, bíceps) e pernas. Com 6 dias, cada um se repete 2x.",
+    description: "Empurrar (peito, ombro, tríceps), puxar (costas, trapézio, bíceps, antebraço) e pernas com panturrilha. Com 6 dias, cada um se repete 2x.",
     minDays: 3,
     maxDays: 6,
     templates: (days) => cycle([PUSH, PULL, LEGS], days),
@@ -124,7 +141,7 @@ export const METHODS: Record<MethodId, Method> = {
     description: "Cada treino foca em um ou dois grupos com bastante volume: A peito e tríceps, B costas e bíceps, C pernas…",
     minDays: 3,
     maxDays: 6,
-    templates: (days) => cycle(days === 3 ? [SPLIT_A, SPLIT_B, SPLIT_C] : days === 4 ? [SPLIT_A, SPLIT_B, SPLIT_C, SPLIT_D] : [SPLIT_A, SPLIT_B, SPLIT_C, SPLIT_D, SPLIT_E], days),
+    templates: (days) => cycle(days === 3 ? [SPLIT_A, SPLIT_B_TRAPS, SPLIT_C] : days === 4 ? [SPLIT_A, SPLIT_B, SPLIT_C, SPLIT_D] : [SPLIT_A, SPLIT_B, SPLIT_C, SPLIT_D, SPLIT_E], days),
     prescribe: (p, ex) => {
       const base = byGoal(p, ex);
       // More sets per exercise make up for training each muscle once a week.
@@ -138,11 +155,11 @@ export const METHODS: Record<MethodId, Method> = {
     description: "Poucos exercícios básicos e pesados (agachamento, supino, terra, desenvolvimento, remada), sempre os mesmos, subindo a carga.",
     minDays: 2,
     maxDays: 6,
-    templates: (days) => cycle(days <= 2 ? [STRENGTH_A, STRENGTH_B] : days === 3 ? [STRENGTH_A, STRENGTH_B, STRENGTH_C] : [STRENGTH_A, STRENGTH_B, STRENGTH_C, STRENGTH_D], days),
+    templates: (days) => cycle(days <= 2 ? [STRENGTH_A, STRENGTH_B_ONLY] : days === 3 ? [STRENGTH_A, STRENGTH_B, STRENGTH_C] : [STRENGTH_A, STRENGTH_B, STRENGTH_C, STRENGTH_D], days),
     prescribe: (p, ex, main) => {
       if (ex.group === "core") return { sets: 3, reps: coreReps(ex), rest: 45 };
       if (main) return { sets: p.level === "iniciante" ? 3 : 5, reps: "5", rest: 180 };
-      return { sets: 3, reps: "8", rest: 90 };
+      return smallMuscle(ex) ?? { sets: 3, reps: "8", rest: 90 };
     },
     note: "Progressão linear: os levantamentos principais se repetem para a carga subir toda semana.",
   },
@@ -152,8 +169,8 @@ export const METHODS: Record<MethodId, Method> = {
     description: "Uma série de cada exercício em sequência, quase sem pausa, e descanso só no fim da volta. Gasta mais energia por minuto.",
     minDays: 2,
     maxDays: 6,
-    templates: (days) => cycle(days <= 2 ? [CIRCUIT_A, CIRCUIT_B] : [CIRCUIT_A, CIRCUIT_B, CIRCUIT_C], days),
-    prescribe: (_p, ex) => (ex.group === "core" ? { sets: 3, reps: coreReps(ex), rest: 30 } : ex.group === "cardio" ? CARDIO : { sets: 3, reps: ex.compound ? "12" : "15", rest: 30 }),
+    templates: (days) => cycle(days <= 2 ? [CIRCUIT_A, CIRCUIT_B_ONLY] : [CIRCUIT_A, CIRCUIT_B, CIRCUIT_C], days),
+    prescribe: (_p, ex) => (ex.group === "core" ? { sets: 3, reps: coreReps(ex), rest: 30 } : ex.group === "cardio" ? CARDIO : { ...(smallMuscle(ex) ?? { sets: 3, reps: ex.compound ? "12" : "15" }), rest: 30 }),
     note: "Faça a volta inteira (uma série de cada exercício) e descanse no fim; repita as voltas.",
     circuit: true,
   },
@@ -184,6 +201,42 @@ export function recommendMethod(p: Pick<Profile, "focus" | "level" | "days">): {
 
 /** Days a method can generate; outside its range it uses the nearest. */
 const daysFor = (m: Method, days: number) => Math.min(m.maxDays, Math.max(m.minDays, days));
+
+const SMALL_MUSCLES: Group[] = ["panturrilha", "trapezio", "antebraco"];
+
+/**
+ * A plan made before calves, traps and forearms entered the split, brought up to date without generating it again
+ * (the person's swaps and added exercises stay): each workout gets, at the end, the small muscles its kind of
+ * workout now has. Workouts are matched by name, since older plans don't record their method. Returns the same
+ * plan when nothing is missing.
+ */
+export function withSmallMuscles(p: Profile, plan: Plan): Plan {
+  const m = METHODS[plan.methodId ?? "full-body"];
+  const known = METHOD_LIST.flatMap((method) => [2, 3, 4, 5, 6].flatMap((days) => (methodFits(method, days) ? method.templates(days) : [])));
+  const inPlan = (g: Group) => plan.days.some((d) => d.items.some((it) => byId(it.exId).group === g));
+  const missing = SMALL_MUSCLES.filter((g) => !inPlan(g));
+  if (!missing.length) return plan;
+  const given: Partial<Record<Group, number>> = {};
+  let added = false;
+  const days = plan.days.map((d) => {
+    // "Puxar 2" is the second "Puxar" of the week; with several templates of one name, the one of this plan's size wins.
+    const base = d.name.replace(/ \d+$/, "");
+    const template = m.templates(daysFor(m, plan.days.length)).find((t) => t.name === d.name) ?? known.find((t) => t.name === d.name) ?? known.find((t) => t.name === base);
+    const wanted = missing.filter((g) => template?.slots.includes(g));
+    if (!wanted.length) return d;
+    const items = [...d.items];
+    for (const g of wanted) {
+      const options = EXERCISES.filter((e) => e.group === g && !!photosFor(e.id) && !items.some((it) => it.exId === e.id)).sort((a, b) => Number(b.compound) - Number(a.compound));
+      const ex = options[(given[g] ?? 0) % Math.max(1, options.length)];
+      if (!ex) continue;
+      given[g] = (given[g] ?? 0) + 1;
+      items.push({ exId: ex.id, ...m.prescribe(p, ex, false), extra: true });
+      added = true;
+    }
+    return { ...d, items };
+  });
+  return added ? { ...plan, days } : plan;
+}
 
 export function generatePlan(p: Profile, opts: { method?: MethodId | undefined; variation?: number | undefined } = {}): Plan {
   const methodId = opts.method ?? p.method ?? recommendMethod(p).id;

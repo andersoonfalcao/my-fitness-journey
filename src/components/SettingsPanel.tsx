@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { CustomReminders } from "@/components/CustomReminders";
-import { deviceId, disablePush, enablePush, pushSupported, sendTestReminder, useSettings, type Settings } from "@/lib/push";
+import { CLOSED_TEST_SECONDS, disablePush, enablePush, sendClosedAppTest, sendTestReminder, usePushState, useSettings, type Settings } from "@/lib/push";
 
 const RESTS = [30, 45, 60, 75, 90, 120, 150, 180];
 const restLabel = (s: number) => (s < 60 ? `${s} segundos` : s % 60 === 0 ? `${s / 60} min` : `${Math.floor(s / 60)} min ${s % 60}s`);
@@ -12,7 +12,9 @@ const restLabel = (s: number) => (s < 60 ? `${s} segundos` : s % 60 === 0 ? `${s
 /** Configurações (gear in the header): rest between sets and the notifications of this device. */
 export function SettingsPanel() {
   const [settings, update] = useSettings();
-  const [subscribed, setSubscribed] = useState(() => typeof window !== "undefined" && !!deviceId() && pushSupported() && Notification.permission === "granted");
+  // "broken": turned on here before, but the phone no longer has the subscription (nothing arrives until reactivated).
+  const state = usePushState();
+  const subscribed = state === "on";
   const [busy, setBusy] = useState(false);
 
   const run = async (task: () => Promise<void>) => {
@@ -51,26 +53,40 @@ export function SettingsPanel() {
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-bold">Notificações</h3>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${subscribed ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
-                {subscribed ? "Ativadas" : "Desativadas"}
+                {subscribed ? "Ativadas" : state === "broken" ? "Pararam" : state === "blocked" ? "Bloqueadas" : "Desativadas"}
               </span>
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {subscribed
-                ? "Neste aparelho, o fim do descanso avisa mesmo com a tela desligada."
+                ? "Neste aparelho, o fim do descanso e os lembretes chegam mesmo com o app fechado ou a tela desligada."
+                : state === "broken"
+                ? "Este aparelho deixou de receber os avisos. Reative para voltarem a chegar com o app fechado."
+                : state === "blocked"
+                ? "Estão bloqueadas nos ajustes do aparelho (Notificações → forma). Libere lá e volte aqui."
                 : "Avisam o fim do descanso com a tela desligada e trazem o lembrete do dia. Valem só para este aparelho."}
             </p>
           </div>
         </div>
         {subscribed ? (
           <Button type="button" variant="secondary" disabled={busy} className="min-h-11 w-full rounded-full"
-            onClick={() => run(async () => { await disablePush(); setSubscribed(false); toast.success("Notificações desativadas neste aparelho."); })}>
+            onClick={() => run(async () => { await disablePush(); toast.success("Notificações desativadas neste aparelho."); })}>
             {busy ? <Loader2 className="animate-spin" /> : <BellOff />}Desativar notificações
           </Button>
         ) : (
-          <Button type="button" disabled={busy} className="min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={() => run(async () => { await enablePush(settings); setSubscribed(true); toast.success("Notificações ativadas neste aparelho."); })}>
-            {busy ? <Loader2 className="animate-spin" /> : <Bell />}Ativar notificações
+          <Button type="button" disabled={busy || state === "blocked"} className="min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90"
+            onClick={() => run(async () => { await enablePush(settings); toast.success("Notificações ativadas neste aparelho."); })}>
+            {busy ? <Loader2 className="animate-spin" /> : <Bell />}{state === "broken" ? "Reativar notificações" : "Ativar notificações"}
           </Button>
+        )}
+
+        {subscribed && (
+          <div className="rounded-2xl bg-muted/60 px-4 py-3">
+            <Button type="button" variant="secondary" disabled={busy} className="min-h-11 w-full rounded-full"
+              onClick={() => run(async () => { await sendClosedAppTest(); toast.success(`Saia do app agora: o aviso chega em ${CLOSED_TEST_SECONDS} segundos.`, { duration: 8000 }); })}>
+              <Send />Testar com o app fechado
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">Toque e volte para a tela de início. Se o aviso não chegar, desative e ative as notificações aqui.</p>
+          </div>
         )}
 
         <div className="divide-y divide-border rounded-2xl bg-muted/60">

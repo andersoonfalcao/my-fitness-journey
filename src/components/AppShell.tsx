@@ -3,6 +3,7 @@ import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sun, Use
 import { useTheme } from "@/lib/theme";
 import { useEffect, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
+import { PushNotice } from "@/components/PushNotice";
 
 /** Leaves the calendar back to the screen it was opened from (or Hoje when opened directly). */
 export function useCloseCalendar() {
@@ -19,10 +20,15 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  // A device with notifications on refreshes its reminder settings and sign-in at the server (once a day or on change).
+  // A device with notifications on is kept subscribed and its reminder settings and sign-in fresh at the server.
   const [settings, , settingsReady] = useSettings();
   useEffect(() => {
-    if (settingsReady) void syncPush(settings);
+    if (!settingsReady) return;
+    void syncPush(settings);
+    // An installed app stays open for days: coming back to it is the moment to check the subscription again.
+    const onVisible = () => document.visibilityState === "visible" && void syncPush(settings);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [settingsReady, settings.reminder, settings.reminderTime, JSON.stringify(settings.custom), settings.weeklySummary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Links like /alimentacao#agua: the section only exists once the account data loads, so wait for it a little.
@@ -83,7 +89,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6">
+        {pathname !== "/configuracoes" && <PushNotice />}
+        {children}
+      </main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card md:hidden">
         <div className="mx-auto flex max-w-md justify-around py-2">
           {NAV.map((n) => (

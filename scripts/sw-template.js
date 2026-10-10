@@ -47,7 +47,8 @@ self.addEventListener("activate", (event) => {
 async function page(request) {
   const cache = await caches.open(CACHE);
   const fresh = fetch(request).then(async (response) => {
-    if (response.ok) await cache.put(SHELL, response.clone());
+    // A failed save (another write of the same file) must not fail the page itself.
+    if (response.ok) await cache.put(SHELL, response.clone()).catch(() => undefined);
     return response;
   });
   const timeout = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS));
