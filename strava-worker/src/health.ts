@@ -122,8 +122,7 @@ export function restingHrOf(values: unknown[]) {
 
 /**
  * Day total of a quantity (steps, active energy) recorded by more than one source, e.g. the iPhone and the band counting
- * the same walk. Each hour counts once: from the band when it recorded anything in it, otherwise from whatever did, so
- * time without the band is kept too. Without sources every sample is treated as one source (a plain sum).
+ * the same walk: only the band's samples count. Without sources every sample is treated as one source (a plain sum).
  */
 export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], sources: unknown[], tz: string, today: string) {
   const HOUR = 3600_000;
@@ -147,14 +146,14 @@ export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], s
     }
   });
   if (!hours.size) return null;
-  // The band is the reference (its total is the one Mi Fitness shows): the main source is the one, other than the
-  // iPhone itself, with records in the most hours. The others only fill the hours it left empty.
+  // The band is worn all day and the iPhone isn't, so the day is the band's alone, exactly the total Mi Fitness shows:
+  // the source, other than the iPhone itself, with records in the most hours. Only a day with no band data at all
+  // falls back to the largest source of each hour.
   const hoursOf = (s: string) => [...hours.values()].filter((bySource) => bySource.has(s)).length;
-  const candidates = [...seen].filter((s) => !/iphone/i.test(s));
-  const main = (candidates.length ? candidates : [...seen]).sort((a, b) => hoursOf(b) - hoursOf(a))[0] ?? "";
+  const band = [...seen].filter((s) => !/iphone/i.test(s)).sort((a, b) => hoursOf(b) - hoursOf(a))[0];
   let total = 0;
-  for (const bySource of hours.values()) total += bySource.get(main) ?? Math.max(...bySource.values());
-  return { total, sources: [...seen] };
+  for (const bySource of hours.values()) total += band ? (bySource.get(band) ?? 0) : Math.max(...bySource.values());
+  return { total, sources: band ? [band] : [...seen] };
 }
 
 const text = (body: string, status: number) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
