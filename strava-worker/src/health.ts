@@ -126,16 +126,19 @@ export function restingHrOf(values: unknown[]) {
  * Day total of a quantity (steps, active energy) recorded by more than one source, e.g. the iPhone and the band counting
  * the same walk: only the band's samples count. Without sources every sample is treated as one source (a plain sum).
  */
-export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], sources: unknown[], tz: string, today: string) {
+export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], sources: unknown[], tz: string, today: string, fractional = false) {
   const HOUR = 3600_000;
   const hours = new Map<number, Map<string, number>>();
   const seen = new Set<string>();
+  const perSource = new Map<string, number>();
   values.forEach((v, i) => {
-    const value = parseNumber(v);
+    // Raw fractions come with a decimal point ("0.223" km), which parseNumber would read as the thousands in "8.432".
+    const value = fractional && typeof v === "string" && !v.includes(",") ? Number(v.trim()) : parseNumber(v);
     const start = parseDate(starts[i], tz);
     if (!(value > 0) || Number.isNaN(start) || localDate(start, tz) !== today) return;
     const source = sources.length === values.length ? String(sources[i] ?? "").trim() : "";
     if (source) seen.add(source);
+    perSource.set(source, (perSource.get(source) ?? 0) + value);
     const parsedEnd = parseDate(ends[i], tz);
     const end = parsedEnd > start && parsedEnd - start < 24 * HOUR ? parsedEnd : start;
     // A sample that crosses hours is split by the time spent in each.
@@ -155,7 +158,7 @@ export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], s
   const band = [...seen].filter((s) => !/iphone/i.test(s)).sort((a, b) => hoursOf(b) - hoursOf(a))[0];
   let total = 0;
   for (const bySource of hours.values()) total += band ? (bySource.get(band) ?? 0) : Math.max(...bySource.values());
-  return { total, sources: band ? [band] : [...seen] };
+  return { total, sources: band ? [band] : [...seen], perSource };
 }
 
 const text = (body: string, status: number) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
@@ -195,12 +198,23 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   const kcalSamples = totalOf(list(body.kcalValues), list(body.kcalStarts), list(body.kcalEnds), list(body.kcalSources), tz, today);
   const kcal = kcalSamples?.total ?? parseNumber(body.activeKcal);
   if (kcal >= 0 && kcal < 20_000) day.activeKcal = Math.round(kcal);
-  const distSamples = totalOf(list(body.distValues), list(body.distStarts), list(body.distEnds), list(body.distSources), tz, today);
+  const distSamples = totalOf(list(body.distValues), list(body.distStarts), list(body.distEnds), list(body.distSources), tz, today, true);
+  let distNote = "";
   if (distSamples) {
+    // Mi Fitness sends steps to Health but not distance, which then comes from the iPhone alone and misses the steps
+    // taken without it. The iPhone's own stride (its distance over its steps) is applied to the day's steps instead.
+    const source = distSamples.sources[0] ?? "";
+    const ownSteps = stepSamples?.perSource.get(source) ?? 0;
+    const sameSource = !stepSamples || stepSamples.sources.includes(source);
     // Health gives the distance in km or in metres depending on the iPhone's settings; a stride (about 0,7 m) tells which.
-    const inMetres = day.steps ? distSamples.total / day.steps > 0.1 : distSamples.total > 100;
-    const metres = Math.round(distSamples.total * (inMetres ? 1 : 1000));
-    if (metres < 300_000) day.distanceM = metres;
+    const stepsForUnit = sameSource ? day.steps : ownSteps;
+    const inMetres = stepsForUnit ? distSamples.total / stepsForUnit > 0.1 : distSamples.total > 100;
+    let metres = distSamples.total * (inMetres ? 1 : 1000);
+    if (!sameSource && day.steps !== undefined) {
+      if (ownSteps >= 300) { metres *= day.steps / ownSteps; distNote = " (estimada pela sua passada)"; }
+      else metres = NaN;
+    }
+    if (metres >= 0 && metres < 300_000) day.distanceM = Math.round(metres);
   }
   const sources = [...new Set([...(stepSamples?.sources ?? []), ...(kcalSamples?.sources ?? []), ...(distSamples?.sources ?? [])])];
   const resting = restingHrOf(list(body.heartRates));
@@ -231,7 +245,7 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   const parts = [
     day.sleepMin !== undefined && `sono ${Math.floor(day.sleepMin / 60)}h${String(day.sleepMin % 60).padStart(2, "0")}`,
     day.steps !== undefined && `${fmt(day.steps)} passos`,
-    day.distanceM !== undefined && `${fmt(day.distanceM / 1000, 2)} km`,
+    day.distanceM !== undefined && `${fmt(day.distanceM / 1000, 2)} km${distNote}`,
     day.activeKcal !== undefined && `${fmt(day.activeKcal)} kcal ativas`,
     day.restingHr !== undefined && `repouso ${day.restingHr} bpm`,
     day.vo2max !== undefined && `VO2 máx ${fmt(day.vo2max, 1)}`,
