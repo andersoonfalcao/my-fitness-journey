@@ -27,7 +27,7 @@ import {
   type WeightEntry,
   type WorkoutRecord,
 } from "@/lib/store";
-import { healthKey, kmLabel, sleepLabel, type HealthMonth } from "@/lib/health";
+import { dayDistanceM, healthKey, kmLabel, sleepLabel, type HealthMonth } from "@/lib/health";
 import { lastRecordBefore, recordTotal } from "@/lib/workout-stats";
 
 export const Route = createFileRoute("/calendario")({
@@ -96,6 +96,7 @@ function CalendarPage() {
       weight: weights.find((w) => w.date === date)?.kg ?? null,
       bio: body.find((b) => b.date === date),
       health: health[date],
+      walkedM: health[date] ? dayDistanceM(health[date], date, strava) : undefined,
       closed,
     };
   };
@@ -274,7 +275,7 @@ function CalendarPage() {
             <h3 className="font-bold">Mi Band</h3>
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {sel.health.sleepMin !== undefined && <Stat label="sono" value={sleepLabel(sel.health.sleepMin)} />}
-              {sel.health.steps !== undefined && <Stat label={sel.health.distanceM !== undefined ? `passos · ${kmLabel(sel.health.distanceM)}` : "passos"} value={sel.health.steps.toLocaleString("pt-BR")} />}
+              {sel.health.steps !== undefined && <Stat label={sel.walkedM !== undefined ? `passos · ${kmLabel(sel.walkedM)}` : "passos"} value={sel.health.steps.toLocaleString("pt-BR")} />}
               {sel.health.activeKcal !== undefined && <Stat label="energia ativa" value={`${sel.health.activeKcal.toLocaleString("pt-BR")} kcal`} />}
               {sel.health.restingHr !== undefined && <Stat label="batimento em repouso" value={`${sel.health.restingHr} bpm`} />}
             </div>

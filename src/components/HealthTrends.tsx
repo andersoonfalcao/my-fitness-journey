@@ -1,6 +1,7 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useLocal } from "@/lib/store";
-import { healthKey, kmLabel, sleepLabel, type HealthMonth } from "@/lib/health";
+import { dayDistanceM, healthKey, kmLabel, sleepLabel, type HealthMonth } from "@/lib/health";
+import { stravaKey, type StravaActivity } from "@/lib/strava";
 
 const monthsBack = (n: number) => Array.from({ length: n }, (_, i) => {
   const d = new Date();
@@ -17,6 +18,10 @@ export function HealthTrends() {
   const [a] = useLocal<HealthMonth>(healthKey(m0!), {});
   const [b] = useLocal<HealthMonth>(healthKey(m1!), {});
   const [c] = useLocal<HealthMonth>(healthKey(m2!), {});
+  // The step chart covers 14 days: at most this month and the one before.
+  const [s1] = useLocal<StravaActivity[]>(stravaKey(m1!), []);
+  const [s2] = useLocal<StravaActivity[]>(stravaKey(m2!), []);
+  const strava = [...s1, ...s2];
   const days = Object.entries({ ...a, ...b, ...c }).sort(([x], [y]) => x.localeCompare(y));
   if (!days.length) return null;
 
@@ -24,7 +29,7 @@ export function HealthTrends() {
   const resting = days.filter(([, d]) => d.restingHr !== undefined).slice(-30).map(([date, d]) => ({ label: label(date), bpm: d.restingHr! }));
   const vo2 = days.filter(([, d]) => d.vo2max !== undefined).map(([date, d]) => ({ label: label(date), vo2: d.vo2max! }));
   const avgSleep = sleep.length ? Math.round(sleep.reduce((s, d) => s + d.min, 0) / sleep.length) : null;
-  const steps = days.filter(([, d]) => d.steps !== undefined).slice(-14).map(([date, d]) => ({ label: label(date), passos: d.steps!, m: d.distanceM }));
+  const steps = days.filter(([, d]) => d.steps !== undefined).slice(-14).map(([date, d]) => ({ label: label(date), passos: d.steps!, m: dayDistanceM(d, date, strava) }));
   const avgSteps = steps.length ? Math.round(steps.reduce((s, d) => s + d.passos, 0) / steps.length) : null;
   const walked = steps.flatMap((d) => (d.m !== undefined ? [d.m] : []));
   const avgWalked = walked.length ? Math.round(walked.reduce((s, m) => s + m, 0) / walked.length) : null;

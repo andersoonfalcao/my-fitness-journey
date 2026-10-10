@@ -9,6 +9,8 @@ export type HealthDay = {
   steps?: number; activeKcal?: number; restingHr?: number; vo2max?: number;
   /** Walking + running distance of the day, in metres. */
   distanceM?: number;
+  /** True when distanceM is steps × the band's walking stride rather than a measured distance. */
+  distanceEst?: boolean;
   /** Sleep that ended on this day: minutes asleep and the first and last moment asleep (ISO). */
   sleepMin?: number; sleepStart?: string; sleepEnd?: string;
   /** When the Shortcut last sent this day (ms). */
@@ -208,11 +210,13 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
     // Health gives the distance in km or in metres depending on the iPhone's settings; a stride (about 0,7 m) tells which.
     const inMetres = day.steps ? distSamples.total / day.steps > 0.1 : distSamples.total > 100;
     const metres = distSamples.total * (inMetres ? 1 : 1000);
-    if (metres < 300_000) day.distanceM = Math.round(metres);
+    if (metres < 300_000) { day.distanceM = Math.round(metres); day.distanceEst = false; }
   } else if (stepSource && day.steps !== undefined) {
     // Mi Fitness shows a distance but sends only the steps to Health (the distance there is the iPhone's, which
-    // misses the steps taken without it). Its own number is the steps times a fixed stride.
+    // misses the steps taken without it). Its own number is the steps times a walking stride; the app adds what a
+    // run recorded on Strava covered beyond that (distanceEst tells it this is the stride estimate).
     day.distanceM = Math.round(day.steps * BAND_STRIDE_M);
+    day.distanceEst = true;
   }
   const sources = [...new Set([...(stepSamples?.sources ?? []), ...(kcalSamples?.sources ?? []), ...(distFromSteps ? distSamples!.sources : [])])];
   const resting = restingHrOf(list(body.heartRates));

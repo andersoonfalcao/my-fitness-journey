@@ -69,11 +69,11 @@ async function accessToken(env: Env, uid: string): Promise<Stored | null> {
 type StravaActivity = {
   id: number; name: string; sport_type?: string; type?: string; start_date: string; start_date_local: string;
   distance?: number; moving_time?: number; elapsed_time?: number; total_elevation_gain?: number;
-  average_heartrate?: number; max_heartrate?: number; kilojoules?: number; calories?: number;
+  average_heartrate?: number; max_heartrate?: number; kilojoules?: number; calories?: number; average_cadence?: number;
 };
 
 type StravaDetail = StravaActivity & {
-  elapsed_time?: number; description?: string; average_speed?: number; max_speed?: number; average_cadence?: number;
+  elapsed_time?: number; description?: string; average_speed?: number; max_speed?: number;
   average_watts?: number; suffer_score?: number; pr_count?: number; achievement_count?: number; kudos_count?: number;
   device_name?: string; map?: { polyline?: string; summary_polyline?: string };
   splits_metric?: { split: number; distance: number; moving_time: number; average_speed: number; average_heartrate?: number; elevation_difference?: number }[];
@@ -135,6 +135,7 @@ export default {
           start: a.start_date,
           distanceM: Math.round(a.distance ?? 0),
           movingS: a.moving_time ?? 0,
+          cadence: a.average_cadence ?? null,
           elevationM: Math.round(a.total_elevation_gain ?? 0),
           avgHr: a.average_heartrate ? Math.round(a.average_heartrate) : null,
           maxHr: a.max_heartrate ? Math.round(a.max_heartrate) : null,

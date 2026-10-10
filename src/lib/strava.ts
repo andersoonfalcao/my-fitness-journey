@@ -13,6 +13,8 @@ export type StravaActivity = {
   start: string;
   distanceM: number;
   movingS: number;
+  /** Strava's average cadence (for runs and walks, steps per minute of one foot); missing in activities synced before 2026-10-10. */
+  cadence?: number | null;
   elevationM: number;
   avgHr: number | null;
   maxHr: number | null;

@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { BedDouble, Flame, Footprints, HeartPulse } from "lucide-react";
 import { useLocal } from "@/lib/store";
-import { clock, DEFAULT_STEPS_GOAL, healthKey, kmLabel, readiness, sleepLabel, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
+import { stravaKey, type StravaActivity } from "@/lib/strava";
+import { clock, dayDistanceM, DEFAULT_STEPS_GOAL, healthKey, kmLabel, readiness, sleepLabel, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const addDays = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return iso(d); };
@@ -17,15 +18,17 @@ export function HealthToday({ date }: { date: string }) {
   const [thisMonth] = useLocal<HealthMonth>(healthKey(date), {});
   const [prevMonth] = useLocal<HealthMonth>(healthKey(addDays(date, -14)), {});
   const [stepsGoal] = useLocal<number>(STEPS_GOAL_KEY, DEFAULT_STEPS_GOAL);
+  const [strava] = useLocal<StravaActivity[]>(stravaKey(date), []);
   const day = thisMonth[date];
   if (!day) return null;
+  const walked = dayDistanceM(day, date, strava);
   const all = { ...prevMonth, ...thisMonth };
   const before = Object.entries(all).filter(([d]) => d < date && d >= addDays(date, -14)).map(([, v]) => v);
   const ready = readiness(day, before);
 
   const tiles: [typeof BedDouble, string, string, string | null, number | null][] = [];
   if (day.sleepMin !== undefined) tiles.push([BedDouble, "Sono", sleepLabel(day.sleepMin), day.sleepStart && day.sleepEnd ? `${clock(day.sleepStart)}–${clock(day.sleepEnd)}` : null, null]);
-  if (day.steps !== undefined) tiles.push([Footprints, "Passos", day.steps.toLocaleString("pt-BR"), `${day.distanceM !== undefined ? `${kmLabel(day.distanceM)}\n` : ""}meta ${stepsGoal.toLocaleString("pt-BR")}`, Math.min(1, day.steps / stepsGoal)]);
+  if (day.steps !== undefined) tiles.push([Footprints, "Passos", day.steps.toLocaleString("pt-BR"), `${walked !== undefined ? `${kmLabel(walked)}\n` : ""}meta ${stepsGoal.toLocaleString("pt-BR")}`, Math.min(1, day.steps / stepsGoal)]);
   if (day.activeKcal !== undefined) tiles.push([Flame, "Energia ativa", `${day.activeKcal.toLocaleString("pt-BR")} kcal`, null, null]);
   if (day.restingHr !== undefined) tiles.push([HeartPulse, "Repouso", `${day.restingHr} bpm`, null, null]);
   if (!tiles.length) return null;

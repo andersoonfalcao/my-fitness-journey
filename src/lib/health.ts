@@ -1,5 +1,5 @@
 import { auth } from "./firebase";
-import { STRAVA_WORKER } from "./strava";
+import { STRAVA_WORKER, type StravaActivity } from "./strava";
 import { useLocal } from "./store";
 
 /**
@@ -11,6 +11,8 @@ export type HealthDay = {
   steps?: number; activeKcal?: number; restingHr?: number; vo2max?: number;
   /** Walking + running distance of the day, in metres. */
   distanceM?: number;
+  /** True when distanceM is steps × the band's walking stride rather than a measured distance (see dayDistanceM). */
+  distanceEst?: boolean;
   /** Sleep that ended on this day: minutes asleep, first and last moment asleep (ISO). */
   sleepMin?: number; sleepStart?: string; sleepEnd?: string;
   /** When the Shortcut last sent this day (ms). */
@@ -62,7 +64,28 @@ export function readiness(day: HealthDay, before: HealthDay[]): Readiness | null
   return { level: "normal", title: "Recuperação normal", detail: "Nada fora do comum: siga o plano do dia." };
 }
 
-export const kmLabel = (metres: number) => `${(metres / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
+/** Metres per step Mi Fitness uses for walking (same value as in the Worker, which fills distanceM with it). */
+const BAND_STRIDE_M = 0.566;
+
+/**
+ * Distance of the day. The band's steps reach Health without a distance, so the Worker estimates it with the walking
+ * stride, which falls short on days with a run. A run or walk recorded on Strava has a real distance: what it covered
+ * beyond the walking stride of its own steps (from its cadence, or a jogging stride when there is none) is added.
+ */
+export function dayDistanceM(day: HealthDay, date: string, strava: StravaActivity[]) {
+  if (day.distanceM === undefined || !day.distanceEst) return day.distanceM;
+  let left = day.steps ?? 0;
+  let extra = 0;
+  for (const a of strava) {
+    if (a.date !== date || !a.distanceM || !/Run|Walk|Hike/.test(a.sport)) continue;
+    const steps = Math.min(left, a.cadence ? (a.cadence * 2 * a.movingS) / 60 : a.distanceM / (/Run/.test(a.sport) ? 0.85 : 0.7));
+    left -= steps;
+    extra += Math.max(0, a.distanceM - steps * BAND_STRIDE_M);
+  }
+  return Math.round(day.distanceM + extra);
+}
+
+export const kmLabel =(metres: number) => `${(metres / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
 export const sleepLabel =(min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
 export const clock = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
