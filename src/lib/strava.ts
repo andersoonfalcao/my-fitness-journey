@@ -1,5 +1,6 @@
 import { auth } from "./firebase";
-import { readCloudOnce, writeCloud } from "./cloud-store";
+import { readCloudOnce, writeCloud, writeCloudMany } from "./cloud-store";
+import { cardioKey, joinCardio, type CardioRecord } from "./cardio";
 
 // Cloudflare Worker that holds the Strava tokens (strava-worker/). Public client id; the secret stays there.
 export const STRAVA_WORKER = "https://forma-strava.newave.workers.dev";
@@ -19,6 +20,8 @@ export type StravaActivity = {
   avgHr: number | null;
   maxHr: number | null;
   kcal: number | null;
+  /** The cardio started in the app that is this same activity (src/lib/cardio.ts): treadmill speed and incline live here. */
+  app?: CardioRecord | undefined;
 };
 
 /**
@@ -143,7 +146,13 @@ export async function syncStrava(uid: string, force = false): Promise<number | n
     const known = new Set(current.map((a) => a.id));
     const fresh = list.filter((a) => !known.has(a.id));
     added += fresh.length;
-    if (fresh.length) writeCloud(uid, key, [...current, ...fresh].sort((a, b) => a.start.localeCompare(b.start)));
+    if (!fresh.length) continue;
+    const next = [...current, ...fresh].sort((a, b) => a.start.localeCompare(b.start));
+    // A cardio started in the app is waiting for this activity: the two become one record, never two.
+    const month = list[0]!.date;
+    const joined = joinCardio(await readCloudOnce<CardioRecord[]>(uid, cardioKey(month), []), next);
+    if (joined.joined) writeCloudMany(uid, [[key, joined.activities], [cardioKey(month), joined.waiting]]);
+    else writeCloud(uid, key, next);
   }
   const newest = activities.reduce((max, a) => Math.max(max, Math.floor(new Date(a.start).getTime() / 1000)), after);
   writeCloud(uid, SYNC_KEY, { after: newest, at: Date.now() });

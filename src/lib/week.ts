@@ -10,7 +10,11 @@ export type WeekStats = {
   kcalAvg: number | null; proteinAvg: number | null; loggedDays: number; fullDays: number; kcalOnTarget: number;
   waterDays: number;
   workouts: number; volumeKg: number; workoutMinutes: number;
+  /** Days trained with cardio only (no gym workout), already inside `workouts`. */
+  cardioOnlyDays: number;
   stravaCount: number; stravaKm: number;
+  /** Activities other than weight training (cardio from Strava or started in the app). */
+  cardioCount: number;
   /** Strava weight training that is one of `workouts` as the band recorded it (already inside stravaCount). */
   stravaSameAsWorkouts: number;
   sleepAvg: number | null; stepsAvg: number | null; restingAvg: number | null;
@@ -43,6 +47,8 @@ export function weekStats(start: string, last: string, x: WeekInputs): WeekStats
   const logged = [...days.values()].filter((d) => d.meals.size > 0);
   const workouts = x.history.filter((r) => inWeek(r.date));
   const strava = x.strava.filter((a) => inWeek(a.date));
+  const lifted = new Set(workouts.map((r) => r.date));
+  const cardioOnlyDays = new Set(strava.filter((a) => a.sport !== "WeightTraining" && !lifted.has(a.date)).map((a) => a.date)).size;
   const health = Object.entries(x.health).filter(([d]) => inWeek(d)).map(([, v]) => v);
   const kcalAvg = avg(logged.map((d) => d.kcal));
   const proteinAvg = avg(logged.map((d) => d.p));
@@ -59,10 +65,12 @@ export function weekStats(start: string, last: string, x: WeekInputs): WeekStats
     fullDays: logged.filter((d) => d.meals.size >= 4).length,
     kcalOnTarget: logged.filter((d) => Math.abs(d.kcal - x.targets.kcal) <= x.targets.kcal * 0.1).length,
     waterDays: Object.entries(x.water).filter(([d, ml]) => inWeek(d) && ml >= x.targets.waterMl).length,
-    workouts: workouts.length,
+    workouts: workouts.length + cardioOnlyDays,
+    cardioOnlyDays,
     volumeKg: Math.round(workouts.reduce((s, r) => s + recordTotal(r), 0)),
     workoutMinutes: Math.round(workouts.reduce((s, r) => s + (r.durationMs ?? 0), 0) / 60000),
     stravaCount: strava.length,
+    cardioCount: strava.filter((a) => a.sport !== "WeightTraining").length,
     stravaSameAsWorkouts: strava.filter((a) => isGymCopy(a, workouts)).length,
     stravaKm: Math.round(strava.reduce((s, a) => s + a.distanceM, 0) / 100) / 10,
     sleepAvg: sleepAvg === null ? null : Math.round(sleepAvg),

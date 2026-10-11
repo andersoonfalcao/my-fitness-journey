@@ -53,10 +53,10 @@ export function WaterCard({ date, targetMl }: { date: string; targetMl: number }
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Água do dia">
         <div className="h-full rounded-full bg-chart-4 transition-all" style={{ width: `${pct}%` }} />
       </div>
-      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Quantidade">
+      <div className="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="Quantidade">
         {AMOUNTS.map((a) => (
           <button key={a} type="button" onClick={() => setCustom(String(a))} aria-pressed={custom === String(a)}
-            className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${custom === String(a) ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>
+            className={`min-h-10 rounded-full border px-2 py-1.5 text-sm font-semibold ${custom === String(a) ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>
             {a >= 1000 ? liters(a) : `${a} ml`}
           </button>
         ))}

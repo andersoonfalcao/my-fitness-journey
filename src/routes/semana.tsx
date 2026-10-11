@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useCloseCalendar, NeedProfile } from "@/components/AppShell";
 import { fmtKg, foodsKey, KEYS, targets, today, useHistory, useLocal, waterKey, type FoodEntry, type Profile, type WaterLog, type WeightEntry } from "@/lib/store";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
+import { cardioAsActivity, cardioKey, type CardioRecord } from "@/lib/cardio";
 import { healthKey, sleepLabel, type HealthMonth } from "@/lib/health";
 import { addDays, weekStart, weekStats, WEEKS_KEY, type WeekReview, type WeekStats } from "@/lib/week";
 import { FAST_MODELS, generateJson, Schema } from "@/lib/ai";
@@ -43,7 +44,10 @@ function WeekPage() {
   const [history] = useHistory();
   const foods = useMonths<FoodEntry[]>(foodsKey, span, [], (p) => p.flat());
   const water = useMonths<WaterLog>(waterKey, span, {}, (p) => Object.assign({}, ...p));
-  const strava = useMonths<StravaActivity[]>(stravaKey, span, [], (p) => p.flat());
+  const synced = useMonths<StravaActivity[]>(stravaKey, span, [], (p) => p.flat());
+  // Cardio done in the app that Strava hasn't brought yet counts as an activity (once it arrives, it is that activity).
+  const waitingCardio = useMonths<CardioRecord[]>(cardioKey, span, [], (p) => p.flat());
+  const strava = [...synced, ...waitingCardio.map(cardioAsActivity)];
   const health = useMonths<HealthMonth>(healthKey, span, {}, (p) => Object.assign({}, ...p));
   const [reviews, setReviews] = useLocal<Record<string, WeekReview>>(WEEKS_KEY, {});
   const [busy, setBusy] = useState(false);
@@ -114,8 +118,8 @@ function WeekPage() {
                 <div className="text-xs tabular-nums text-muted-foreground">
                   {v === null ? "sem registro nesta semana" : p === null ? "sem dado na anterior" : diff === 0 ? "igual à anterior"
                     : <b className={good === null ? "" : good ? "text-[#3f9d6b]" : "text-destructive"}>{diff! > 0 ? "+" : "−"}{m.format(Math.abs(diff!))}</b>}
-                  {m.sub && v !== null ? ` · ${m.sub(week)}` : ""}
                 </div>
+                {m.sub && v !== null && <div className="text-xs tabular-nums text-muted-foreground">{m.sub(week)}</div>}
               </div>
             );
           })}
@@ -155,13 +159,13 @@ const METRICS = (weightBetter: "up" | "down" | null): Metric[] => [
   { label: "Sono médio", value: (w) => w.sleepAvg, format: (v) => sleepLabel(Math.round(v)), better: "up" },
   { label: "Passos por dia", value: (w) => w.stepsAvg, format: (v) => n(v), better: "up" },
   { label: "Batimento em repouso", value: (w) => w.restingAvg, format: (v) => `${v} bpm`, better: "down" },
-  { label: "Strava", value: (w) => (w.stravaCount ? w.stravaKm : null), format: (v) => `${n(v)} km`, better: "up", sub: (w) => `${w.stravaCount} atividade${w.stravaCount === 1 ? "" : "s"}` },
+  { label: "Cardio", value: (w) => (w.cardioCount ? w.stravaKm : null), format: (v) => `${n(v)} km`, better: "up", sub: (w) => `${w.cardioCount} atividade${w.cardioCount === 1 ? "" : "s"}` },
 ];
 
 const SYSTEM = `Você é um treinador e nutricionista brasileiro comentando a semana de um aluno num app de treino e alimentação.
 Escreva em português do Brasil, tom próximo, direto e encorajador. Use SOMENTE os números recebidos e compare "semana" com "semanaAnterior".
 Números no formato brasileiro (80,45 kg; 2.065 kcal). sleepAvg está em minutos (escreva em horas e minutos). Se semanaEmAndamento for true, lembre que a semana ainda não terminou.
-workouts são os treinos de musculação concluídos no app; stravaCount são as atividades do Strava, e stravaSameAsWorkouts delas são esses mesmos treinos de musculação gravados pela pulseira: nunca some as duas contagens nem trate como treinos a mais.
+workouts são os treinos da semana: os de musculação concluídos no app mais os dias em que houve só cardio (cardioOnlyDays, já incluídos em workouts; volumeKg e workoutMinutes são só da musculação); stravaCount são as atividades do Strava, e stravaSameAsWorkouts delas são esses mesmos treinos de musculação gravados pela pulseira: nunca some as duas contagens nem trate como treinos a mais.
 Se algo não foi registrado, diga isso com naturalidade. Não dê diagnóstico médico nem recomende remédios ou suplementos específicos.
 Campos: resumo (2 a 4 frases), destaques (2 a 4 pontos curtos, o que melhorou e o que piorou), foco (1 a 2 frases com uma ação concreta para a próxima semana).`;
 

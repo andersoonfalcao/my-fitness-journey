@@ -16,6 +16,9 @@ import { BodyMap } from "@/components/BodyMap";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
 import { StravaActivities } from "@/components/StravaActivities";
+import { CardioPanel } from "@/components/Cardio";
+import { CARDIO_SESSION_KEY, cardioByDate, cardioKey, cardioLabel, type CardioRecord, type CardioSession } from "@/lib/cardio";
+import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { workoutCard } from "@/lib/share-card";
 import { lastRecordBefore, loadAdvice, personalRecords, recordTotal, repsOfSet, setsByGroup, sumKg, volume, weekStart, type SetValues } from "@/lib/workout-stats";
@@ -33,8 +36,9 @@ export const Route = createFileRoute("/treinos")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  // ?aba=historico opens the history tab (used by the "Fechar o dia" shortcuts).
-  validateSearch: (search: Record<string, unknown>): { aba?: "historico" } => (search["aba"] === "historico" ? { aba: "historico" } : {}),
+  // ?aba=historico opens the history tab (used by the "Fechar o dia" shortcuts); ?aba=cardio, the cardio tab.
+  validateSearch: (search: Record<string, unknown>): { aba?: "historico" | "cardio" } =>
+    search["aba"] === "historico" ? { aba: "historico" } : search["aba"] === "cardio" ? { aba: "cardio" } : {},
   component: TreinosPage,
 });
 
@@ -68,6 +72,12 @@ function TreinosPage() {
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
   const [settings] = useSettings();
   const [schedule, setSchedule] = useLocal<number[] | null>(KEYS.schedule, null);
+  // Cardio has its own tab, so it never sits in the middle of the gym workout; a day with cardio counts as trained.
+  const [cardio] = useLocal<CardioSession | null>(CARDIO_SESSION_KEY, null);
+  const [stravaMonth] = useLocal<StravaActivity[]>(stravaKey(weekStart(today())), []);
+  const [stravaNow] = useLocal<StravaActivity[]>(stravaKey(today()), []);
+  const [cardioMonth] = useLocal<CardioRecord[]>(cardioKey(weekStart(today())), []);
+  const [cardioNow] = useLocal<CardioRecord[]>(cardioKey(today()), []);
 
   useWakeLock(!!session);
 
@@ -88,6 +98,8 @@ function TreinosPage() {
   }
 
   const trainingDays = schedule?.length ? schedule : defaultTrainingDays(profile.days);
+  const sameMonth = weekStart(today()).slice(0, 7) === today().slice(0, 7);
+  const cardioDays = cardioByDate(sameMonth ? stravaNow : [...stravaMonth, ...stravaNow], sameMonth ? cardioNow : [...cardioMonth, ...cardioNow]);
   // A plan made before calves, traps and forearms entered the split can take them in without being generated again.
   const completed = withSmallMuscles(profile, plan);
   const nextIdx = nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length);
@@ -358,8 +370,8 @@ function TreinosPage() {
       <h1 className="text-4xl font-extrabold">Treinos</h1>
 
       {/* The gym screen stays short: what was done (history, Strava, weekly sets) lives in its own tab. */}
-      <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1" role="tablist" aria-label="Treinos">
-        {([["treino", "Treino", {}], ["historico", `Histórico (${history.length})`, { aba: "historico" }]] as const).map(([value, label, search]) => (
+      <div className="grid grid-cols-3 gap-1 rounded-full bg-muted p-1" role="tablist" aria-label="Treinos">
+        {([["treino", "Treino", {}], ["cardio", "Cardio", { aba: "cardio" }], ["historico", `Histórico (${history.length})`, { aba: "historico" }]] as const).map(([value, label, search]) => (
           <Link key={value} to="/treinos" search={search} replace role="tab" aria-selected={tab === value}
             className={`rounded-full py-2 text-center text-sm font-bold ${tab === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
             {label}
@@ -367,8 +379,22 @@ function TreinosPage() {
         ))}
       </div>
 
+      {tab !== "cardio" && cardio && (
+        <Link to="/treinos" search={{ aba: "cardio" }} replace className="flex min-h-11 items-center justify-between gap-3 rounded-3xl border-2 border-primary bg-card px-5 py-2">
+          <span className="flex min-w-0 items-center gap-2 text-sm font-bold"><Timer className="h-5 w-5 shrink-0 text-accent" /><span className="truncate">{cardioLabel(cardio)}</span><WorkoutClock startedAt={cardio.startedAt} className="tabular-nums" /></span>
+          <span className="shrink-0 text-sm font-semibold underline underline-offset-4">Abrir cardio</span>
+        </Link>
+      )}
+
+      {tab === "cardio" && (<>
+        <CardioPanel />
+        <StravaActivities waitingOnly />
+        <Link to="/treinos" search={{ aba: "historico" }} hash="strava" replace className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">Ver o cardio já feito no Histórico</Link>
+      </>)}
+
       {tab === "treino" && (<>
       <WeekPlan
+        cardio={cardioDays}
         plan={plan}
         history={history}
         nextIdx={nextIdx}
@@ -943,7 +969,7 @@ function SessionCompare({ previous, previousTotal, currentTotal, dayName }: { pr
         <div className="rounded-2xl bg-muted/60 p-3">
           <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sessão anterior</div>
           <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{previousTotal > 0 ? formatKg(previousTotal) : "—"}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{previous ? `${dayName} · ${formatDate(previous.date)}` : `primeira vez do ${dayName}`}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{previous ? `${dayName} · ${formatDate(previous.date)}` : "primeira vez"}</div>
         </div>
         <div className="rounded-2xl bg-primary p-3 text-primary-foreground">
           <div className="text-xs font-bold uppercase tracking-wider opacity-75">Sessão atual</div>

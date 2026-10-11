@@ -8,6 +8,7 @@ import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { StravaActivityDialog } from "@/components/StravaActivityDialog";
 import { workoutCard } from "@/lib/share-card";
 import { duration, km, sportLabel, stravaKey, type StravaActivity } from "@/lib/strava";
+import { cardioKey, cardioLabel, cardioSeconds, isCardio, type CardioRecord } from "@/lib/cardio";
 import {
   daysKey,
   fmtKg,
@@ -64,6 +65,8 @@ function CalendarPage() {
   const [water] = useLocal<WaterLog>(waterKey(first), {});
   const [closedDays] = useLocal<DayRecord[]>(daysKey(first), []);
   const [strava] = useLocal<StravaActivity[]>(stravaKey(first), []);
+  // Cardio started in the app whose Strava activity hasn't arrived (once it does, it is that activity).
+  const [cardio] = useLocal<CardioRecord[]>(cardioKey(first), []);
   const [health] = useLocal<HealthMonth>(healthKey(first), {});
   const [history] = useHistory();
   const [weights] = useLocal<WeightEntry[]>(KEYS.weights, []);
@@ -93,6 +96,9 @@ function CalendarPage() {
       onCalories: eaten.length > 0 && Math.abs(kcal - goal.kcal) <= goal.kcal * 0.1,
       workouts: history.filter((r) => r.date === date),
       strava: strava.filter((a) => a.date === date),
+      cardio: cardio.filter((c) => c.date === date),
+      // A day with only cardio is a training day too.
+      trained: history.some((r) => r.date === date) || cardio.some((c) => c.date === date) || strava.some((a) => a.date === date && isCardio(a)),
       weight: weights.find((w) => w.date === date)?.kg ?? null,
       bio: body.find((b) => b.date === date),
       health: health[date],
@@ -106,16 +112,19 @@ function CalendarPage() {
   const logged = all.filter((d) => d.eaten.length > 0);
   const monthWeights = weights.filter((w) => w.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
   const weightChange = monthWeights.length > 1 ? monthWeights.at(-1)!.kg - monthWeights[0]!.kg : null;
+  // Cardio of the month: Strava activities other than weight training, plus the app's cardio still waiting for Strava.
+  const cardioCount = strava.filter(isCardio).length + cardio.length;
+  const cardioKm = strava.filter(isCardio).reduce((s, a) => s + a.distanceM, 0);
   const summary: [string, string][] = [
-    ["dias com treino", String(all.filter((d) => d.workouts.length > 0).length)],
+    ["dias com treino", String(all.filter((d) => d.trained).length)],
     ["dias com refeições", String(logged.length)],
     ["média de calorias", logged.length ? `${Math.round(logged.reduce((s, d) => s + d.kcal, 0) / logged.length)} kcal` : "—"],
     ["dias na meta de calorias", String(all.filter((d) => d.onCalories).length)],
     ["dias na meta de água", String(all.filter((d) => d.waterMl >= d.goal.waterMl).length)],
     // Distance as the number and the count in the label, so the value fits half a phone screen.
-    strava.some((a) => a.distanceM)
-      ? [`no Strava · ${strava.length} ${strava.length === 1 ? "atividade" : "atividades"}`, `${km(strava.reduce((s, a) => s + a.distanceM, 0))} km`]
-      : [strava.length === 1 ? "atividade no Strava" : "atividades no Strava", strava.length ? String(strava.length) : "—"],
+    cardioKm > 0
+      ? [`de cardio · ${cardioCount} ${cardioCount === 1 ? "atividade" : "atividades"}`, `${km(cardioKm)} km`]
+      : [cardioCount === 1 ? "atividade de cardio" : "atividades de cardio", cardioCount ? String(cardioCount) : "—"],
     ["peso no mês", weightChange === null ? "—" : `${weightChange > 0 ? "+" : ""}${fmtKg(weightChange)} kg`],
     ["dias fechados", String(closedDays.length)],
   ];
@@ -177,10 +186,10 @@ function CalendarPage() {
                 <span className={`font-display font-bold ${d?.closed && !isSel ? "text-accent" : ""}`}>{Number(date.slice(8))}</span>
                 {d && (
                   <span className="flex flex-wrap justify-center gap-0.5 sm:gap-1">
-                    {d.workouts.length > 0 && <Dot color="var(--accent)" />}
+                    {d.trained && <Dot color="var(--accent)" />}
                     {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--chart-2)" : "var(--muted-foreground)"} />}
                     {d.waterMl >= d.goal.waterMl && <Dot color="#4fb3c9" />}
-                    {d.strava.length > 0 && <Dot color="#fc4c02" ring />}
+                    {d.workouts.length > 0 && (d.cardio.length > 0 || d.strava.some(isCardio)) && <Dot color="#fc4c02" ring />}
                   </span>
                 )}
               </button>
@@ -192,7 +201,7 @@ function CalendarPage() {
           <Legend color="var(--chart-2)" label="calorias na meta" />
           <Legend color="var(--muted-foreground)" label="refeições fora da meta" />
           <Legend color="#4fb3c9" label="água na meta" />
-          <Legend color="#fc4c02" label="Strava" ring />
+          <Legend color="#fc4c02" label="cardio além do treino" ring />
           <span><b className="text-accent">7</b> dia fechado</span>
         </div>
       </section>
@@ -260,7 +269,7 @@ function CalendarPage() {
         {sel.strava.map((a) => (
           <button key={a.id} type="button" onClick={() => setActivity(a)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 text-left hover:border-[#fc4c02]">
             <span className="min-w-0">
-              <span className="block text-xs font-bold uppercase tracking-wider text-[#fc4c02]">{sportLabel(a.sport)} · Strava</span>
+              <span className="block text-xs font-bold uppercase tracking-wider text-[#fc4c02]">{a.app ? cardioLabel(a.app) : sportLabel(a.sport)} · Strava</span>
               <span className="block truncate font-display font-bold">{a.name}</span>
             </span>
             <span className="shrink-0 text-right text-sm font-semibold tabular-nums">
@@ -268,6 +277,16 @@ function CalendarPage() {
               <span className="block text-muted-foreground">{duration(a.movingS)}</span>
             </span>
           </button>
+        ))}
+
+        {sel.cardio.map((c) => (
+          <div key={c.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3">
+            <span className="min-w-0">
+              <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Cardio · só no app</span>
+              <span className="block truncate font-display font-bold">{cardioLabel(c)}</span>
+            </span>
+            <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">{duration(cardioSeconds(c))}</span>
+          </div>
         ))}
 
         {sel.health && (
@@ -287,7 +306,7 @@ function CalendarPage() {
             <h3 className="mb-3 font-bold">Resumo do dia</h3>
             <DaySummary record={sel.closed} onShare={() => setShare(dayShare(sel.closed!))} />
           </div>
-        ) : sel.eaten.length === 0 && sel.workouts.length === 0 && sel.strava.length === 0 && !sel.waterMl && !sel.weight && !sel.bio && !sel.health ? (
+        ) : sel.eaten.length === 0 && sel.workouts.length === 0 && sel.strava.length === 0 && sel.cardio.length === 0 && !sel.waterMl && !sel.weight && !sel.bio && !sel.health ? (
           <p className="text-sm text-muted-foreground">Nada registrado neste dia.</p>
         ) : (
           <p className="text-sm text-muted-foreground">Este dia não foi fechado. {sel.date === now ? "Feche o dia na tela Hoje para receber o resumo da IA." : ""}</p>

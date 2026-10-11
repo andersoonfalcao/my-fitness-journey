@@ -4,6 +4,7 @@ import { targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, t
 import { lastRecordBefore, recordTotal } from "./workout-stats";
 import { byId, GROUP_LABEL } from "./exercises";
 import { sportLabel, stravaActivityDetail, stravaKey, type StravaActivity, type StravaDetail } from "./strava";
+import { cardioAsActivity, cardioKey, cardioLabel, type CardioRecord } from "./cardio";
 import { doseLabel, SUPPLEMENTS_KEY, type Supplement } from "./supplements";
 import { healthKey, type HealthMonth } from "./health";
 
@@ -79,12 +80,13 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
   const start = [sortedWeights[0]?.date, history[0]?.date].filter((d): d is string => !!d).sort()[0] ?? date;
 
   const months = monthsBetween(start < date ? start : date, date);
-  const [foodMonths, waterMonths, stravaMonths, routine, healthMonth] = await Promise.all([
+  const [foodMonths, waterMonths, stravaMonths, routine, healthMonth, cardioMonth] = await Promise.all([
     Promise.all(months.map((m) => readCloudOnce<FoodEntry[]>(uid, foodsKey(`${m}-01`), []))),
     Promise.all(months.map((m) => readCloudOnce<WaterLog>(uid, waterKey(`${m}-01`), {}))),
     Promise.all(months.map((m) => readCloudOnce<StravaActivity[]>(uid, stravaKey(`${m}-01`), []))),
     readCloudOnce<Supplement[]>(uid, SUPPLEMENTS_KEY, []),
     readCloudOnce<HealthMonth>(uid, healthKey(date), {}),
+    readCloudOnce<CardioRecord[]>(uid, cardioKey(date), []),
   ]);
   const healthDay = healthMonth[date];
   const health = healthDay
@@ -103,8 +105,10 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
   const todayFood = byDay.get(date);
   // The synced list is only a summary; the detail (what the activity card shows) brings calories and relative effort,
   // which matter most for weight training, where there is no distance. Without signal the summary is used.
-  const stravaToday = strava.filter((a) => a.date === date);
-  const details = await Promise.all(stravaToday.map((a) => stravaActivityDetail(uid, a).catch((): StravaDetail | null => null)));
+  // Cardio done in the app that Strava hasn't brought yet counts as an activity of the day (time only, no heart rate).
+  const waitingCardio = cardioMonth.filter((c) => c.date === date).map(cardioAsActivity);
+  const stravaToday = [...strava.filter((a) => a.date === date), ...waitingCardio];
+  const details = await Promise.all(stravaToday.map((a) => (a.id < 0 ? null : stravaActivityDetail(uid, a).catch((): StravaDetail | null => null))));
   // The routine, each marked taken or not, followed by any one-off supplement taken today.
   const todaySupplements = foods.filter((f) => f.date === date && f.meal === "suplementos");
   const supplements = [
@@ -139,6 +143,9 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
     .filter((v) => v.count >= 2)
     .map(({ name, firstKg, lastKg }) => ({ name, firstKg, lastKg }));
 
+  const lifted = new Set(history.map((r) => r.date));
+  const cardioOnly = [...new Set([...strava, ...waitingCardio].filter((a) => a.sport !== "WeightTraining" && !lifted.has(a.date)).map((a) => a.date))];
+
   return {
     date,
     day: {
@@ -154,7 +161,7 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       strava: stravaToday.map((a, i) => {
         const d = details[i];
         return {
-          sport: sportLabel(a.sport), name: a.name, km: Math.round(a.distanceM / 100) / 10, minutes: Math.round((d?.movingS ?? a.movingS) / 60),
+          sport: sportLabel(a.sport), name: a.app ? `${a.name} (${cardioLabel(a.app)})` : a.name, km: Math.round(a.distanceM / 100) / 10, minutes: Math.round((d?.movingS ?? a.movingS) / 60),
           kcal: d?.kcal ?? a.kcal, avgHr: d?.avgHr ?? a.avgHr, maxHr: d?.maxHr ?? a.maxHr, elevationM: a.elevationM, effort: d?.sufferScore ?? null, ...paceOf(a),
         };
       }),
@@ -167,8 +174,9 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       weightStart: sortedWeights[0]?.kg ?? profile.weight,
       weightNow: sortedWeights.at(-1)?.kg ?? profile.weight,
       weightGoal: profile.goalWeight,
-      workouts: history.length,
-      workoutsLast7Days: history.filter((r) => r.date >= addDays(date, -6) && r.date <= date).length,
+      // A day with only cardio is a training day too.
+      workouts: history.length + cardioOnly.length,
+      workoutsLast7Days: history.filter((r) => r.date >= addDays(date, -6) && r.date <= date).length + cardioOnly.filter((d) => d >= addDays(date, -6)).length,
       daysLogged: logged.length,
       avgKcal: avg((d) => d.kcal),
       avgProtein: avg((d) => d.p),

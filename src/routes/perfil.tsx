@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { fmtKg, KEYS, roundKg, targets, today, useLocal, type Focus, type Level, type Profile, type WeightEntry } from "@/lib/store";
@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 import { MethodPicker } from "@/components/MethodPicker";
 import { CalibrationCard } from "@/components/CalibrationCard";
 import { RegenerateDialog } from "@/components/RegenerateDialog";
-import { musclesOf } from "@/components/WeekPlan";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -251,14 +250,7 @@ function PerfilPage() {
           <div className="mt-1 text-sm text-muted-foreground">
             {plan.days.length} treino{plan.days.length === 1 ? "" : "s"} na sequência · gerado em {new Date(plan.createdAt).toLocaleDateString("pt-BR")} · {doneLog.length} treino{doneLog.length === 1 ? "" : "s"} concluído{doneLog.length === 1 ? "" : "s"} até agora
           </div>
-          <ul className="mt-4 divide-y divide-border rounded-2xl bg-muted/60 px-4">
-            {plan.days.map((d) => (
-              <li key={d.name} className="grid gap-0.5 py-2.5 text-sm sm:grid-cols-[8rem_1fr] sm:gap-3">
-                <span className="font-bold">{d.name}</span>
-                <span className="min-w-0 text-muted-foreground">{musclesOf(d.items.map((it) => it.exId))}</span>
-              </li>
-            ))}
-          </ul>
+          <p className="mt-2 text-sm text-muted-foreground">Os treinos e os exercícios de cada um estão em <Link to="/treinos" className="font-semibold text-primary underline-offset-4 hover:underline">Treinos</Link>.</p>
           <details className="mt-3 text-sm">
             <summary className="cursor-pointer font-semibold">Sobre o método</summary>
             <p className="mt-2 text-muted-foreground">{plan.summary}</p>
@@ -293,8 +285,7 @@ function ProfileSummary({ p, current, start }: { p: Profile; current: number; st
   const focus = FOCUS.find((f) => f.v === p.focus);
   const kg = (n: number) => `${fmtKg(n)} kg`;
   const diff = roundKg(p.goalWeight - current);
-  const bmi = current / (p.height / 100) ** 2;
-  const about = [p.sex === "m" ? "Masculino" : "Feminino", `${p.age} anos`, `${p.height} cm`, `IMC ${bmi.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}`];
+  const about = [p.sex === "m" ? "Masculino" : "Feminino", `${p.age} anos`, `${p.height} cm`];
   const cards: { icon: LucideIcon; label: string; value: string; sub?: string | undefined }[] = [
     { icon: Target, label: "Foco", value: focus?.t ?? "—", sub: focus?.d },
     { icon: CalendarDays, label: "Frequência", value: `${p.days}×`, sub: "por semana" },

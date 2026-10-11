@@ -89,10 +89,6 @@ export function HealthPanel() {
           className="w-28 rounded-xl border border-input bg-card px-3 py-2 text-center tabular-nums" />
       </label>
 
-      <p className="text-xs text-muted-foreground">
-        O lembrete “Sincronize a Mi Band” das 21:45 está em <b>Ajustes → Lembretes personalizados</b>, no topo desta tela, onde dá para mudar o horário.
-      </p>
-
       <details className="rounded-2xl bg-muted/60 px-4 py-3 text-sm">
         <summary className="cursor-pointer font-semibold">Como montar o atalho</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 leading-snug">

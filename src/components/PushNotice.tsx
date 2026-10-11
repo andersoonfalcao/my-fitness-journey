@@ -48,7 +48,7 @@ export function PushNotice() {
     }
   };
 
-  const title = state === "broken" ? "As notificações pararam neste aparelho" : state === "blocked" ? "Notificações bloqueadas" : "Notificações desligadas neste aparelho";
+  const title = state === "broken" ? "As notificações pararam neste aparelho" : state === "blocked" ? "Notificações bloqueadas" : "Notificações desligadas";
   const text =
     state === "blocked"
       ? "Libere nos ajustes do aparelho (Notificações → forma). Sem isso, nada chega com o app fechado."

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { StravaActivityDialog } from "@/components/StravaActivityDialog";
-import { Activity, Flame, HeartPulse } from "lucide-react";
+import { TreadmillLines, treadmillSummary, WaitingCardio } from "@/components/Cardio";
+import { Activity, Flame, Gauge, HeartPulse } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { cardioKey, cardioLabel, cardioSeconds, type CardioRecord } from "@/lib/cardio";
 import { duration, km, sportLabel, stravaKey, syncStrava, type StravaActivity } from "@/lib/strava";
 import { today, useLocal } from "@/lib/store";
 
@@ -11,31 +13,44 @@ const previousMonth = (date: string) => {
   return d.toISOString().slice(0, 10);
 };
 
-/** Treinos: the user's recent Strava activities (synced in the background, at most every 15 minutes). */
-export function StravaActivities() {
+/**
+ * Treinos: the user's recent Strava activities (synced in the background, at most every 15 minutes) and the cardio
+ * started in the app that is still waiting for its Strava activity. A cardio already joined shows as the activity.
+ */
+export function StravaActivities({ waitingOnly = false }: { waitingOnly?: boolean }) {
   const uid = useAuth().user?.uid;
   const [open, setOpen] = useState<StravaActivity | null>(null);
   const [thisMonth] = useLocal<StravaActivity[]>(stravaKey(today()), []);
   const [lastMonth] = useLocal<StravaActivity[]>(stravaKey(previousMonth(today())), []);
+  const [cardioNow, setCardioNow] = useLocal<CardioRecord[]>(cardioKey(today()), []);
+  const [cardioBefore, setCardioBefore] = useLocal<CardioRecord[]>(cardioKey(previousMonth(today())), []);
+  // A cardio from the last day may still be on its way from the band, so the 15 minutes between syncs don't apply.
+  const expecting = [...cardioNow, ...cardioBefore].some((c) => Date.now() - c.finishedAt < 24 * 3600 * 1000);
 
   useEffect(() => {
-    if (uid) void syncStrava(uid).catch(() => undefined);
-  }, [uid]);
+    if (uid) void syncStrava(uid, expecting).catch(() => undefined);
+  }, [uid, expecting]);
 
-  const recent = [...thisMonth, ...lastMonth].sort((a, b) => b.start.localeCompare(a.start)).slice(0, 10);
+  const recent = [
+    ...(waitingOnly ? [] : [...thisMonth, ...lastMonth]).map((a) => ({ start: new Date(a.start).getTime(), activity: a, cardio: null })),
+    ...[...cardioNow, ...cardioBefore].map((c) => ({ start: c.startedAt, activity: null, cardio: c })),
+  ].sort((a, b) => b.start - a.start).slice(0, 10);
   if (recent.length === 0) return null;
+  const remove = (c: CardioRecord) => (c.date.slice(0, 7) === today().slice(0, 7) ? setCardioNow : setCardioBefore)((list) => list.filter((x) => x.id !== c.id));
 
   return (
-    <section id="strava" className="scroll-mt-24 space-y-3 border-t border-border pt-6">
-      <h2 className="flex items-center gap-2 text-2xl font-bold"><Activity className="h-6 w-6 text-[#fc4c02]" />Atividades do Strava</h2>
+    <section id={waitingOnly ? undefined : "strava"} className="scroll-mt-24 space-y-3 border-t border-border pt-6">
+      <h2 className="flex items-center gap-2 text-2xl font-bold"><Activity className="h-6 w-6 text-[#fc4c02]" />{waitingOnly ? "Aguardando o Strava" : "Cardio"}</h2>
       <ul className="space-y-2">
-        {recent.map((a) => (
+        {recent.map(({ activity: a, cardio }) => cardio ? (
+          <li key={cardio.id}><WaitingCardio record={cardio} onDelete={() => remove(cardio)} /></li>
+        ) : a && (
           <li key={a.id}>
             <button type="button" onClick={() => setOpen(a)} className="w-full rounded-3xl border border-border bg-card px-4 py-3 text-left transition hover:border-[#fc4c02]">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  {sportLabel(a.sport)} · {new Date(`${a.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
+                  {a.app ? cardioLabel(a.app) : sportLabel(a.sport)} · {new Date(`${a.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
                 </div>
                 <div className="truncate font-display text-lg font-bold">{a.name}</div>
               </div>
@@ -50,6 +65,12 @@ export function StravaActivities() {
                 {!!a.kcal && <span className="inline-flex items-center gap-1"><Flame className="h-3.5 w-3.5" />{a.kcal} kcal</span>}
               </div>
             )}
+            {a.app && (
+              <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <Gauge className="h-3.5 w-3.5 shrink-0" />{treadmillSummary(a.app.steps, cardioSeconds(a.app)) ?? "iniciado no forma, junto com o Strava"}
+              </div>
+            )}
+            {a.app?.steps?.length ? <TreadmillLines steps={a.app.steps} totalS={cardioSeconds(a.app)} /> : null}
             </button>
           </li>
         ))}

@@ -32,6 +32,7 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 
 type Cell =
   | { kind: "done"; records: WorkoutRecord[] }
+  | { kind: "cardio"; names: string[] }
   | { kind: "missed" }
   | { kind: "planned"; idx: number }
   | { kind: "rest" };
@@ -40,7 +41,7 @@ type Cell =
  * This week, Monday to Sunday. Past days show what was really trained; today and the training days ahead take
  * the sequence from the next workout, so a skipped day just pushes the sequence to the next training day.
  */
-function weekCells(plan: Plan, history: WorkoutRecord[], nextIdx: number, trainingDays: number[]) {
+function weekCells(plan: Plan, history: WorkoutRecord[], nextIdx: number, trainingDays: number[], cardio: Record<string, string[]>) {
   const now = today();
   const monday = new Date(`${now}T12:00:00`);
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
@@ -53,6 +54,8 @@ function weekCells(plan: Plan, history: WorkoutRecord[], nextIdx: number, traini
     const training = trainingDays.includes(w);
     let cell: Cell;
     if (done.length) cell = { kind: "done", records: done };
+    // A day with only cardio is a training day too. Today keeps showing the gym workout while it can still be done.
+    else if (cardio[date]?.length && (date < now || !training)) cell = { kind: "cardio", names: cardio[date] };
     else if (date < now) cell = training ? { kind: "missed" } : { kind: "rest" };
     else if (training) {
       cell = { kind: "planned", idx: seq };
@@ -62,8 +65,10 @@ function weekCells(plan: Plan, history: WorkoutRecord[], nextIdx: number, traini
   });
 }
 
-export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSelect, onOpenDone, onChangeDays, profileDays }: {
+export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, activeIdx, onSelect, onOpenDone, onChangeDays, profileDays }: {
   plan: Plan;
+  /** Cardio done on each date, by name (src/lib/cardio.ts). */
+  cardio?: Record<string, string[]>;
   history: WorkoutRecord[];
   nextIdx: number;
   trainingDays: number[];
@@ -74,7 +79,7 @@ export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSe
   profileDays: number;
 }) {
   const [editing, setEditing] = useState(false);
-  const cells = weekCells(plan, history, nextIdx, trainingDays);
+  const cells = weekCells(plan, history, nextIdx, trainingDays, cardio);
   const strip = useRef<HTMLOListElement>(null);
 
   // Open the strip on today's card (scrollLeft only, so the page itself does not jump).
@@ -118,12 +123,13 @@ export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSe
           const dayName = cell.kind === "done" ? cell.records.map((r) => r.dayName).join(" + ") : cell.kind === "planned" ? plan.days[cell.idx]!.name : "";
           const tone = editing
             ? c.training ? "border-primary bg-primary/10" : "border-dashed border-border"
-            : cell.kind === "done" ? "border-[#3f9d6b] bg-[#3f9d6b]/10"
+            : cell.kind === "done" || cell.kind === "cardio" ? "border-[#3f9d6b] bg-[#3f9d6b]/10"
             : cell.kind === "missed" ? "border-border bg-muted/50"
             : cell.kind === "planned" ? selected ? "border-primary bg-primary text-primary-foreground" : c.today ? "border-accent bg-accent/10" : "border-border bg-card"
             : "border-transparent bg-muted/40";
           const label = editing ? `${WEEKDAYS[c.w]}: ${c.training ? "treino" : "descanso"}`
             : cell.kind === "done" ? `${WEEKDAYS[c.w]} ${c.dateText}: concluído, ${musclesOf(exIds)}. Toque para conferir`
+            : cell.kind === "cardio" ? `${WEEKDAYS[c.w]} ${c.dateText}: cardio concluído, ${cell.names.join(", ")}`
             : cell.kind === "missed" ? `${WEEKDAYS[c.w]} ${c.dateText}: sem treino`
             : cell.kind === "planned" ? `${WEEKDAYS[c.w]} ${c.dateText}: ${musclesOf(exIds)}${c.today ? ", hoje" : ""}`
             : `${WEEKDAYS[c.w]} ${c.dateText}: descanso`;
@@ -145,6 +151,12 @@ export function WeekPlan({ plan, history, nextIdx, trainingDays, activeIdx, onSe
                         {cell.kind === "done" && <Check className="h-4 w-4 shrink-0 text-[#3f9d6b]" aria-hidden />}{dayName}
                       </span>
                       {muscles.map((m) => <span key={m} className="block text-xs font-semibold leading-tight opacity-80">{m}</span>)}
+                    </>
+                  )
+                  : cell.kind === "cardio" ? (
+                    <>
+                      <span className="flex items-center gap-1 font-display text-base font-extrabold leading-tight"><Check className="h-4 w-4 shrink-0 text-[#3f9d6b]" aria-hidden />Cardio</span>
+                      {[...new Set(cell.names)].map((n) => <span key={n} className="block text-xs font-semibold leading-tight opacity-80">{n}</span>)}
                     </>
                   )
                   : cell.kind === "missed" ? <span className="flex items-center gap-1 text-sm font-bold text-muted-foreground"><X className="h-4 w-4" />Sem treino</span>

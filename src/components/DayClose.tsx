@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { closeDay } from "@/lib/day-close";
 import { km, sportLabel, stravaKey, type StravaActivity } from "@/lib/strava";
+import { cardioByDate, cardioKey, type CardioRecord } from "@/lib/cardio";
 import { SUPPLEMENTS_KEY, type Supplement } from "@/lib/supplements";
 import { sleepLabel } from "@/lib/health";
 import {
@@ -53,7 +54,11 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const kcal = Math.round(eaten.reduce((s, f) => s + f.kcal, 0));
   const protein = Math.round(eaten.reduce((s, f) => s + f.p, 0));
   const waterMl = water[date] ?? 0;
-  const trained = history.some((r) => r.date === date);
+  const [waitingCardio] = useLocal<CardioRecord[]>(cardioKey(date), []);
+  // A day with only cardio is a training day too.
+  const cardioDone = cardioByDate(stravaMonth, waitingCardio)[date] ?? [];
+  const lifted = history.some((r) => r.date === date);
+  const trained = lifted || cardioDone.length > 0;
   const weighed = weights.some((w) => w.date === date);
   const closed = days.find((d) => d.date === date);
 
@@ -78,7 +83,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
     // Complete only with all four meals logged, and the water target fully reached.
     ["Refeições", missingMeals.length === 0, meals.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g${missingMeals.length ? ` · falta: ${missingMeals.join(", ")}` : ""}` : "nada registrado", { to: "/alimentacao", hash: missingMeals.length ? "registrar" : "refeicoes" }],
     ["Água", waterMl >= t.waterMl, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
-    ["Treino", trained, trained ? "concluído" : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
+    ["Treino", trained, lifted ? "concluído" : trained ? `cardio concluído: ${[...new Set(cardioDone)].join(", ")}` : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
     ["Peso", weighed, weighed ? `${fmtKg(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado (opcional)", weighed ? { to: "/corpo", hash: "evolucao", evolution: true } : { to: "/corpo", hash: "pesagem" }],
   ];
   if (routine.length) {

@@ -127,7 +127,7 @@ function CorpoPage() {
       {tabs}
 
       {tab === "evolucao" ? (<>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Stat label="Peso inicial" value={`${fmtKg(first)} kg`} />
         <Stat label="Peso atual" value={`${fmtKg(last)} kg`} sub={`${last - first >= 0 ? "+" : ""}${fmtKg(last - first)} kg`} />
         <Stat label="Meta" value={`${fmtKg(profile.goalWeight)} kg`} sub={`${Math.round(progress)}% concluído`} />
@@ -319,10 +319,10 @@ function CorpoPage() {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-3xl border border-border bg-card p-5">
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="font-display text-3xl font-extrabold">{value}</div>
-      {sub && <div className="text-sm font-semibold text-accent">{sub}</div>}
+    <div className="min-w-0 rounded-3xl border border-border bg-card p-3 sm:p-5">
+      <div className="text-xs text-muted-foreground sm:text-sm">{label}</div>
+      <div className="whitespace-nowrap font-display text-lg font-extrabold leading-tight sm:text-3xl">{value}</div>
+      {sub && <div className="whitespace-nowrap text-xs font-semibold text-accent sm:text-sm">{sub}</div>}
     </div>
   );
 }

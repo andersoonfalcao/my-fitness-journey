@@ -4,7 +4,9 @@ import { ExternalLink, Loader2, Share2 } from "lucide-react";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { stravaCard } from "@/lib/share-card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { clock, TreadmillSteps } from "@/components/Cardio";
 import { useAuth } from "@/lib/auth";
+import { cardioLabel, cardioSeconds } from "@/lib/cardio";
 import { decodePolyline, duration, km, pace, sportLabel, stravaActivityDetail, usesPace, type StravaActivity, type StravaDetail } from "@/lib/strava";
 
 /** Full view of one Strava activity: numbers, route, per-km splits and extras, loaded on open. */
@@ -36,7 +38,7 @@ export function StravaActivityDialog({ activity, onClose }: { activity: StravaAc
           <>
             <DialogHeader className="pr-8 text-left">
               <div className="text-xs font-bold uppercase tracking-wider text-[#fc4c02]">
-                {sportLabel(activity.sport)} ·{" "}
+                {activity.app ? cardioLabel(activity.app) : sportLabel(activity.sport)} ·{" "}
                 {new Date(detail?.startLocal.replace("Z", "") ?? `${activity.date}T12:00:00`).toLocaleString("pt-BR", {
                   weekday: "long", day: "numeric", month: "long", ...(detail ? { hour: "2-digit", minute: "2-digit" } : {}),
                 })}
@@ -49,6 +51,15 @@ export function StravaActivityDialog({ activity, onClose }: { activity: StravaAc
               <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Buscando os detalhes no Strava…</div>
             ) : (
               <DetailBody d={detail} onShare={() => setShare({ heading: "Sua atividade em uma imagem", title: `${detail.name} no forma.`, fileName: `forma-strava-${activity.date}.png`, make: (bg) => stravaCard(detail, bg) })} />
+            )}
+            {activity.app && (
+              <section className="rounded-2xl bg-accent/10 p-3">
+                <h3 className="font-bold">Do seu registro no forma · {cardioLabel(activity.app)}</h3>
+                <p className="text-xs text-muted-foreground">
+                  Iniciado no app às {new Date(activity.app.startedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}, {clock(cardioSeconds(activity.app))} de cronômetro. Distância, batimentos e calorias são os do Strava.
+                </p>
+                {activity.app.steps?.length ? <div className="mt-2"><TreadmillSteps steps={activity.app.steps} totalS={cardioSeconds(activity.app)} /></div> : null}
+              </section>
             )}
           </>
         )}
