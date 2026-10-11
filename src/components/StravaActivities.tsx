@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { StravaActivityDialog } from "@/components/StravaActivityDialog";
 import { TreadmillLines, treadmillSummary, WaitingCardio } from "@/components/Cardio";
-import { Activity, Flame, Gauge, HeartPulse } from "lucide-react";
+import { Activity, Dumbbell, Flame, Gauge, HeartPulse } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { cardioKey, cardioLabel, cardioSeconds, type CardioRecord } from "@/lib/cardio";
+import { cardioKey, cardioLabel, cardioSeconds, isCardio, type CardioRecord } from "@/lib/cardio";
 import { duration, km, sportLabel, stravaKey, syncStrava, type StravaActivity } from "@/lib/strava";
 import { today, useLocal } from "@/lib/store";
 
@@ -34,15 +34,22 @@ export function StravaActivities({ waitingOnly = false }: { waitingOnly?: boolea
   const recent = [
     ...(waitingOnly ? [] : [...thisMonth, ...lastMonth]).map((a) => ({ start: new Date(a.start).getTime(), activity: a, cardio: null })),
     ...[...cardioNow, ...cardioBefore].map((c) => ({ start: c.startedAt, activity: null, cardio: c })),
-  ].sort((a, b) => b.start - a.start).slice(0, 10);
+  ].sort((a, b) => b.start - a.start);
   if (recent.length === 0) return null;
+  // Weight training recorded by the band is not cardio: it gets its own list, below.
+  const groups = [
+    { id: waitingOnly ? undefined : "strava", title: waitingOnly ? "Aguardando o Strava" : "Cardio", Icon: Activity, items: recent.filter((r) => r.cardio || (r.activity && isCardio(r.activity))).slice(0, 10) },
+    { id: "musculacao-pulseira", title: "Musculação pela pulseira", Icon: Dumbbell, items: recent.filter((r) => r.activity && !isCardio(r.activity)).slice(0, 10) },
+  ].filter((g) => g.items.length > 0);
   const remove = (c: CardioRecord) => (c.date.slice(0, 7) === today().slice(0, 7) ? setCardioNow : setCardioBefore)((list) => list.filter((x) => x.id !== c.id));
 
   return (
-    <section id={waitingOnly ? undefined : "strava"} className="scroll-mt-24 space-y-3 border-t border-border pt-6">
-      <h2 className="flex items-center gap-2 text-2xl font-bold"><Activity className="h-6 w-6 text-[#fc4c02]" />{waitingOnly ? "Aguardando o Strava" : "Cardio"}</h2>
+    <>
+    {groups.map(({ id, title, Icon, items }) => (
+    <section key={title} id={id} className="scroll-mt-24 space-y-3 border-t border-border pt-6">
+      <h2 className="flex items-center gap-2 text-2xl font-bold"><Icon className="h-6 w-6 shrink-0 text-[#fc4c02]" />{title}</h2>
       <ul className="space-y-2">
-        {recent.map(({ activity: a, cardio }) => cardio ? (
+        {items.map(({ activity: a, cardio }) => cardio ? (
           <li key={cardio.id}><WaitingCardio record={cardio} onDelete={() => remove(cardio)} /></li>
         ) : a && (
           <li key={a.id}>
@@ -75,7 +82,9 @@ export function StravaActivities({ waitingOnly = false }: { waitingOnly?: boolea
           </li>
         ))}
       </ul>
-      <StravaActivityDialog activity={open} onClose={() => setOpen(null)} />
     </section>
+    ))}
+    <StravaActivityDialog activity={open} onClose={() => setOpen(null)} />
+    </>
   );
 }
