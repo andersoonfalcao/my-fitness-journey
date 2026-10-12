@@ -2,19 +2,24 @@ import type { FoodEntry, WaterLog, WeightEntry, WorkoutRecord } from "./store";
 import { isGymCopy, type StravaActivity } from "./strava";
 import type { HealthMonth } from "./health";
 import { recordTotal } from "./workout-stats";
+import { fiberOf, weekdayWeekend } from "./insights";
 
 /** Weekly summary (Monday to Sunday): the numbers of one week, compared with the week before on the screen /semana. */
 export type WeekStats = {
   start: string; end: string; days: number;
   weightAvg: number | null;
   kcalAvg: number | null; proteinAvg: number | null; loggedDays: number; fullDays: number; kcalOnTarget: number;
+  /** Average calories of the logged days, Monday–Friday and Saturday–Sunday. */
+  kcalWeekdays: number | null; kcalWeekend: number | null;
+  /** Average fibre of the days whose entries carry it (entries from before 2026-10-12 don't). */
+  fiberAvg: number | null;
   waterDays: number;
   workouts: number; volumeKg: number; workoutMinutes: number;
   /** Days trained with cardio only (no gym workout), already inside `workouts`. */
   cardioOnlyDays: number;
   stravaCount: number; stravaKm: number;
-  /** Activities other than weight training (cardio from Strava or started in the app). */
-  cardioCount: number;
+  /** Activities other than weight training (cardio from Strava or started in the app) and their moving time. */
+  cardioCount: number; cardioMinutes: number;
   /** Strava weight training that is one of `workouts` as the band recorded it (already inside stravaCount). */
   stravaSameAsWorkouts: number;
   sleepAvg: number | null; stepsAvg: number | null; restingAvg: number | null;
@@ -56,6 +61,10 @@ export function weekStats(start: string, last: string, x: WeekInputs): WeekStats
   const stepsAvg = avg(health.flatMap((h) => (h.steps !== undefined ? [h.steps] : [])));
   const restingAvg = avg(health.flatMap((h) => (h.restingHr !== undefined ? [h.restingHr] : [])));
   const weightAvg = avg(x.weights.filter((w) => inWeek(w.date)).map((w) => w.kg));
+  const split = weekdayWeekend(x.foods, start, end);
+  const fibers = [...days.keys()].map((d) => fiberOf(x.foods.filter((f) => f.date === d))).filter((f) => f.known > 0 && f.known >= f.unknown).map((f) => f.grams);
+  const fiberAvg = avg(fibers);
+  const cardio = strava.filter((a) => a.sport !== "WeightTraining");
   return {
     start, end, days: Math.round((new Date(`${end}T12:00:00`).getTime() - new Date(`${start}T12:00:00`).getTime()) / 86_400_000) + 1,
     weightAvg: weightAvg === null ? null : Math.round(weightAvg * 100) / 100,
@@ -64,13 +73,16 @@ export function weekStats(start: string, last: string, x: WeekInputs): WeekStats
     loggedDays: logged.length,
     fullDays: logged.filter((d) => d.meals.size >= 4).length,
     kcalOnTarget: logged.filter((d) => Math.abs(d.kcal - x.targets.kcal) <= x.targets.kcal * 0.1).length,
+    kcalWeekdays: split.weekdays, kcalWeekend: split.weekend,
+    fiberAvg: fiberAvg === null ? null : Math.round(fiberAvg),
     waterDays: Object.entries(x.water).filter(([d, ml]) => inWeek(d) && ml >= x.targets.waterMl).length,
     workouts: workouts.length + cardioOnlyDays,
     cardioOnlyDays,
     volumeKg: Math.round(workouts.reduce((s, r) => s + recordTotal(r), 0)),
     workoutMinutes: Math.round(workouts.reduce((s, r) => s + (r.durationMs ?? 0), 0) / 60000),
     stravaCount: strava.length,
-    cardioCount: strava.filter((a) => a.sport !== "WeightTraining").length,
+    cardioCount: cardio.length,
+    cardioMinutes: Math.round(cardio.reduce((s, a) => s + a.movingS, 0) / 60),
     stravaSameAsWorkouts: strava.filter((a) => isGymCopy(a, workouts)).length,
     stravaKm: Math.round(strava.reduce((s, a) => s + a.distanceM, 0) / 100) / 10,
     sleepAvg: sleepAvg === null ? null : Math.round(sleepAvg),

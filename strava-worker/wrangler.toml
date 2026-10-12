@@ -4,6 +4,8 @@ compatibility_date = "2026-09-01"
 
 [vars]
 FIREBASE_PROJECT_ID = "apptreino-f3677"
+# The app's administrator (same as ADMIN_EMAIL in src/lib/firebase.ts and firestore.rules).
+ADMIN_EMAIL = "andersoonfalcao@gmail.com"
 # Public web key of the Firebase app (same as src/lib/firebase.ts); used to renew the user's own token for the reminder.
 FIREBASE_API_KEY = "AIzaSyD944jrfTQDIGiAH6uskT3o8rJgpxYbGsA"
 ALLOWED_ORIGINS = "https://apptreino.web.app,http://localhost:5191,http://localhost:5190"

@@ -13,13 +13,17 @@ export interface Env extends NotifyEnv {
   STRAVA_CLIENT_SECRET: string;
   FIREBASE_PROJECT_ID: string;
   ALLOWED_ORIGINS: string; // comma-separated
+  /** The app's administrator (same as ADMIN_EMAIL in src/lib/firebase.ts and firestore.rules). */
+  ADMIN_EMAIL: string;
 }
 
 type Stored = { access_token: string; refresh_token: string; expires_at: number; athlete: { id: number; name: string } };
 
 const GOOGLE_KEYS = createRemoteJWKSet(new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"));
 
-async function firebaseUid(request: Request, env: Env) {
+type Caller = { uid: string; email: string; verified: boolean; token: string };
+
+async function firebaseCaller(request: Request, env: Env): Promise<Caller | null> {
   const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
   if (!token) return null;
   try {
@@ -27,10 +31,31 @@ async function firebaseUid(request: Request, env: Env) {
       issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`,
       audience: env.FIREBASE_PROJECT_ID,
     });
-    return typeof payload.sub === "string" ? payload.sub : null;
+    if (typeof payload.sub !== "string") return null;
+    return { uid: payload.sub, email: typeof payload["email"] === "string" ? payload["email"].toLowerCase() : "", verified: payload["email_verified"] === true, token };
   } catch {
     return null;
   }
+}
+
+const INVITE_CACHE_S = 600;
+
+/**
+ * Same access as firestore.rules: a confirmed e-mail that is the administrator's or has an invite. The invite is
+ * read with the caller's own token (the rules let a person read their own invite) and remembered for ten minutes,
+ * so anyone can create an account in the project's sign-in but only invited people reach Strava, push and Health.
+ */
+async function invited(env: Env, caller: Caller) {
+  if (!caller.email || !caller.verified) return false;
+  if (caller.email === env.ADMIN_EMAIL) return true;
+  if (await env.TOKENS.get(`inv:${caller.uid}`)) return true;
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/invites/${encodeURIComponent(caller.email)}`,
+    { headers: { Authorization: `Bearer ${caller.token}` } },
+  );
+  if (!res.ok) return false;
+  await env.TOKENS.put(`inv:${caller.uid}`, "1", { expirationTtl: INVITE_CACHE_S });
+  return true;
 }
 
 function cors(request: Request, env: Env): Record<string, string> {
@@ -94,8 +119,10 @@ export default {
       }
     }
 
-    const uid = await firebaseUid(request, env);
-    if (!uid) return json({ error: "não autenticado" }, 401, headers);
+    const caller = await firebaseCaller(request, env);
+    if (!caller) return json({ error: "não autenticado" }, 401, headers);
+    if (!(await invited(env, caller))) return json({ error: "acesso não liberado para esta conta" }, 403, headers);
+    const uid = caller.uid;
 
     try {
       const pushed = await pushRoute(path, request, env, uid);

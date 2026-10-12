@@ -3,10 +3,10 @@ import type { FoodEntry, MealType } from "./store";
 
 /** A meal saved to log again with one tap ("Almoço padrão"); items keep their own grams and macros. */
 export type FavMeal = { id: string; name: string; meal: MealType; items: FavItem[] };
-export type FavItem = Pick<FoodEntry, "name" | "grams" | "kcal" | "p" | "c" | "f">;
+export type FavItem = Pick<FoodEntry, "name" | "grams" | "kcal" | "p" | "c" | "f" | "fiber">;
 export const FAV_MEALS_KEY = "forma.favmeals";
 
-export const asItem = (f: FoodEntry): FavItem => ({ name: f.name, grams: f.grams, kcal: f.kcal, p: f.p, c: f.c, f: f.f });
+export const asItem = (f: FoodEntry): FavItem => ({ name: f.name, grams: f.grams, kcal: f.kcal, p: f.p, c: f.c, f: f.f, ...(f.fiber !== undefined ? { fiber: f.fiber } : {}) });
 export const itemsKcal = (items: FavItem[]) => Math.round(items.reduce((s, i) => s + i.kcal, 0));
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -33,7 +33,7 @@ export function frequentFoods(entries: FoodEntry[], limit = 8): { food: Food; gr
     .map(({ count, last }) => {
       const known = FOODS.find((f) => f.name === last.name);
       const k = 100 / last.grams;
-      const food: Food = known ?? { id: `registro-${last.name}`, name: last.name, kcal: Math.round(last.kcal * k), p: r1(last.p * k), c: r1(last.c * k), f: r1(last.f * k), source: "Registro" };
+      const food: Food = known ?? { id: `registro-${last.name}`, name: last.name, kcal: Math.round(last.kcal * k), p: r1(last.p * k), c: r1(last.c * k), f: r1(last.f * k), ...(last.fiber !== undefined ? { fiber: r1(last.fiber * k) } : {}), source: "Registro" };
       return { food, grams: last.grams, count };
     });
 }

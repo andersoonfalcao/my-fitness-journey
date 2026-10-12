@@ -12,6 +12,7 @@ import { ProductPanel } from "@/components/ProductPanel";
 import { SupplementsCard } from "@/components/SupplementsCard";
 import { MacroBar, NeedProfile } from "@/components/AppShell";
 import { MacrosCard } from "@/components/MacrosCard";
+import { FIBER_REFERENCE, fiberOf, proteinByMeal, proteinPerMeal } from "@/lib/insights";
 
 export const Route = createFileRoute("/alimentacao")({
   head: () => ({
@@ -62,11 +63,14 @@ function FoodPage() {
   const t = targets(profile);
   const day = foods.filter((f) => f.date === date);
   const sum = day.reduce((a, f) => ({ kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
+  const fiber = fiberOf(day);
+  const mealProtein = proteinByMeal(day);
+  const proteinAim = proteinPerMeal(Math.min(profile.weight, Math.max(profile.goalWeight, 1)));
 
   const addFood = () => {
     if (!sel) return;
     const k = grams / 100;
-    setFoods((fs) => [...fs, { id: uid(), date, meal, name: sel.name, grams, kcal: Math.round(sel.kcal * k), p: r1(sel.p * k), c: r1(sel.c * k), f: r1(sel.f * k) }]);
+    setFoods((fs) => [...fs, { id: uid(), date, meal, name: sel.name, grams, kcal: Math.round(sel.kcal * k), p: r1(sel.p * k), c: r1(sel.c * k), f: r1(sel.f * k), ...(sel.fiber !== undefined ? { fiber: r1(sel.fiber * k) } : {}) }]);
     toast.success(`${sel.name} adicionado`);
     setSel(null); setQ("");
   };
@@ -140,7 +144,11 @@ function FoodPage() {
           <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--chart-1)" />
           <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--chart-3)" />
           <MacroBar name="Proteínas" value={sum.p} max={t.protein} color="var(--chart-2)" />
+          {fiber.known > 0 && <MacroBar name="Fibras" value={fiber.grams} max={FIBER_REFERENCE} color="var(--chart-4)" />}
         </div>
+        {fiber.known > 0 && (
+          <p className="mt-2 text-xs opacity-75">Fibras: referência de 25 a 30 g por dia.{fiber.unknown > 0 ? ` ${fiber.unknown} ${fiber.unknown === 1 ? "item não tem" : "itens não têm"} esse valor e ${fiber.unknown === 1 ? "ficou" : "ficaram"} de fora.` : ""}</p>
+        )}
         {date !== today() && (
           <button type="button" onClick={() => setDate(today())} className="mt-4 text-sm font-semibold underline underline-offset-4">Voltar para hoje</button>
         )}
@@ -260,6 +268,12 @@ function FoodPage() {
           return (
             <section key={m.v} className="rounded-3xl border border-border bg-card p-5">
               <div className="flex justify-between"><h3 className="font-bold">{m.t}</h3><span className="font-display font-bold text-accent">{kcal} kcal</span></div>
+              {m.v !== "suplementos" && items.length > 0 && (
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  Proteína: <b className={mealProtein[m.v]! >= proteinAim ? "text-[#3f9d6b]" : "text-foreground"}>{mealProtein[m.v]} g</b>
+                  {mealProtein[m.v]! < proteinAim && <> · o ideal por refeição é a partir de {proteinAim} g</>}
+                </p>
+              )}
               {items.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">Nada registrado.</p> : (
                 <ul className="mt-2 divide-y divide-border">
                   {items.map((f) => (

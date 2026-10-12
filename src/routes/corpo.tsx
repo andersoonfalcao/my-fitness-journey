@@ -2,11 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Area, AreaChart, CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BodyMeasures } from "@/components/BodyMeasures";
 import { HealthTrends } from "@/components/HealthTrends";
 import { fmtKg, KEYS, roundKg, today, useLocal, type BodyEntry, type Profile, type WeightEntry } from "@/lib/store";
 import { NeedProfile } from "@/components/AppShell";
+import { WeightPace } from "@/components/WeightInsights";
+import { weightTrend } from "@/lib/insights";
 
 export const Route = createFileRoute("/corpo")({
   head: () => ({
@@ -68,7 +70,7 @@ function CorpoPage() {
   if (!ready) return null;
   if (!profile) return <NeedProfile />;
 
-  const sorted = [...weights].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = weightTrend(weights);
   const first = sorted[0]?.kg ?? profile.weight;
   const last = sorted.at(-1)?.kg ?? profile.weight;
   const total = Math.abs(profile.goalWeight - first) || 1;
@@ -133,6 +135,8 @@ function CorpoPage() {
         <Stat label="Meta" value={`${fmtKg(profile.goalWeight)} kg`} sub={`${Math.round(progress)}% concluído`} />
       </div>
 
+      <WeightPace profile={profile} />
+
       <section className="rounded-3xl border border-border bg-card p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -166,7 +170,7 @@ function CorpoPage() {
         <h2 className="mb-3 px-2 text-lg font-bold sm:px-0">Evolução do peso</h2>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sorted.map((w) => ({ ...w, label: fmt(w.date) }))}>
+            <ComposedChart data={sorted.map((w) => ({ ...w, label: fmt(w.date) }))}>
               <defs>
                 <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.4} />
@@ -176,12 +180,20 @@ function CorpoPage() {
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis domain={["dataMin - 2", "dataMax + 2"]} tickFormatter={tick} stroke="var(--muted-foreground)" fontSize={12} width={40} />
-              <Tooltip formatter={(v) => [`${fmtKg(Number(v))} kg`, "peso"]} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }} />
+              <Tooltip formatter={(v, name) => [`${fmtKg(Number(v))} kg`, name === "trend" ? "média de 7 dias" : "pesagem"]} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }} />
               <ReferenceLine y={profile.goalWeight} stroke="var(--primary)" strokeDasharray="6 4" label={{ value: "meta", fill: "var(--primary)", fontSize: 12 }} />
-              <Area type="monotone" dataKey="kg" stroke="var(--accent)" strokeWidth={3} fill="url(#wg)" dot={{ r: 4, fill: "var(--accent)" }} />
-            </AreaChart>
+              <Area type="monotone" dataKey="kg" stroke="var(--accent)" strokeWidth={sorted.length > 2 ? 1.5 : 3} fill="url(#wg)" dot={{ r: 4, fill: "var(--accent)" }} />
+              {/* The 7-day average is the line to follow; single weigh-ins swing with water and meals. */}
+              {sorted.length > 2 && <Line type="monotone" dataKey="trend" stroke="var(--primary)" strokeWidth={3} dot={false} />}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
+        {sorted.length > 2 && (
+          <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-2 text-xs text-muted-foreground sm:px-0">
+            <span><span className="mr-1.5 inline-block h-0.5 w-5 bg-primary align-middle" />média de 7 dias</span>
+            <span><span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent align-middle" />cada pesagem</span>
+          </p>
+        )}
         <ul className="mt-4 divide-y divide-border px-2 sm:px-0">
           {[...sorted].reverse().map((w) => (
             <li key={w.date} className="flex items-center justify-between py-2.5">

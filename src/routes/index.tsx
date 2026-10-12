@@ -13,6 +13,8 @@ import { addDays, weekStart } from "@/lib/week";
 import { cardioByDate, cardioKey, type CardioRecord } from "@/lib/cardio";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { defaultTrainingDays, musclesOf } from "@/components/WeekPlan";
+import { WeightNotices } from "@/components/WeightInsights";
+import { TrainingInsights } from "@/components/TrainingInsights";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -167,6 +169,8 @@ function Index() {
         </div>
       </Link>
 
+      <WeightNotices profile={profile} />
+
       <CalibrationNotice profile={profile} />
 
       {/* Sunday evening and Monday: the week just lived, one tap away. */}
@@ -180,6 +184,8 @@ function Index() {
           <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
         </Link>
       )}
+
+      <TrainingInsights planned={profile.days} />
 
       <HealthToday date={today()} />
 

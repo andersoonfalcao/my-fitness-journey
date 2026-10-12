@@ -11,5 +11,6 @@
 - [x] Histórico de treinos em um documento por mês
 
 ## Pendente
-- [ ] App Check (reCAPTCHA Enterprise) antes de 02/11/2026: preencher `RECAPTCHA_SITE_KEY` em `src/lib/firebase.ts`
+- [x] App Check (reCAPTCHA Enterprise): chave registrada e enviada nas chamadas de IA desde 05/10/2026
+- [ ] Conferir no console, antes de 02/11/2026, se as chamadas de IA aparecem como verificadas no App Check (não exigir no Firestore: o Worker lê o banco sem App Check)
 - [ ] Vídeos de execução (decidir entre wger, ExerciseDB ou manter as fotos)

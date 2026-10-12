@@ -7,6 +7,7 @@ import { sportLabel, stravaActivityDetail, stravaKey, type StravaActivity, type 
 import { cardioAsActivity, cardioKey, cardioLabel, type CardioRecord } from "./cardio";
 import { doseLabel, SUPPLEMENTS_KEY, type Supplement } from "./supplements";
 import { healthKey, type HealthMonth } from "./health";
+import { fiberOf, proteinByMeal, readSleep, readWeight } from "./insights";
 
 const FOCUS_LABEL: Record<Profile["focus"], string> = {
   perder: "perder gordura",
@@ -26,7 +27,8 @@ Analise também cada atividade do Strava em hoje.strava e relacione com o resto 
 - goingWell: 2 a 4 pontos curtos do que foi bem hoje ou no acompanhamento.
 - improve: 2 a 4 pontos curtos, cada um com uma ação concreta.
 - sinceStart: 2 a 3 frases sobre a evolução desde o início (peso, treinos, constância na alimentação, volume de treino).
-- tomorrow: 1 a 2 frases com o foco para amanhã.`;
+- tomorrow: 1 a 2 frases com o foco para amanhã.
+Use também "tendencias" quando ajudar: pesoKgPorSemana é o ritmo do peso nas últimas três semanas (negativo = perdendo; null = poucas pesagens); perdaRapida = perdendo mais de 1% do peso por semana (sugira comer um pouco mais); pesoParado = duas semanas sem mudança mesmo em déficit; metaAtingida = chegou ao peso-meta. fibraHoje em g (referência 25 a 30 g; null = sem registro). proteinaPorRefeicao em g, por refeição (cafe, almoco, lanche, jantar): comente se a proteína ficou concentrada em uma só. sono traz as últimas 14 noites: bedtime e wake são os horários médios, level a regularidade e short as noites com menos de 7 h (null = sem dados).`;
 
 const SCHEMA = Schema.object({
   properties: {
@@ -192,7 +194,23 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
 /** Builds the day's record: numbers from the app, review from Gemini. */
 export async function closeDay(inputs: Inputs): Promise<DayRecord> {
   const numbers = await dayNumbers(inputs);
-  const { profile } = inputs;
+  const { profile, uid, date, weights } = inputs;
+  const before = addDays(date, -15);
+  const [foodsNow, foodsBefore, healthNow, healthBefore] = await Promise.all([
+    readCloudOnce<FoodEntry[]>(uid, foodsKey(date), []), readCloudOnce<FoodEntry[]>(uid, foodsKey(before), []),
+    readCloudOnce<HealthMonth>(uid, healthKey(date), {}), readCloudOnce<HealthMonth>(uid, healthKey(before), {}),
+  ]);
+  const recentFoods = foodsKey(date) === foodsKey(before) ? foodsNow : [...foodsBefore, ...foodsNow];
+  const dayFoods = recentFoods.filter((f) => f.date === date);
+  const t = targets(profile);
+  const weight = readWeight(weights, recentFoods, profile.goalWeight, t.kcal < t.tdee, date);
+  const fiber = fiberOf(dayFoods);
+  const tendencias = {
+    pesoKgPorSemana: weight.rate, perdaRapida: !!weight.fast, pesoParado: !!weight.plateau, metaAtingida: weight.goalReached,
+    fibraHoje: fiber.known > 0 ? fiber.grams : null,
+    proteinaPorRefeicao: proteinByMeal(dayFoods),
+    sono: readSleep({ ...healthBefore, ...healthNow }, date),
+  };
   // Weight training on Strava is today's workout as the band recorded it: one session, with Strava's effort and calories.
   const gym = numbers.day.workout ? numbers.day.strava?.find((a) => a.sport === sportLabel("WeightTraining")) : undefined;
   const prompt = JSON.stringify({
@@ -212,6 +230,7 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
       cargaTotalUltimaVez: numbers.day.workout.volumeDiffKg === null ? null : numbers.day.workout.volumeKg - numbers.day.workout.volumeDiffKg,
     } },
     desdeOInicio: numbers.sinceStart,
+    tendencias,
   });
   const ai = (await generateJson(SYSTEM, SCHEMA, prompt, { models: BEST_MODELS, timeoutMs: 40_000 })) as Partial<DayRecord["ai"]>;
   const list = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);

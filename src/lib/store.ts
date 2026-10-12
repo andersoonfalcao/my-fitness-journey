@@ -122,6 +122,8 @@ export type Profile = {
   method?: import("./methods").MethodId | undefined;
   /** Daily energy measured from the person's logs (src/lib/calibration.ts), used instead of the formula once accepted. */
   calibratedTdee?: { kcal: number; date: string } | undefined;
+  /** Goal reached and the person chose to hold the weight: no deficit while the goal weight stays this one. */
+  maintain?: { goalWeight: number } | undefined;
 };
 
 /** "suplementos" holds supplements taken (src/lib/supplements.ts); it is not counted as a meal. */
@@ -136,6 +138,8 @@ export type FoodEntry = {
   p: number;
   c: number;
   f: number;
+  /** Fibre in grams; missing in entries logged before 2026-10-12 and when the source has no value. */
+  fiber?: number | undefined;
   /** Routine supplement this entry marks as taken. */
   suppId?: string | undefined;
   /** Dose shown instead of grams for supplements ("5 g", "1 cápsula(s)"). */
@@ -305,7 +309,10 @@ export function targets(p: Profile) {
 
   let kcal: number;
   let energyNote: string;
-  if (p.focus === "perder") {
+  if (p.maintain?.goalWeight === p.goalWeight) {
+    kcal = tdee;
+    energyNote = "manutenção: meta de peso atingida";
+  } else if (p.focus === "perder") {
     kcal = tdee - deficitFor(0.0075);
     energyNote = "déficit para perder ~0,75% do peso por semana";
   } else if (p.focus === "massa") {

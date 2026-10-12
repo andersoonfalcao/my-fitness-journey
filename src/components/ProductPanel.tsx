@@ -7,7 +7,7 @@ import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { useLocal } from "@/lib/store";
 import { lookupBarcode, PRODUCTS_KEY, readLabel, type Product } from "@/lib/products";
 
-type Added = { name: string; grams: number; kcal: number; p: number; c: number; f: number };
+type Added = { name: string; grams: number; kcal: number; p: number; c: number; f: number; fiber?: number };
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const fmt = (n: number | undefined, unit: string) => (n === undefined ? "—" : `${n.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${unit}`);
 
@@ -88,7 +88,7 @@ export function ProductPanel({ onAdd }: { onAdd: (food: Added) => void }) {
   const add = () => {
     if (!product || !(grams > 0)) return;
     const k = grams / 100;
-    onAdd({ name: product.brand ? `${product.name} (${product.brand})` : product.name, grams, kcal: Math.round(product.kcal * k), p: r1(product.p * k), c: r1(product.c * k), f: r1(product.f * k) });
+    onAdd({ name: product.brand ? `${product.name} (${product.brand})` : product.name, grams, kcal: Math.round(product.kcal * k), p: r1(product.p * k), c: r1(product.c * k), f: r1(product.f * k), ...(product.fiber !== undefined ? { fiber: r1(product.fiber * k) } : {}) });
     setProduct(null);
     setCode("");
   };

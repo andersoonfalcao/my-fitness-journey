@@ -1,5 +1,7 @@
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useLocal } from "@/lib/store";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { today, useHistory, useLocal } from "@/lib/store";
+import { readSleep, SLEEP_TRAINING_MIN, sleepVsTraining } from "@/lib/insights";
+import { recordTotal } from "@/lib/workout-stats";
 import { dayDistanceM, healthKey, kmLabel, sleepLabel, type HealthMonth } from "@/lib/health";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
 
@@ -22,6 +24,7 @@ export function HealthTrends() {
   const [s1] = useLocal<StravaActivity[]>(stravaKey(m1!), []);
   const [s2] = useLocal<StravaActivity[]>(stravaKey(m2!), []);
   const strava = [...s1, ...s2];
+  const [history] = useHistory();
   const days = Object.entries({ ...a, ...b, ...c }).sort(([x], [y]) => x.localeCompare(y));
   if (!days.length) return null;
 
@@ -29,6 +32,11 @@ export function HealthTrends() {
   const resting = days.filter(([, d]) => d.restingHr !== undefined).slice(-30).map(([date, d]) => ({ label: label(date), bpm: d.restingHr! }));
   const vo2 = days.filter(([, d]) => d.vo2max !== undefined).map(([date, d]) => ({ label: label(date), vo2: d.vo2max! }));
   const avgSleep = sleep.length ? Math.round(sleep.reduce((s, d) => s + d.min, 0) / sleep.length) : null;
+  const all = { ...a, ...b, ...c };
+  const rhythm = readSleep(all, today());
+  const shortNights = sleep.filter((d) => d.min < 420).length;
+  const vsTraining = sleepVsTraining(history, all, recordTotal);
+  const pct = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("pt-BR")}%`;
   const steps = days.filter(([, d]) => d.steps !== undefined).slice(-14).map(([date, d]) => ({ label: label(date), passos: d.steps!, m: dayDistanceM(d, date, strava) }));
   const avgSteps = steps.length ? Math.round(steps.reduce((s, d) => s + d.passos, 0) / steps.length) : null;
   const walked = steps.flatMap((d) => (d.m !== undefined ? [d.m] : []));
@@ -54,9 +62,28 @@ export function HealthTrends() {
                 <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={11} interval="preserveStartEnd" />
                 <YAxis stroke="var(--muted-foreground)" fontSize={12} width={28} domain={[0, (max: number) => Math.max(9, Math.ceil(max))]} />
                 <Tooltip formatter={(_v, _n, item) => [sleepLabel((item.payload as { min: number }).min), "sono"]} contentStyle={tooltip} />
+                <ReferenceLine y={7} stroke="var(--accent)" strokeDasharray="6 4" label={{ value: "7 h", position: "insideTopRight", fill: "var(--accent)", fontSize: 11 }} />
                 <Bar dataKey="horas" fill="var(--primary)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="mt-2 space-y-1 px-2 text-sm sm:px-0">
+            <p><b className="tabular-nums">{shortNights} de {sleep.length}</b> noites com menos de 7 horas.</p>
+            {rhythm && (
+              <p>
+                Você dorme em média às <b className="tabular-nums">{rhythm.bedtime}</b> e acorda às <b className="tabular-nums">{rhythm.wake}</b>. Horário{" "}
+                <b className={rhythm.level === "regular" ? "text-[#3f9d6b]" : "text-accent"}>{rhythm.level}</b>
+                <span className="text-muted-foreground"> (dormir varia {rhythm.bedtimeSd} min e acordar {rhythm.wakeSd} min)</span>.
+              </p>
+            )}
+            {vsTraining.ready ? (
+              <p>
+                Depois de noites com menos de 6h30, a carga total do treino variou <b className="tabular-nums">{pct(vsTraining.afterPoor)}</b> contra a sessão anterior; nas demais, <b className="tabular-nums">{pct(vsTraining.afterGood)}</b>
+                <span className="text-muted-foreground"> ({vsTraining.workouts} treinos, {vsTraining.poorNights} após noite curta)</span>.
+              </p>
+            ) : vsTraining.have > 0 ? (
+              <p className="text-muted-foreground">Sono e treino: a comparação aparece com {SLEEP_TRAINING_MIN} treinos registrados junto do sono (há {vsTraining.have}).</p>
+            ) : null}
           </div>
         </div>
       )}

@@ -25,9 +25,10 @@ export const normEmail = (email: string) => email.trim().toLowerCase();
 async function statusFor(user: User | null): Promise<AuthStatus> {
   if (!user) return "signed-out";
   const email = normEmail(user.email ?? "");
-  // Invited people go straight in. Only the administrator must own the address (Google sign-in already
-  // proves it), otherwise anyone could create a password account with that e-mail and manage invites.
-  if (email === ADMIN_EMAIL) return user.emailVerified ? "ready" : "unverified";
+  // Everyone must own the address (Google sign-in already proves it; a password account confirms by e-mail),
+  // otherwise anyone could create a password account with an invited e-mail, or the administrator's.
+  if (!user.emailVerified) return "unverified";
+  if (email === ADMIN_EMAIL) return "ready";
   try {
     const invite = await getDoc(doc(db(), "invites", email));
     return invite.exists() ? "ready" : "not-invited";
@@ -52,7 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const recheck = useCallback(async () => {
     const u = auth().currentUser;
-    if (u) await u.reload();
+    if (u) {
+      await u.reload();
+      // The confirmation only reaches Firestore's rules in a new token.
+      if (u.emailVerified) await u.getIdToken(true);
+    }
     await resolve(auth().currentUser);
   }, [resolve]);
 
@@ -66,7 +71,7 @@ export const signInWithEmail = (email: string, password: string) => signInWithEm
 
 export async function signUpWithEmail(email: string, password: string) {
   const cred = await createUserWithEmailAndPassword(auth(), normEmail(email), password);
-  if (normEmail(email) === ADMIN_EMAIL) await sendEmailVerification(cred.user, { url: window.location.origin });
+  await sendEmailVerification(cred.user, { url: window.location.origin });
 }
 
 export const signInWithGoogle = () => signInWithPopup(auth(), new GoogleAuthProvider());

@@ -9,6 +9,8 @@ import { cardioAsActivity, cardioKey, type CardioRecord } from "@/lib/cardio";
 import { healthKey, sleepLabel, type HealthMonth } from "@/lib/health";
 import { addDays, weekStart, weekStats, WEEKS_KEY, type WeekReview, type WeekStats } from "@/lib/week";
 import { FAST_MODELS, generateJson, Schema } from "@/lib/ai";
+import { StreakLine } from "@/components/TrainingInsights";
+import { CARDIO_REFERENCE_MIN, readSleep, weeklyRate } from "@/lib/insights";
 
 export const Route = createFileRoute("/semana")({
   head: () => ({
@@ -68,6 +70,7 @@ function WeekPage() {
       const ai = (await generateJson(SYSTEM, SCHEMA, JSON.stringify({
         objetivo: profile.focus, metaCalorias: t.kcal, metaProteina: t.protein, treinosPorSemana: profile.days,
         semana: week, semanaAnterior: before, semanaEmAndamento: current,
+        tendencias: { pesoKgPorSemana: weeklyRate(weights, week.end, 21, 7), sono: readSleep(health, week.end) },
       }), { models: FAST_MODELS, timeoutMs: 30_000 })) as Partial<WeekReview["ai"]>;
       setReviews((r) => ({ ...r, [start]: { at: Date.now(), ai: { resumo: String(ai.resumo ?? ""), destaques: (ai.destaques ?? []).map(String), foco: String(ai.foco ?? "") } } }));
     } catch (error) {
@@ -124,6 +127,12 @@ function WeekPage() {
             );
           })}
         </div>
+        <div className="mt-3 space-y-1.5 px-1 text-sm">
+          {week.kcalWeekdays !== null && week.kcalWeekend !== null && (
+            <p>Segunda a sexta: <b className="tabular-nums">{n(week.kcalWeekdays)} kcal</b> por dia · sábado e domingo: <b className={`tabular-nums ${week.kcalWeekend > week.kcalWeekdays * 1.1 ? "text-accent" : ""}`}>{n(week.kcalWeekend)} kcal</b></p>
+          )}
+          <StreakLine planned={profile.days} />
+        </div>
       </section>
 
       <section className="space-y-3 rounded-3xl bg-primary p-6 text-primary-foreground">
@@ -159,13 +168,16 @@ const METRICS = (weightBetter: "up" | "down" | null): Metric[] => [
   { label: "Sono médio", value: (w) => w.sleepAvg, format: (v) => sleepLabel(Math.round(v)), better: "up" },
   { label: "Passos por dia", value: (w) => w.stepsAvg, format: (v) => n(v), better: "up" },
   { label: "Batimento em repouso", value: (w) => w.restingAvg, format: (v) => `${v} bpm`, better: "down" },
-  { label: "Cardio", value: (w) => (w.cardioCount ? w.stravaKm : null), format: (v) => `${n(v)} km`, better: "up", sub: (w) => `${w.cardioCount} atividade${w.cardioCount === 1 ? "" : "s"}` },
+  { label: "Fibra por dia", value: (w) => w.fiberAvg, format: (v) => `${n(v)} g`, better: "up", sub: () => "referência 25 a 30 g" },
+  { label: "Cardio", value: (w) => (w.cardioCount ? w.cardioMinutes : null), format: (v) => `${n(v)} min`, better: "up", sub: (w) => `${w.stravaKm ? `${n(w.stravaKm)} km · ` : ""}referência ${CARDIO_REFERENCE_MIN} min` },
 ];
 
 const SYSTEM = `Você é um treinador e nutricionista brasileiro comentando a semana de um aluno num app de treino e alimentação.
 Escreva em português do Brasil, tom próximo, direto e encorajador. Use SOMENTE os números recebidos e compare "semana" com "semanaAnterior".
 Números no formato brasileiro (80,45 kg; 2.065 kcal). sleepAvg está em minutos (escreva em horas e minutos). Se semanaEmAndamento for true, lembre que a semana ainda não terminou.
 workouts são os treinos da semana: os de musculação concluídos no app mais os dias em que houve só cardio (cardioOnlyDays, já incluídos em workouts; volumeKg e workoutMinutes são só da musculação); stravaCount são as atividades do Strava, e stravaSameAsWorkouts delas são esses mesmos treinos de musculação gravados pela pulseira: nunca some as duas contagens nem trate como treinos a mais.
+kcalWeekdays e kcalWeekend são a média de calorias de segunda a sexta e de sábado e domingo: comente quando o fim de semana ficar bem acima. fiberAvg é a fibra média em g (referência 25 a 30 g; null = sem registro). cardioMinutes são os minutos de cardio (referência da OMS: 150 por semana).
+tendencias.pesoKgPorSemana é o ritmo do peso nas últimas três semanas (negativo = perdendo; null = poucas pesagens). tendencias.sono traz as últimas 14 noites: bedtime e wake são os horários médios, bedtimeSd e wakeSd a variação em minutos, level a regularidade e short as noites com menos de 7 h (null = sem dados).
 Se algo não foi registrado, diga isso com naturalidade. Não dê diagnóstico médico nem recomende remédios ou suplementos específicos.
 Campos: resumo (2 a 4 frases), destaques (2 a 4 pontos curtos, o que melhorou e o que piorou), foco (1 a 2 frases com uma ação concreta para a próxima semana).`;
 
