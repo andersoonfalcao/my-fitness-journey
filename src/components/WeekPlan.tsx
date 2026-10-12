@@ -65,7 +65,7 @@ function weekCells(plan: Plan, history: WorkoutRecord[], nextIdx: number, traini
   });
 }
 
-export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, activeIdx, onSelect, onOpenDone, onChangeDays, profileDays }: {
+export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, activeIdx, todaySelected = false, onSelect, onOpenDone, onChangeDays, profileDays }: {
   plan: Plan;
   /** Cardio done on each date, by name (src/lib/cardio.ts). */
   cardio?: Record<string, string[]>;
@@ -73,6 +73,8 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
   nextIdx: number;
   trainingDays: number[];
   activeIdx: number;
+  /** The workout finished today is the one on screen: its card is the highlighted one. */
+  todaySelected?: boolean;
   onSelect: (idx: number) => void;
   onOpenDone: (records: WorkoutRecord[]) => void;
   onChangeDays: (days: number[]) => void;
@@ -123,6 +125,7 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
           const dayName = cell.kind === "done" ? cell.records.map((r) => r.dayName).join(" + ") : cell.kind === "planned" ? plan.days[cell.idx]!.name : "";
           const tone = editing
             ? c.training ? "border-primary bg-primary/10" : "border-dashed border-border"
+            : cell.kind === "done" && c.today && todaySelected ? "border-[#3f9d6b] bg-[#3f9d6b]/10 ring-2 ring-[#3f9d6b] ring-offset-2 ring-offset-card"
             : cell.kind === "done" || cell.kind === "cardio" ? "border-[#3f9d6b] bg-[#3f9d6b]/10"
             : cell.kind === "missed" ? "border-border bg-muted/50"
             : cell.kind === "planned" ? selected ? "border-primary bg-primary text-primary-foreground" : c.today ? "border-accent bg-accent/10" : "border-border bg-card"

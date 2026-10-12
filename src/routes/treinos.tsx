@@ -20,6 +20,7 @@ import { CardioPanel } from "@/components/Cardio";
 import { CARDIO_SESSION_KEY, cardioByDate, cardioKey, cardioLabel, type CardioRecord, type CardioSession } from "@/lib/cardio";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
+import { formatDuration, WorkoutClock } from "@/components/WorkoutClock";
 import { workoutCard } from "@/lib/share-card";
 import { lastRecordBefore, loadAdvice, personalRecords, recordTotal, repsOfSet, setsByGroup, sumKg, volume, weekStart, type SetValues } from "@/lib/workout-stats";
 import { askRestNotifications, notifyRestOver, useWakeLock } from "@/lib/workout-device";
@@ -104,13 +105,22 @@ function TreinosPage() {
   const completed = withSmallMuscles(profile, plan);
   const nextIdx = nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length);
   const sessionIdx = session ? plan.days.findIndex((d) => d.name === session.dayName) : -1;
-  const active = dayIdx ?? (sessionIdx >= 0 ? sessionIdx : nextIdx);
+  // One gym workout a day: once it is finished, today keeps showing it as done and the next of the sequence waits
+  // for tomorrow (it can be looked at, not started). Cardio stays free.
+  const doneTodayName = session ? undefined : doneLog.filter((d) => d.startsWith(`${today()}|`)).at(-1)?.slice(11);
+  const lockedToday = doneTodayName !== undefined;
+  const doneTodayIdx = lockedToday ? plan.days.findIndex((d) => d.name === doneTodayName) : -1;
+  const active = dayIdx ?? (sessionIdx >= 0 ? sessionIdx : doneTodayIdx >= 0 ? doneTodayIdx : nextIdx);
   const day = plan.days[active] ?? plan.days[0]!;
   const finishDay = plan.days[sessionIdx] ?? day;
+  const viewingDone = lockedToday && active === doneTodayIdx;
+  // What was done today in the workout on screen, and the time before it (the comparison baseline).
+  const doneRecord = viewingDone ? [...history].reverse().find((r) => r.date === today() && r.dayName === day.name) : undefined;
+  const beforeDone = doneRecord ? lastRecordBefore(history.filter((r) => r !== doneRecord), day.name) : undefined;
   // Set tracking belongs to the day being trained; other tabs are view-only while a session runs.
   // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
   // so only the next one can be started (going back takes "Recomeçar"). Other tabs are view-only.
-  const tracksSets = session ? sessionIdx === active || sessionIdx < 0 : active === nextIdx;
+  const tracksSets = session ? sessionIdx === active || sessionIdx < 0 : active === nextIdx && !lockedToday;
 
   /**
    * The load history (evolution chart, "Última") fills itself: each session keeps one entry per exercise with its
@@ -399,7 +409,8 @@ function TreinosPage() {
         history={history}
         nextIdx={nextIdx}
         trainingDays={trainingDays}
-        activeIdx={active}
+        activeIdx={viewingDone ? -1 : active}
+        todaySelected={viewingDone}
         profileDays={profile.days}
         onSelect={(i) => { setDayIdx(i); setOpenItem(null); }}
         onChangeDays={setSchedule}
@@ -422,7 +433,7 @@ function TreinosPage() {
       <section className="flex items-center gap-3 rounded-3xl bg-primary p-4 text-primary-foreground sm:p-5">
         <div className="min-w-0 flex-1">
           <div className="text-xs font-bold uppercase tracking-widest text-accent">
-            {isCurrentClass ? `Aula ${classNumber}` : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
+            {viewingDone ? "Concluído hoje" : isCurrentClass ? `Aula ${classNumber}` : lockedToday && active === nextIdx ? "Próximo treino" : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
           </div>
           <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(day.items.map((it) => it.exId))}</h2>
           <p className="mt-1 text-sm opacity-75"><span className="whitespace-nowrap">{day.items.length} exercícios</span> · <span className="whitespace-nowrap">{plan.method}</span></p>
@@ -447,6 +458,50 @@ function TreinosPage() {
             </div>
             <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); } }}
               className="text-sm font-semibold underline-offset-4 opacity-75 hover:underline">Cancelar</button>
+          </div>
+        </div>
+      ) : viewingDone ? (
+        <section className="rounded-3xl border-2 border-[#3f9d6b] bg-[#3f9d6b]/10 p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#3f9d6b] text-white"><CheckCheck className="h-6 w-6" aria-hidden /></span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold uppercase tracking-wider text-[#3f9d6b]">Treino de hoje · concluído</div>
+              <h2 className="font-display text-xl font-extrabold leading-tight">{day.name}</h2>
+            </div>
+          </div>
+          {doneRecord && (
+            <dl className="mt-3 grid grid-cols-2 gap-3">
+              <div className="flex flex-col rounded-2xl bg-card/70 p-3">
+                <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tempo</dt>
+                <dd className="font-display text-2xl font-extrabold leading-tight tabular-nums">{doneRecord.durationMs !== undefined ? formatDuration(doneRecord.durationMs) : "—"}</dd>
+              </div>
+              <div className="flex flex-col rounded-2xl bg-card/70 p-3">
+                <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Exercícios</dt>
+                <dd className="font-display text-2xl font-extrabold leading-tight tabular-nums">
+                  {doneRecord.exercises.filter((e) => e.setsDone >= e.setsPlanned).length}<span className="text-base font-bold text-muted-foreground"> de {doneRecord.exercises.length}</span>
+                </dd>
+              </div>
+            </dl>
+          )}
+          <p className="mt-3 text-sm text-muted-foreground">
+            Musculação de hoje está feita. O próximo da sequência, <b className="text-foreground">{plan.days[nextIdx]!.name}</b>, libera amanhã. O cardio continua liberado.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => { setDayIdx(nextIdx); setOpenItem(null); }} className="min-h-11 rounded-full border border-input bg-card px-3 py-2 text-sm font-bold">Ver o próximo</button>
+            <Link to="/treinos" search={{ aba: "cardio" }} replace className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-3 py-2 text-sm font-bold text-primary-foreground">Fazer cardio</Link>
+          </div>
+        </section>
+      ) : lockedToday ? (
+        <div className="rounded-3xl border border-border bg-muted/60 px-5 py-4">
+          <p className="text-sm">
+            <b>{active === nextIdx ? `${day.name} é o próximo treino e libera amanhã.` : `${day.name}: só para consulta.`}</b>{" "}
+            Hoje você já concluiu o {doneTodayName}, e a musculação é um treino por dia. O cardio continua liberado.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {doneTodayIdx >= 0 && (
+              <button type="button" onClick={() => { setDayIdx(null); setOpenItem(null); }} className="min-h-11 rounded-full border border-input bg-card px-3 py-2 text-sm font-bold">Voltar ao de hoje</button>
+            )}
+            <Link to="/treinos" search={{ aba: "cardio" }} replace className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-3 py-2 text-sm font-bold text-primary-foreground">Fazer cardio</Link>
           </div>
         </div>
       ) : active === nextIdx ? (
@@ -489,9 +544,11 @@ function TreinosPage() {
           const latest = history.at(-1);
           const previous = history.at(-2);
           const variation = latest && previous ? latest.kg - previous.kg : null;
-          const setsDone = tracksSets ? session?.sets?.[i] ?? 0 : 0;
-          const kgsToday = tracksSets ? session?.kgs?.[i] ?? [] : [];
-          const prev = previousOf(lastRecordOf(day.name), i, ex.id);
+          // The workout finished today shows what was done in it, read-only.
+          const doneEx = previousOf(doneRecord, i, ex.id);
+          const setsDone = tracksSets ? session?.sets?.[i] ?? 0 : Math.min(doneEx?.setsDone ?? 0, it.sets);
+          const kgsToday = tracksSets ? session?.kgs?.[i] ?? [] : doneEx?.setKgs ?? [];
+          const prev = previousOf(doneRecord ? beforeDone : lastRecordOf(day.name), i, ex.id);
           // The fields come filled with the last weight and reps used (this session, else the same set last time),
           // and what is typed stays for the next sets. The progression advice is a tap away on its badge.
           const advice = adviceFor(ex);
@@ -502,7 +559,7 @@ function TreinosPage() {
           const setKg = kgText ? Number(kgText.replace(",", ".")) : null;
           // Empty reps means the plan target. Time-based work (plank) has no reps.
           const targetReps = repsCount(it.reps);
-          const repsToday = tracksSets ? session?.repsDone?.[i] ?? [] : [];
+          const repsToday = tracksSets ? session?.repsDone?.[i] ?? [] : doneEx?.setReps ?? [];
           const lastReps = repsToday.at(-1) ?? prev?.setReps?.[setsDone] ?? targetReps;
           const repsText = (repsInputs[ex.id] ?? (lastReps != null ? String(lastReps) : "")).trim();
           const typedReps = repsText ? Number(repsText) : undefined;
@@ -526,7 +583,7 @@ function TreinosPage() {
           const suggestedHold = holdSeconds(it.reps);
           const holdTime = holdTimes[ex.id] ?? suggestedHold;
           const holding = hold?.item === i ? hold : null;
-          const finished = tracksSets && setsDone >= it.sets;
+          const finished = (tracksSets || !!doneEx) && setsDone >= it.sets;
           const combo = plan.circuit ? null : comboOf(day.items, i);
           const open = openItem === i;
           const exTotal = volume(kgsToday, repsToday, it.reps);
@@ -588,7 +645,7 @@ function TreinosPage() {
                   </div>
                 )}
 
-                <SetTable sets={it.sets} reps={it.reps} done={tracksSets ? setsDone : 0} kgs={kgsToday} repsDone={repsToday} prevKgs={prev?.setKgs} prevReps={prev?.setReps} prevPlanReps={prev?.reps} />
+                <SetTable sets={it.sets} reps={it.reps} done={setsDone} kgs={kgsToday} repsDone={repsToday} prevKgs={prev?.setKgs} prevReps={prev?.setReps} prevPlanReps={prev?.reps} />
                 {tracksSets && (
                   <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                     <div className="flex gap-1" role="img" aria-label={`${setsDone} de ${it.sets} séries feitas`}>
@@ -725,7 +782,8 @@ function TreinosPage() {
         )}
       </div>
 
-      {(session || active === nextIdx) && (<>
+      {doneRecord && <SessionCompare finished previous={beforeDone} previousTotal={recordTotal(beforeDone)} currentTotal={recordTotal(doneRecord)} dayName={day.name} />}
+      {(session || (active === nextIdx && !lockedToday)) && (<>
         <SessionCompare previous={lastRecordOf(finishDay.name)} previousTotal={lastFinishTotal} currentTotal={todayTotal} dayName={finishDay.name} />
         <button onClick={() => (pendingItems.length > 0 ? setConfirmFinish(true) : finishWorkout())}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
@@ -959,7 +1017,7 @@ function TreinosPage() {
 }
 
 /** End of the class: total weight (load × reps) of the previous session of this workout next to the current one. */
-function SessionCompare({ previous, previousTotal, currentTotal, dayName }: { previous: WorkoutRecord | undefined; previousTotal: number; currentTotal: number; dayName: string }) {
+function SessionCompare({ previous, previousTotal, currentTotal, dayName, finished = false }: { previous: WorkoutRecord | undefined; previousTotal: number; currentTotal: number; dayName: string; finished?: boolean }) {
   const diff = currentTotal - previousTotal;
   const pct = previousTotal > 0 ? Math.round((diff / previousTotal) * 100) : null;
   return (
@@ -972,9 +1030,9 @@ function SessionCompare({ previous, previousTotal, currentTotal, dayName }: { pr
           <div className="mt-1 text-xs text-muted-foreground">{previous ? `${dayName} · ${formatDate(previous.date)}` : "primeira vez"}</div>
         </div>
         <div className="rounded-2xl bg-primary p-3 text-primary-foreground">
-          <div className="text-xs font-bold uppercase tracking-wider opacity-75">Sessão atual</div>
+          <div className="text-xs font-bold uppercase tracking-wider opacity-75">{finished ? "Sessão de hoje" : "Sessão atual"}</div>
           <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{formatKg(currentTotal)}</div>
-          <div className="mt-1 text-xs opacity-75">até agora</div>
+          <div className="mt-1 text-xs opacity-75">{finished ? "concluída" : "até agora"}</div>
         </div>
       </div>
       {previousTotal > 0 && currentTotal > 0 && (
@@ -1023,23 +1081,6 @@ function SetTable({ sets, reps, done, kgs, repsDone, prevKgs, prevReps, prevPlan
       </tbody>
     </table>
   );
-}
-
-function formatDuration(ms: number) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = String(total % 60).padStart(2, "0");
-  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${String(m).padStart(2, "0")}:${s}`;
-}
-
-function WorkoutClock({ startedAt, className }: { startedAt: number; className?: string }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return <div className={className} role="timer" aria-label="Tempo de treino">{formatDuration(now - startedAt)}</div>;
 }
 
 // Browsers only allow sound after a tap, so the context is opened on "Concluir série" and reused when the rest ends.

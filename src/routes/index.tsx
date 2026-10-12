@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { fmtKg, foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry } from "@/lib/store";
+import { fmtKg, foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry, type WorkoutSession } from "@/lib/store";
+import { WorkoutNow } from "@/components/WorkoutNow";
 import { nextWorkoutIndex, type Plan } from "@/lib/plan";
 import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
@@ -35,6 +36,8 @@ function Index() {
   const [schedule] = useLocal<number[] | null>(KEYS.schedule, null);
   const [strava] = useLocal<StravaActivity[]>(stravaKey(today()), []);
   const [waitingCardio] = useLocal<CardioRecord[]>(cardioKey(today()), []);
+  // A workout in progress takes the top of the screen and the place of the "Treino de hoje" card.
+  const [session] = useLocal<WorkoutSession | null>(KEYS.session, null);
 
   if (!ready) return null;
   if (!profile) return <NeedProfile />;
@@ -63,6 +66,8 @@ function Index() {
         </p>
         <h1 className="mt-1 text-4xl font-extrabold">Olá, {profile.name || "você"}.</h1>
       </div>
+
+      {session && <WorkoutNow session={session} plan={plan} />}
 
         <section className="rounded-3xl border border-border bg-card p-6">
           <div className="flex flex-col items-center gap-6 sm:flex-row">
@@ -94,7 +99,7 @@ function Index() {
             <h2 className="text-balance text-xl font-bold leading-tight sm:text-2xl">{doneToday.join(" e ")}</h2>
           </div>
         </Link>
-      ) : next && restToday ? (
+      ) : session ? null : next && restToday ? (
         <section className="rounded-3xl border border-border bg-card p-6">
           <div className="flex items-center gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Moon className="h-6 w-6" /></span>
