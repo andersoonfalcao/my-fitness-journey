@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Info, Link2, ListChecks, Minus, Play, Plus, RotateCcw, Share2, Timer, Trash2, TrendingDown, X, TrendingUp, Youtube } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Youtube } from "lucide-react";
+import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -12,7 +12,7 @@ import { generatePlan, holdSeconds, nextWorkoutIndex, normalizePlan, prescribeFo
 import { alternatives, byId, EXERCISES, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
 import { defaultTrainingDays, musclesOf, WeekPlan } from "@/components/WeekPlan";
-import { BodyMap } from "@/components/BodyMap";
+import { BodyMap, RecoveryMap } from "@/components/BodyMap";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { photosFor } from "@/lib/exercise-photos";
 import { StravaActivities } from "@/components/StravaActivities";
@@ -22,7 +22,7 @@ import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { formatDuration, WorkoutClock } from "@/components/WorkoutClock";
 import { workoutCard } from "@/lib/share-card";
-import { lastRecordBefore, loadAdvice, personalRecords, recordTotal, repsOfSet, setsByGroup, sumKg, volume, weekStart, type SetValues } from "@/lib/workout-stats";
+import { barKg, lastRecordBefore, loadAdvice, muscleRecovery, personalRecords, platesPerSide, recordTotal, repsOfSet, setsByGroup, strengthHistory, sumKg, volume, warmupSets, weekStart, type PersonalRecord, type SetValues } from "@/lib/workout-stats";
 import { askRestNotifications, notifyRestOver, useWakeLock } from "@/lib/workout-device";
 import { cancelRestPush, deviceId, scheduleRestPush, useSettings } from "@/lib/push";
 
@@ -55,6 +55,9 @@ function TreinosPage() {
   const [share, setShare] = useState<ShareRequest | null>(null);
   const [loadInputs, setLoadInputs] = useState<Record<string, string>>({});
   const [repsInputs, setRepsInputs] = useState<Record<string, string>>({});
+  // Reps left after the set (optional), per exercise; it stays chosen for the next sets like the weight does.
+  const [rirInputs, setRirInputs] = useState<Record<string, number | null>>({});
+  const [notes, setNotes] = useLocal<Record<string, string>>(KEYS.exNotes, {});
   // Time-based sets (plank): the time chosen for each exercise, and the countdown that is running (one at a time).
   const [holdTimes, setHoldTimes] = useState<Record<string, number>>({});
   const [hold, setHold] = useState<{ item: number; endsAt: number } | null>(null);
@@ -137,7 +140,7 @@ function TreinosPage() {
   };
 
   /** Marks `count` sets of item `i` with the same weight and reps; rests only between sets of the same exercise. */
-  const completeSets = (i: number, kg: number | null, reps: number | null, count: number) => {
+  const completeSets = (i: number, kg: number | null, reps: number | null, count: number, rirLeft: number | null = null) => {
     const item = day.items[i]!;
     unlockAudio();
     setHold(null);
@@ -149,13 +152,16 @@ function TreinosPage() {
     const sets = { ...base.sets, [i]: done };
     const kgs = { ...base.kgs, [i]: [...(base.kgs?.[i] ?? []), ...Array<number | null>(added).fill(kg)] };
     const repsDone = { ...base.repsDone, [i]: [...(base.repsDone?.[i] ?? []), ...Array<number | null>(added).fill(reps)] };
+    // Sets marked before effort was asked keep a null in its place, so each value stays at its set's index.
+    const rirBefore = base.rir?.[i] ?? [];
+    const rir = { ...base.rir, [i]: [...rirBefore, ...Array<number | null>(before - rirBefore.length).fill(null), ...Array<number | null>(added).fill(rirLeft)] };
     syncLoad(item.exId, base.startedAt, kgs[i]!);
     cancelRestPush();
     const pending = day.items.map((it, j) => j).filter((j) => (sets[j] ?? 0) < day.items[j]!.sets);
     // The last set of the workout finishes it: nothing is left to do but save it.
     if (pending.length === 0) {
       setOpenItem(null);
-      finishWorkout({ ...base, sets, kgs, repsDone, rest: undefined });
+      finishWorkout({ ...base, sets, kgs, repsDone, rir, rest: undefined });
       return;
     }
     // Combined exercises (bi-set, tri-set): straight on to the next one of the block, with no rest; the rest comes
@@ -169,7 +175,7 @@ function TreinosPage() {
       };
       const nextJ = open.find((j) => j > i);
       if (nextJ !== undefined) {
-        setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+        setSession({ ...base, sets, kgs, repsDone, rir, rest: undefined });
         toast(`Sem descanso: ${byId(day.items[nextJ]!.exId).name}`);
         goTo(nextJ);
         return;
@@ -180,7 +186,7 @@ function TreinosPage() {
         const next = `Série ${(sets[firstJ] ?? 0) + 1} de ${firstItem.sets} · ${byId(firstItem.exId).name}`;
         const endsAt = Date.now() + settings.restSeconds * 1000;
         // The countdown shows on the exercise the next round starts with.
-        setSession({ ...base, sets, kgs, repsDone, rest: { item: firstJ, endsAt, next: `Fim da rodada · ${next}` } });
+        setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: firstJ, endsAt, next: `Fim da rodada · ${next}` } });
         scheduleRestPush(endsAt, next);
         goTo(firstJ);
         return;
@@ -192,21 +198,21 @@ function TreinosPage() {
       const nextItem = day.items[nextJ]!;
       const next = `Série ${(sets[nextJ] ?? 0) + 1} de ${nextItem.sets} · ${byId(nextItem.exId).name}`;
       if (nextJ > i) {
-        setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+        setSession({ ...base, sets, kgs, repsDone, rir, rest: undefined });
         setOpenItem(nextJ);
         toast(`Próximo: ${byId(nextItem.exId).name}`);
         document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
       }
       const endsAt = Date.now() + settings.restSeconds * 1000;
-      setSession({ ...base, sets, kgs, repsDone, rest: { item: i, endsAt, next: `Fim da volta · ${next}` } });
+      setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: i, endsAt, next: `Fim da volta · ${next}` } });
       scheduleRestPush(endsAt, next);
       return;
     }
     // After the exercise's last set there is no countdown: moving to the next machine is the rest,
     // so its card closes and the next pending one opens.
     if (done >= item.sets) {
-      setSession({ ...base, sets, kgs, repsDone, rest: undefined });
+      setSession({ ...base, sets, kgs, repsDone, rir, rest: undefined });
       const nextJ = pending.find((j) => j > i) ?? pending[0]!;
       setOpenItem(nextJ);
       setTimeout(() => document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -214,7 +220,7 @@ function TreinosPage() {
     }
     const next = `Série ${done + 1} de ${item.sets} · ${byId(item.exId).name}`;
     const endsAt = Date.now() + settings.restSeconds * 1000;
-    setSession({ ...base, sets, kgs, repsDone, rest: { item: i, endsAt, next } });
+    setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: i, endsAt, next } });
     scheduleRestPush(endsAt, next);
   };
 
@@ -262,7 +268,8 @@ function TreinosPage() {
         // That is the heaviest set of this session (what syncLoad keeps); the saved loads may not have the last set yet.
         const top = Math.max(0, ...(finishKgs[i] ?? []).map((value) => value ?? 0));
         const kg = top || (session ? loads.filter((l) => l.exerciseId === ex.id && (l.createdAt ?? 0) >= session.startedAt).at(-1)?.kg : undefined);
-        return { exId: ex.id, name: ex.name, setsDone: finishSets[i] ?? 0, setsPlanned: it.sets, reps: it.reps, kg, setKgs: finishKgs[i] ?? [], setReps: finishReps[i] ?? [] };
+        const setRir = tracked?.rir?.[i];
+        return { exId: ex.id, name: ex.name, setsDone: finishSets[i] ?? 0, setsPlanned: it.sets, reps: it.reps, kg, setKgs: finishKgs[i] ?? [], setReps: finishReps[i] ?? [], ...(setRir?.some((r) => r !== null) ? { setRir } : {}) };
       }),
     };
     setHistory((records) => [...records, record]);
@@ -272,6 +279,7 @@ function TreinosPage() {
     setConfirmFinish(false);
     setLoadInputs({});
     setRepsInputs({});
+    setRirInputs({});
     const weight = todayTotal > 0
       ? ` · ${formatKg(todayTotal)}${lastFinishTotal > 0 ? ` (${formatDiff(todayTotal - lastFinishTotal)} vs. última vez)` : ""}`
       : "";
@@ -279,7 +287,7 @@ function TreinosPage() {
     const records = personalRecords(history, record);
     if (records.length > 0) {
       toast(`🏆 ${records.length === 1 ? "Novo recorde!" : `${records.length} novos recordes!`}`, {
-        description: records.map((r) => `${r.name}: ${formatKg(r.kg)} (antes ${formatKg(r.previousKg)})`).join(" · "),
+        description: records.map(recordText).join(" · "),
         duration: 8000,
       });
     }
@@ -296,6 +304,7 @@ function TreinosPage() {
       sets: { ...session.sets, [i]: Math.max(0, (session.sets?.[i] ?? 0) - 1) },
       kgs: { ...session.kgs, [i]: (session.kgs?.[i] ?? []).slice(0, -1) },
       repsDone: { ...session.repsDone, [i]: (session.repsDone?.[i] ?? []).slice(0, -1) },
+      rir: { ...session.rir, [i]: (session.rir?.[i] ?? []).slice(0, Math.max(0, (session.sets?.[i] ?? 0) - 1)) },
       rest: undefined,
     });
   };
@@ -330,7 +339,7 @@ function TreinosPage() {
       const follow = <T,>(byItem: Record<number, T> | undefined) =>
         Object.fromEntries(order.flatMap((from, to) => (byItem?.[from] === undefined ? [] : [[to, byItem[from]]]))) as Record<number, T>;
       cancelRestPush();
-      setSession({ ...session, sets: follow(session.sets), kgs: follow(session.kgs), repsDone: follow(session.repsDone), rest: undefined });
+      setSession({ ...session, sets: follow(session.sets), kgs: follow(session.kgs), repsDone: follow(session.repsDone), rir: follow(session.rir), rest: undefined });
     }
     setHold(null);
     if (moved) setOpenItem(null);
@@ -363,7 +372,7 @@ function TreinosPage() {
     setHold(null);
     if (session && sessionIdx === active) {
       cancelRestPush();
-      setSession({ ...session, sets: shift(session.sets), kgs: shift(session.kgs), repsDone: shift(session.repsDone), rest: undefined });
+      setSession({ ...session, sets: shift(session.sets), kgs: shift(session.kgs), repsDone: shift(session.repsDone), rir: shift(session.rir), rest: undefined });
     }
     setPlan({ ...plan, days: plan.days.map((d, di) => (di === active ? { ...d, items: tidyCombos(d.items.filter((_, ii) => ii !== i)) } : d)) });
     setOpenItem(null);
@@ -416,6 +425,7 @@ function TreinosPage() {
         onChangeDays={setSchedule}
         onOpenDone={setViewRecords}
       />
+      <RecoveryCard records={history} dayGroups={[...new Set(day.items.map((it) => byId(it.exId).group))]} dayName={day.name} />
       {nextIdx !== 0 && !session && (
         <button
           onClick={() => {
@@ -456,7 +466,7 @@ function TreinosPage() {
                 <WorkoutClock startedAt={session.startedAt} className="font-display text-3xl font-extrabold tabular-nums" />
               </div>
             </div>
-            <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); } }}
+            <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); setRirInputs({}); } }}
               className="text-sm font-semibold underline-offset-4 opacity-75 hover:underline">Cancelar</button>
           </div>
         </div>
@@ -574,10 +584,11 @@ function TreinosPage() {
               return;
             }
             const reps = targetReps === null ? null : setReps;
-            if (count === 1) return completeSets(i, setKg, reps, 1);
+            const rirLeft = targetReps === null ? null : rirInputs[ex.id] ?? null;
+            if (count === 1) return completeSets(i, setKg, reps, 1, rirLeft);
             // Marking several sets at once is easy to tap by mistake, so it asks first.
             const detail = [setKg !== null ? formatKg(setKg) : "sem peso", reps !== null && reps !== undefined ? `${reps} repetições` : it.reps].join(" × ");
-            setConfirmAll({ name: ex.name, count, detail, run: () => completeSets(i, setKg, reps, count) });
+            setConfirmAll({ name: ex.name, count, detail, run: () => completeSets(i, setKg, reps, count, rirLeft) });
           };
           const setsLeft = it.sets - setsDone;
           const suggestedHold = holdSeconds(it.reps);
@@ -632,6 +643,10 @@ function TreinosPage() {
                   </div>
                   <BodyMap exIds={[ex.id]} size="sm" className="shrink-0" />
                 </div>
+                <ExerciseNote text={notes[ex.id] ?? ""} onSave={(text) => setNotes((all) => {
+                  const { [ex.id]: _old, ...rest } = all;
+                  return text ? { ...rest, [ex.id]: text } : rest;
+                })} />
                 <p className="mt-3 text-sm text-muted-foreground">
                   <b className="font-display text-foreground">{it.sets}x{it.reps}</b>{repsCount(it.reps) ? "" : " por série"} · descanso <b className="text-foreground">{formatRest(settings.restSeconds)}</b> {combo ? "no fim da rodada" : "entre séries"}
                 </p>
@@ -646,6 +661,7 @@ function TreinosPage() {
                 )}
 
                 <SetTable sets={it.sets} reps={it.reps} done={setsDone} kgs={kgsToday} repsDone={repsToday} prevKgs={prev?.setKgs} prevReps={prev?.setReps} prevPlanReps={prev?.reps} />
+                {tracksSets && setsDone === 0 && setKg !== null && Number.isFinite(setKg) && <Warmup ex={ex} workKg={setKg} />}
                 {tracksSets && (
                   <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                     <div className="flex gap-1" role="img" aria-label={`${setsDone} de ${it.sets} séries feitas`}>
@@ -722,7 +738,11 @@ function TreinosPage() {
                       </div>
                     )}
                   </div>
+                  {setKg !== null && Number.isFinite(setKg) && <PlatesLine ex={ex} kg={setKg} />}
                   {showAdvice && <p className="mt-1.5 text-xs text-muted-foreground">{advice.reason}</p>}
+                  {tracksSets && setsLeft > 0 && targetReps !== null && !holding && (
+                    <RirPicker value={rirInputs[ex.id] ?? null} onChange={(v) => setRirInputs((all) => ({ ...all, [ex.id]: v }))} />
+                  )}
                   {tracksSets && setsLeft > 0 && holdTime != null && suggestedHold != null && session?.rest?.item !== i && (
                     <HoldTimer
                       key={setsDone}
@@ -866,6 +886,7 @@ function TreinosPage() {
                 <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">{detail.posture.map((s) => <li key={s}>{s}</li>)}</ul>
               </div>
               <LoadHistory
+                points={strengthHistory(history, detail.id)}
                 entries={historyFor(detail.id)}
                 onDelete={(id) => setLoads((entries) => entries.filter((entry) => entry.id !== id))}
               />
@@ -1420,22 +1441,38 @@ function formatDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-function LoadHistory({ entries, onDelete }: { entries: LoadEntry[]; onDelete: (id: string) => void }) {
-  const chartData = entries.map((entry) => ({ ...entry, label: formatDate(entry.date) }));
+type StrengthPoint = ReturnType<typeof strengthHistory>[number];
+
+/**
+ * Evolution of an exercise: the heaviest set of each workout and the estimated max (Epley), which also rises when
+ * the same weight goes for more reps. The list below keeps the stored loads (they feed "Última").
+ */
+function LoadHistory({ points, entries, onDelete }: { points: StrengthPoint[]; entries: LoadEntry[]; onDelete: (id: string) => void }) {
+  const chartData = points.map((p) => ({ ...p, label: formatDate(p.date) }));
+  const withEstimate = points.filter((p) => p.e1rm !== null);
+  const first = withEstimate[0];
+  const last = withEstimate.at(-1);
+  const gain = first && last && first !== last ? Math.round(((last.e1rm! - first.e1rm!) / first.e1rm!) * 100) : null;
 
   return (
     <section className="border-t border-border pt-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="font-bold">Evolução de carga</h4>
-        <span className="text-xs text-muted-foreground">{entries.length} registro(s)</span>
+        <h4 className="font-bold">Evolução de carga e força</h4>
+        <span className="text-xs text-muted-foreground">{points.length} treino(s)</span>
       </div>
-      {entries.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">A carga entra aqui sozinha quando você conclui as séries com peso: fica a mais alta de cada treino.</p>
+      {points.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">Entra aqui sozinho quando você conclui um treino com peso neste exercício: a carga mais alta e a força estimada de cada dia.</p>
       ) : (
         <>
-          <div className="mt-3 h-52 w-full" aria-label="Gráfico de evolução de carga">
+          {last && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Força estimada atual: <b className="text-foreground tabular-nums">{formatKg(last.e1rm!)}</b> para 1 repetição, pela melhor série do último treino ({last.set})
+              {gain !== null && gain !== 0 && <>; <b className={gain > 0 ? "text-[#3f9d6b]" : "text-destructive"}>{gain > 0 ? "+" : "−"}{Math.abs(gain)}%</b> desde {formatDate(first!.date)}</>}.
+            </p>
+          )}
+          <div className="mt-3 h-52 w-full" aria-label="Gráfico de evolução de carga e força estimada">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <defs>
                   <linearGradient id="load-gradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
@@ -1444,15 +1481,19 @@ function LoadHistory({ entries, onDelete }: { entries: LoadEntry[]; onDelete: (i
                 </defs>
                 <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
                 <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={11} />
-                <YAxis domain={["dataMin - 2", "dataMax + 2"]} stroke="var(--muted-foreground)" fontSize={11} unit=" kg" width={62} />
+                <YAxis domain={[(min: number) => Math.floor((min - 2) / 5) * 5, (max: number) => Math.ceil((max + 2) / 5) * 5]} allowDecimals={false}
+                  tickFormatter={(v: number) => `${Math.round(v).toLocaleString("pt-BR")} kg`} stroke="var(--muted-foreground)" fontSize={11} width={58} />
                 <Tooltip
-                  formatter={(value) => [`${Number(value).toLocaleString("pt-BR")} kg`, "Carga"]}
+                  formatter={(value, name) => [`${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kg`, name]}
                   contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }}
                 />
-                <Area type="monotone" dataKey="kg" stroke="var(--accent)" strokeWidth={3} fill="url(#load-gradient)" dot={{ r: 4, fill: "var(--accent)" }} />
-              </AreaChart>
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Area type="monotone" dataKey="kg" name="Carga mais alta" stroke="var(--accent)" strokeWidth={3} fill="url(#load-gradient)" dot={{ r: 4, fill: "var(--accent)" }} />
+                {withEstimate.length > 0 && <Line type="monotone" dataKey="e1rm" name="Força estimada" stroke="var(--primary)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3, fill: "var(--primary)" }} connectNulls />}
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">Força estimada: quanto você levantaria numa repetição, calculado pela carga e pelas repetições (fórmula de Epley, séries de até 12).</p>
           <ul className="mt-2 max-h-40 divide-y divide-border overflow-y-auto">
             {[...entries].reverse().map((entry) => (
               <li key={entry.id} className="flex items-center justify-between py-2 text-sm">
@@ -1469,5 +1510,154 @@ function LoadHistory({ entries, onDelete }: { entries: LoadEntry[]; onDelete: (i
         </>
       )}
     </section>
+  );
+}
+
+/** Toast line of a personal record: a heavier set, or more reps for the weight (higher estimated max). */
+function recordText(r: PersonalRecord) {
+  return r.kind === "carga"
+    ? `${r.name}: ${formatKg(r.kg)} (antes ${formatKg(r.previousKg)})`
+    : `${r.name}: ${kgNumber(r.kg)} kg × ${r.reps}, força estimada ${formatKg(Math.round(r.e1rm * 10) / 10)} (antes ${formatKg(Math.round(r.previousE1rm * 10) / 10)})`;
+}
+
+/** Fixed note of an exercise (seat height, grip, which machine), shown every time it opens. */
+function ExerciseNote({ text, onSave }: { text: string; onSave: (text: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+  if (editing) {
+    return (
+      <div className="mt-3 rounded-2xl bg-muted/60 p-3">
+        <label htmlFor="nota-exercicio" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Anotação deste exercício</label>
+        <textarea id="nota-exercicio" value={draft} onChange={(e) => setDraft(e.target.value.slice(0, 200))} rows={2} autoFocus
+          placeholder="Ex: banco no furo 4, pegada fechada"
+          className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2 text-base" />
+        <div className="mt-2 flex gap-2">
+          <Button type="button" onClick={() => { onSave(draft.trim()); setEditing(false); }} className="min-h-11 flex-1 rounded-full">Salvar</Button>
+          <Button type="button" variant="secondary" onClick={() => { setDraft(text); setEditing(false); }} className="min-h-11 rounded-full">Cancelar</Button>
+        </div>
+      </div>
+    );
+  }
+  return text ? (
+    <button type="button" onClick={() => { setDraft(text); setEditing(true); }}
+      className="mt-3 flex w-full items-start gap-2 rounded-2xl bg-accent/10 px-3 py-2.5 text-left text-sm">
+      <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+      <span className="min-w-0 flex-1 whitespace-pre-wrap">{text}</span>
+      <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-label="Editar anotação" />
+    </button>
+  ) : (
+    <button type="button" onClick={() => { setDraft(""); setEditing(true); }}
+      className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+      <StickyNote className="h-4 w-4" />Adicionar anotação
+    </button>
+  );
+}
+
+/** Lighter sets before the first working set of a compound lift; ticking them is just a checklist, nothing is saved. */
+function Warmup({ ex, workKg }: { ex: Exercise; workKg: number }) {
+  const sets = warmupSets(workKg, ex);
+  const [done, setDone] = useState<number[]>([]);
+  if (sets.length === 0) return null;
+  return (
+    <details className="group mt-3 rounded-2xl border border-border px-3 py-2">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold [&::-webkit-details-marker]:hidden">
+        <span className="inline-flex items-center gap-2"><Flame className="h-4 w-4 text-accent" aria-hidden />Aquecimento sugerido · {sets.length} séries leves</span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      <ul className="mt-1 divide-y divide-border">
+        {sets.map((s, k) => {
+          const on = done.includes(k);
+          return (
+            <li key={k}>
+              <button type="button" role="checkbox" aria-checked={on} onClick={() => setDone(on ? done.filter((d) => d !== k) : [...done, k])}
+                className={`flex min-h-11 w-full items-center gap-3 text-left text-sm tabular-nums ${on ? "text-muted-foreground line-through" : ""}`}>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${on ? "border-[#3f9d6b] bg-[#3f9d6b] text-white" : "border-border"}`}>{on && <Check className="h-3.5 w-3.5" />}</span>
+                <span className="flex-1">{s.kg === barKg(ex) ? `Barra vazia (${kgNumber(s.kg)} kg)` : formatKg(s.kg)}</span>
+                <span className="font-semibold">× {s.reps}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="pb-1 text-xs text-muted-foreground">Não contam no volume nem nos recordes. Descanse uns 60 s antes da primeira série válida.</p>
+    </details>
+  );
+}
+
+/** Plates per side for a barbell load, under the weight field. */
+function PlatesLine({ ex, kg }: { ex: Exercise; kg: number }) {
+  const bar = barKg(ex);
+  if (bar === null || kg <= bar) return null;
+  const { plates, left } = platesPerSide(kg, bar);
+  return (
+    <p className="mt-1.5 text-xs text-muted-foreground">
+      Cada lado: <b className="tabular-nums text-foreground">{plates.map(kgNumber).join(" + ")} kg</b> · barra de {bar} kg
+      {left > 0 && <> · sobram {kgNumber(left * 2)} kg que as anilhas não fecham</>}
+    </p>
+  );
+}
+
+const RIR_OPTIONS = [0, 1, 2, 3] as const;
+
+/** Optional: how many more reps the set had in it. It helps the "subir carga" advice; tapping again clears it. */
+function RirPicker({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-bold text-muted-foreground">Quantas repetições ainda sobravam? <span className="font-normal">(opcional)</span></p>
+      <div className="mt-1.5 grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Repetições que sobravam">
+        {RIR_OPTIONS.map((n) => (
+          <button key={n} type="button" role="radio" aria-checked={value === n} onClick={() => onChange(value === n ? null : n)}
+            className={`min-h-11 rounded-full border text-sm font-bold ${value === n ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card"}`}>
+            {n === 0 ? "0 · limite" : n === 3 ? "3+" : n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const RECOVERY_LABEL = { cansado: "ainda cansado", recuperando: "quase pronto", pronto: "recuperado" } as const;
+
+/** How rested each muscle trained in the last week is, with today's workout muscles called out. */
+function RecoveryCard({ records, dayGroups, dayName }: { records: WorkoutRecord[]; dayGroups: Group[]; dayName: string }) {
+  const [now] = useState(() => Date.now());
+  const groups = muscleRecovery(records, now);
+  const list = (Object.entries(groups) as [Group, { state: "cansado" | "recuperando" | "pronto"; hours: number; sets: number }][])
+    .sort((a, b) => a[1].hours - b[1].hours);
+  if (list.length === 0) return null;
+  const tiredToday = dayGroups.filter((g) => groups[g]?.state === "cansado");
+  const almostToday = dayGroups.filter((g) => groups[g]?.state === "recuperando");
+  const resting = list.filter(([, v]) => v.state !== "pronto").length;
+  const names = (gs: Group[]) => gs.map((g) => GROUP_LABEL[g]).join(", ");
+  const summary = tiredToday.length > 0
+    ? `${names(tiredToday)} ${tiredToday.length === 1 ? "ainda está cansado" : "ainda estão cansados"} para o ${dayName}`
+    : almostToday.length > 0
+      ? `${names(almostToday)} ${almostToday.length === 1 ? "está quase pronto" : "estão quase prontos"} para o ${dayName}`
+      : resting > 0 ? `${resting} ${resting === 1 ? "músculo ainda se recupera" : "músculos ainda se recuperam"}, nenhum do ${dayName}` : "Todos os músculos treinados estão recuperados";
+  return (
+    <details className="group rounded-3xl border border-border bg-card px-4 py-3">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Recuperação dos músculos</span>
+          <span className="block text-sm font-semibold">{summary}</span>
+        </span>
+        <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-start">
+        <RecoveryMap groups={groups} className="shrink-0" />
+        <ul className="min-w-0 flex-1 divide-y divide-border text-sm">
+          {list.map(([g, v]) => (
+            <li key={g} className="flex items-center justify-between gap-3 py-1.5">
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${v.state === "pronto" ? "bg-[#3f9d6b]" : v.state === "recuperando" ? "bg-accent/45" : "bg-accent"}`} aria-hidden />
+                <span className="truncate">{GROUP_LABEL[g]}</span>
+              </span>
+              <span className="shrink-0 text-right text-xs text-muted-foreground"><b className="text-foreground">{RECOVERY_LABEL[v.state]}</b> · há {v.hours < 48 ? `${v.hours} h` : `${Math.round(v.hours / 24)} dias`}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">Pelo tempo desde o último treino de cada músculo e pelas séries que ele recebeu: até 6 séries pedem cerca de 48 h; mais que isso, 72 h.</p>
+    </details>
   );
 }

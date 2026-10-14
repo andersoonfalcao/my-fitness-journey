@@ -229,6 +229,11 @@ function PerfilPage() {
         <p className="mt-3 text-sm opacity-75">{(showForm ? p : saved).calibratedTdee ? "Gasto medido" : "Gasto estimado"}: {t.tdee.toLocaleString("pt-BR")} kcal/dia. Como calculamos: {t.notes.join(" · ")}.</p>
       </section>
 
+      {!showForm && saved && <WeekSplit profile={saved} onChange={(weekendExtra) => {
+        setProfile({ ...saved, weekendExtra: weekendExtra || undefined });
+        toast.success(weekendExtra ? `Fim de semana com +${weekendExtra} kcal por dia` : "Mesma meta todos os dias");
+      }} />}
+
       {showForm && (
         <div className="flex flex-col gap-3 sm:flex-row">
           <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
@@ -330,5 +335,41 @@ function ProfileSummary({ p, current, start }: { p: Profile; current: number; st
         ))}
       </div>
     </div>
+  );
+}
+
+const WEEKEND_OPTIONS = [0, 150, 250, 400];
+
+/**
+ * Weekly distribution of the calories: eat a bit less Monday to Friday to have more on Saturday and Sunday. The
+ * weekly total (and so the expected pace) stays the same; carbs take the difference.
+ */
+function WeekSplit({ profile, onChange }: { profile: Profile; onChange: (extra: number) => void }) {
+  const current = profile.weekendExtra ?? 0;
+  const base = targets(profile).weekKcal;
+  return (
+    <section className="rounded-3xl border border-border bg-card p-5">
+      <h2 className="text-lg font-bold">Calorias na semana</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Coma um pouco menos de segunda a sexta para ter mais no sábado e no domingo. O total da semana não muda.</p>
+      <p className="mt-3 text-sm font-bold">Calorias a mais no sábado e no domingo</p>
+      <div className="mt-1 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Calorias a mais no sábado e no domingo">
+        {WEEKEND_OPTIONS.map((extra) => (
+          <button key={extra} type="button" role="radio" aria-checked={current === extra} onClick={() => extra !== current && onChange(extra)}
+            className={`min-h-11 rounded-full border px-3 text-sm font-bold ${current === extra ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>
+            {extra === 0 ? "Igual" : `+${extra}`}
+          </button>
+        ))}
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-3">
+        <div className="flex flex-col rounded-2xl bg-muted/60 p-3">
+          <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Seg a sex</dt>
+          <dd className="font-display text-2xl font-extrabold tabular-nums">{base - Math.round((current * 2) / 5)}<span className="text-sm font-semibold text-muted-foreground"> kcal</span></dd>
+        </div>
+        <div className="flex flex-col rounded-2xl bg-muted/60 p-3">
+          <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sáb e dom</dt>
+          <dd className="font-display text-2xl font-extrabold tabular-nums">{base + current}<span className="text-sm font-semibold text-muted-foreground"> kcal</span></dd>
+        </div>
+      </dl>
+    </section>
   );
 }

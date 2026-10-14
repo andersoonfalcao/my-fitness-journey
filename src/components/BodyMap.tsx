@@ -1,5 +1,6 @@
 import Model, { type IExerciseData, type Muscle } from "react-body-highlighter";
 import { byId, type Exercise, type Group } from "@/lib/exercises";
+import type { Recovery } from "@/lib/workout-stats";
 
 /** Muscles of the body model (react-body-highlighter, MIT) for each exercise group. */
 const GROUP_MUSCLES: Record<Group, Muscle[]> = {
@@ -24,6 +25,32 @@ function musclesOfExercise(id: string): Muscle[] {
   // Rear-delt work (reverse fly, face pull) lights the back of the shoulder instead of the front.
   if (ex.group === "ombros" && ex.pattern === "abrir-ombro-posterior") return ["back-deltoids"];
   return GROUP_MUSCLES[ex.group];
+}
+
+// Recovery colors by frequency: 1 = ready (green), 2 = recovering (light orange), 3 = tired (orange).
+const RECOVERY_COLORS = ["#3f9d6b", "color-mix(in oklch, var(--accent) 45%, var(--card))", "var(--accent)"];
+const RECOVERY_LEVEL: Record<Recovery, number> = { pronto: 1, recuperando: 2, cansado: 3 };
+
+/** Front and back of a body with each muscle trained in the last week painted by how rested it is. */
+export function RecoveryMap({ groups, className = "" }: { groups: Partial<Record<Group, { state: Recovery }>>; className?: string }) {
+  const data: IExerciseData[] = (Object.entries(groups) as [Group, { state: Recovery }][]).map(([g, v]) => ({
+    name: g, muscles: g === "ombros" ? ["front-deltoids", "back-deltoids"] : GROUP_MUSCLES[g], frequency: RECOVERY_LEVEL[v.state],
+  }));
+  const view = (type: "anterior" | "posterior", label: string) => (
+    <figure className="flex flex-col items-center gap-1">
+      <div className="w-20">
+        <Model type={type} data={data} bodyColor="var(--body-map)" highlightedColors={RECOVERY_COLORS}
+          svgStyle={{ width: "100%", height: "auto", cursor: "default" }} />
+      </div>
+      <figcaption className="text-[11px] font-semibold text-muted-foreground">{label}</figcaption>
+    </figure>
+  );
+  return (
+    <div className={`flex items-start justify-center gap-3 ${className}`} role="img" aria-label="Recuperação dos músculos treinados na última semana, de frente e de costas">
+      {view("anterior", "Frente")}
+      {view("posterior", "Costas")}
+    </div>
+  );
 }
 
 // Index = how many entries hit the muscle: the class's muscles in light orange, the open exercise in full orange.

@@ -124,6 +124,8 @@ export type Profile = {
   calibratedTdee?: { kcal: number; date: string } | undefined;
   /** Goal reached and the person chose to hold the weight: no deficit while the goal weight stays this one. */
   maintain?: { goalWeight: number } | undefined;
+  /** Calories moved to Saturday and Sunday (each), taken evenly from Monday–Friday; the weekly total stays the same. */
+  weekendExtra?: number | undefined;
 };
 
 /** "suplementos" holds supplements taken (src/lib/supplements.ts); it is not counted as a meal. */
@@ -197,6 +199,8 @@ export type WorkoutSession = {
   kgs?: Record<number, (number | null)[]>;
   /** Reps actually done in each set (null = time-based work); defaults to the plan target when not typed. */
   repsDone?: Record<number, (number | null)[]>;
+  /** Reps the person says were still left in each set (0 = to failure, 3 = three or more); null = not told. */
+  rir?: Record<number, (number | null)[]>;
   /** Rest after a set; `item` is the plan item index whose card shows the countdown. */
   rest?: { item: number; endsAt: number; next: string } | undefined;
 };
@@ -219,6 +223,8 @@ export type WorkoutRecord = {
     setKgs?: (number | null)[] | undefined;
     /** Missing in records saved before per-set reps; then every set counts the target `reps`. */
     setReps?: (number | null)[] | undefined;
+    /** Reps left in each set as told by the person (0 = to failure, 3 = three or more); missing = not told. */
+    setRir?: (number | null)[] | undefined;
   }[];
 };
 
@@ -281,7 +287,17 @@ export const KEYS = {
   cycle: "forma.cycle",
   /** Rest between sets and the daily reminder (src/lib/push.ts). */
   settings: "forma.settings",
+  /** Fixed note per exercise ("banco no furo 4"): { [exerciseId]: text }. */
+  exNotes: "forma.exnotes",
+  /** Home recipes (Recipe in src/lib/recipes.ts): ingredients and the cooked weight they yield. */
+  recipes: "forma.recipes",
+  /** The fast in progress (src/lib/fasting.ts) and the finished ones. */
+  fast: "forma.fast",
+  fasts: "forma.fasts",
 };
+
+/** Food planned for a day and not eaten yet, one document per month like the food log. */
+export const plannedKey = (date: string) => `forma.planned.${date.slice(0, 7)}`;
 
 export const today = () => {
   const d = new Date();
@@ -299,7 +315,7 @@ const KCAL_PER_KG_DAY = 7700 / 7;
  * Iraki et al. 2019 (bulk: +10–20% for novices/intermediates, less when advanced; protein 1.6–2.2 g/kg)
  * and the ISSN protein position stand (1.4–2.0 g/kg for exercising people, more in a deficit).
  */
-export function targets(p: Profile) {
+export function targets(p: Profile, date?: string) {
   const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "m" ? 5 : -161);
   // Once the person accepts the energy measured from their own logs, it replaces the activity estimate.
   const tdee = p.calibratedTdee?.kcal ?? bmr * p.activity;
@@ -330,13 +346,15 @@ export function targets(p: Profile) {
     energyNote = "manutenção do peso";
   }
   kcal = Math.round(Math.max(kcal, p.sex === "m" ? 1500 : 1200));
+  // Weekly distribution: the date's share moves between weekdays and the weekend; carbs absorb it.
+  const shift = date ? weekdayShift(p, date) : 0;
 
   // In a deficit, protein follows the goal weight so overweight profiles aren't overestimated.
   const proteinWeight = p.focus === "perder" || losing ? Math.min(p.weight, p.goalWeight) : p.weight;
   const proteinPerKg = p.focus === "perder" ? 2.2 : p.focus === "massa" ? 2 : p.focus === "forca" ? 1.8 : 1.6;
   const protein = Math.round(proteinWeight * proteinPerKg);
   const fat = Math.round(Math.max((kcal * 0.25) / 9, p.weight * 0.6));
-  const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
+  const carbs = Math.max(0, Math.round((kcal + shift - protein * 4 - fat * 9) / 4));
 
   // ~35 ml per kg of body weight is the usual practical guide for active adults; kept within 1.5–4 L.
   const waterMl = Math.round(Math.min(4000, Math.max(1500, p.weight * 35)) / 50) * 50;
@@ -348,6 +366,15 @@ export function targets(p: Profile) {
     "gordura ~25% das calorias",
     "carboidratos completam o restante",
     "água ~35 ml/kg",
+    ...(p.weekendExtra ? [`+${p.weekendExtra} kcal no sábado e no domingo e −${Math.round((p.weekendExtra * 2) / 5)} de segunda a sexta (a média da semana não muda)`] : []),
   ];
-  return { kcal, protein, carbs, fat, waterMl, tdee: Math.round(tdee), notes };
+  // `kcal` is the given date's share; `weekKcal` the plain daily average the week adds up to.
+  return { kcal: kcal + shift, weekKcal: kcal, protein, carbs, fat, waterMl, tdee: Math.round(tdee), notes };
+}
+
+/** Calories a date gains (weekend) or gives (weekday) under the weekly distribution; 0 without it. */
+export function weekdayShift(p: Profile, date: string) {
+  const extra = p.weekendExtra ?? 0;
+  if (!extra) return 0;
+  return [0, 6].includes(new Date(`${date}T12:00:00`).getDay()) ? extra : -Math.round((extra * 2) / 5);
 }

@@ -45,7 +45,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const [busy, setBusy] = useState(false);
   const [share, setShare] = useState<ShareRequest | null>(null);
 
-  const t = targets(profile);
+  const t = targets(profile, date);
   const eaten = foods.filter((f) => f.date === date);
   const meals = eaten.filter((f) => f.meal !== "suplementos");
   const missingMeals = MEAL_NAMES.filter(([m]) => !meals.some((f) => f.meal === m)).map(([, label]) => label);

@@ -77,12 +77,11 @@ function CalendarPage() {
   if (!ready) return null;
   if (!profile) return <NeedProfile />;
 
-  const t = targets(profile);
   const now = today();
   const dayData = (date: string) => {
     const eaten = foods.filter((f) => f.date === date);
     const closed = closedDays.find((d) => d.date === date);
-    const goal = closed?.day.targets ?? t;
+    const goal = closed?.day.targets ?? targets(profile, date);
     const kcal = Math.round(eaten.reduce((s, f) => s + f.kcal, 0));
     return {
       date,

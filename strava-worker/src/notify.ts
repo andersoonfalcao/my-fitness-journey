@@ -212,6 +212,8 @@ export async function pushRoute(path: string, request: Request, env: NotifyEnv, 
   if (!path.startsWith("/push/") || request.method !== "POST") return null;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const timer = () => env.REST.get(env.REST.idFromName(uid));
+  // A fast runs for hours alongside rests, so it has its own alarm.
+  const fastTimer = () => env.REST.get(env.REST.idFromName(`${uid}:jejum`));
 
   if (path === "/push/subscribe") {
     const sub = body.subscription as PushSubscriptionJSON | undefined;
@@ -243,6 +245,7 @@ export async function pushRoute(path: string, request: Request, env: NotifyEnv, 
   if (path === "/push/unsubscribe") {
     await env.TOKENS.delete(key);
     await timer().cancel();
+    await fastTimer().cancel();
     return [{ ok: true }, 200];
   }
   if (path === "/push/test") {
@@ -267,6 +270,18 @@ export async function pushRoute(path: string, request: Request, env: NotifyEnv, 
   }
   if (path === "/push/rest/cancel") {
     await timer().cancel();
+    return [{ ok: true }, 200];
+  }
+  if (path === "/push/fast") {
+    const endsAt = Number(body.endsAt);
+    const goalH = Number(body.goalH);
+    if (!Number.isFinite(endsAt) || endsAt < Date.now() - 5000 || endsAt > Date.now() + 48 * 3_600_000 || !Number.isInteger(goalH) || goalH < 1 || goalH > 48) return [{ error: "jejum inválido" }, 400];
+    const message: Message = { title: "Jejum completo ✅", body: `Você chegou às ${goalH} horas de jejum.`, tag: "forma-jejum", url: "/alimentacao" };
+    await fastTimer().start({ key, endsAt, next: "", message });
+    return [{ ok: true }, 200];
+  }
+  if (path === "/push/fast/cancel") {
+    await fastTimer().cancel();
     return [{ ok: true }, 200];
   }
   return [{ error: "rota não encontrada" }, 404];

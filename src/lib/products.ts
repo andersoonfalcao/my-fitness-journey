@@ -90,7 +90,8 @@ const LABEL_SCHEMA = Schema.object({
 });
 
 /** Shrinks the photo (labels stay readable at ~1600 px) so the request is small and fast. */
-async function photoData(file: File) {
+/** A photo shrunk to 1600 px and encoded as base64 JPEG, ready to send to the AI. */
+export async function photoData(file: File) {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");

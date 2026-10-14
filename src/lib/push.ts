@@ -244,3 +244,14 @@ export function cancelRestPush() {
   const id = deviceId();
   if (id) void call("/push/rest/cancel", { id }).catch(() => undefined);
 }
+
+/** Schedules the "fast complete" push for this device (no-op when notifications are off here). */
+export function scheduleFastPush(endsAt: number, goalH: number) {
+  const id = deviceId();
+  if (id) void call("/push/fast", { id, endsAt, goalH }).catch(() => undefined);
+}
+
+export function cancelFastPush() {
+  const id = deviceId();
+  if (id) void call("/push/fast/cancel", { id }).catch(() => undefined);
+}

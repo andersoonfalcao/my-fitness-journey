@@ -77,7 +77,7 @@ type Inputs = { uid: string; date: string; profile: Profile; weights: WeightEntr
 
 /** Exact numbers of the day and since the start of tracking (computed here, never by the AI). */
 export async function dayNumbers({ uid, date, profile, weights, history }: Inputs): Promise<Omit<DayRecord, "ai" | "closedAt">> {
-  const t = targets(profile);
+  const t = targets(profile, date);
   const sortedWeights = [...weights].sort((a, b) => a.date.localeCompare(b.date));
   const start = [sortedWeights[0]?.date, history[0]?.date].filter((d): d is string => !!d).sort()[0] ?? date;
 
@@ -182,7 +182,7 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       daysLogged: logged.length,
       avgKcal: avg((d) => d.kcal),
       avgProtein: avg((d) => d.p),
-      daysOnCalories: logged.filter((d) => Math.abs(d.kcal - t.kcal) <= t.kcal * 0.1).length,
+      daysOnCalories: [...byDay].filter(([day, d]) => { const goal = targets(profile, day).kcal; return Math.abs(d.kcal - goal) <= goal * 0.1; }).length,
       daysOnProtein: logged.filter((d) => d.p >= t.protein * 0.9).length,
       volumeTrend,
       stravaActivities: strava.length,
@@ -202,7 +202,7 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
   ]);
   const recentFoods = foodsKey(date) === foodsKey(before) ? foodsNow : [...foodsBefore, ...foodsNow];
   const dayFoods = recentFoods.filter((f) => f.date === date);
-  const t = targets(profile);
+  const t = targets(profile); // weekly average: the deficit is judged on the whole week
   const weight = readWeight(weights, recentFoods, profile.goalWeight, t.kcal < t.tdee, date);
   const fiber = fiberOf(dayFoods);
   const tendencias = {
