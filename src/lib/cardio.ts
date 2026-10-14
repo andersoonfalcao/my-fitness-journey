@@ -17,6 +17,13 @@ export const CARDIO_KINDS: { kind: CardioKind; label: string; sports: string[] }
   { kind: "eliptico", label: "Elíptico", sports: ["Elliptical"] },
   { kind: "outro", label: "Outro", sports: [] },
 ];
+/** Named activities offered under "Outro" (saved as its name), with a search. */
+export const OTHER_ACTIVITIES = [
+  "Natação", "Remo", "Escada", "Dança", "Futebol", "Futsal", "Vôlei", "Beach tennis", "Tênis", "Padel", "Basquete", "Handebol",
+  "Jiu-jítsu", "Muay thai", "Boxe", "Judô", "Karatê", "Crossfit", "Funcional", "HIIT", "Pular corda", "Pilates", "Ioga",
+  "Spinning", "Trilha", "Patins", "Skate", "Surfe", "Stand up paddle", "Caiaque", "Escalada", "Hidroginástica",
+];
+
 const CLAIMED = new Set(CARDIO_KINDS.flatMap((k) => k.sports));
 
 /** Treadmill setting from `atS` seconds into the session until the next change. */

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BodyMeasures } from "@/components/BodyMeasures";
 import { HealthTrends } from "@/components/HealthTrends";
+import { FitnessCard } from "@/components/FitnessCard";
 import { fmtKg, KEYS, roundKg, today, useLocal, type BodyEntry, type Profile, type WeightEntry } from "@/lib/store";
 import { NeedProfile } from "@/components/AppShell";
 import { WeightPace } from "@/components/WeightInsights";
@@ -281,6 +282,8 @@ function CorpoPage() {
       <BodyMeasures profile={profile} part="evolucao" />
 
       <HealthTrends />
+
+      <FitnessCard profile={profile} />
       </>) : (<>
       <section id="pesagem" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
         <h2 className="text-xl font-bold">Pesagem</h2>

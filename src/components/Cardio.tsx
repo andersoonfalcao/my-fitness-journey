@@ -6,10 +6,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
 import {
-  CARDIO_KINDS, CARDIO_SESSION_KEY, cardioKey, cardioLabel, cardioSeconds, joinStoredCardio, treadmillStats,
+  CARDIO_KINDS, CARDIO_SESSION_KEY, OTHER_ACTIVITIES, cardioKey, cardioLabel, cardioSeconds, joinStoredCardio, treadmillStats,
   type CardioKind, type CardioRecord, type CardioSession, type TreadmillStep,
 } from "@/lib/cardio";
-import { today, uid, useLocal } from "@/lib/store";
+import { KEYS, today, uid, useLocal, type Profile } from "@/lib/store";
+import type { Plan } from "@/lib/plan";
+import { healthKey, type HealthMonth } from "@/lib/health";
+import { addDays } from "@/lib/insights";
+import { PROGRAM_WEEKS, programAt } from "@/lib/program";
+import { cardioZone, DEFAULT_RESTING_HR, hrMax, restingAverage } from "@/lib/heart";
 
 const ICONS: Record<CardioKind, typeof Bike> = { caminhada: Footprints, corrida: Footprints, bicicleta: Bike, esteira: Gauge, eliptico: HeartPulse, outro: Timer };
 
@@ -113,6 +118,7 @@ export function CardioPanel() {
 
   return (
     <>
+      <div className="mb-3"><CardioGoal /></div>
       <button type="button" onClick={() => setPicking(true)}
         className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-primary py-3 font-display text-base font-bold text-primary">
         <HeartPulse className="h-5 w-5" />Iniciar cardio
@@ -144,12 +150,35 @@ export function CardioPanel() {
               <Button type="button" onClick={() => start("esteira")} className="min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90"><Play />Iniciar esteira</Button>
             </div>
           )}
-          {other !== null && (
-            <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); start("outro", other); }}>
-              <Input aria-label="Qual cardio" placeholder="Qual? Ex.: remo, natação (opcional)" value={other} maxLength={30} onChange={(event) => setOther(event.target.value)} />
-              <Button type="submit" className="min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90"><Play />Iniciar</Button>
-            </form>
-          )}
+          {other !== null && (() => {
+            const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+            const found = OTHER_ACTIVITIES.filter((a) => norm(a).includes(norm(other.trim())));
+            const exact = found.some((a) => norm(a) === norm(other.trim()));
+            return (
+              <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); start("outro", found.length === 1 ? found[0] : other); }}>
+                <Input aria-label="Buscar atividade" placeholder="Buscar: natação, jiu-jítsu, dança…" value={other} maxLength={30} onChange={(event) => setOther(event.target.value)} />
+                <ul className="max-h-60 divide-y divide-border overflow-y-auto rounded-2xl border border-border">
+                  {found.map((a) => (
+                    <li key={a}>
+                      <button type="button" onClick={() => start("outro", a)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 text-left text-sm font-semibold">
+                        {a}<Play className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+                      </button>
+                    </li>
+                  ))}
+                  {other.trim() && !exact && (
+                    <li>
+                      <button type="submit" className="flex min-h-11 w-full items-center justify-between gap-2 px-3 text-left text-sm font-semibold text-primary">
+                        Iniciar “{other.trim()}”<Play className="h-4 w-4 shrink-0" aria-hidden />
+                      </button>
+                    </li>
+                  )}
+                </ul>
+                {!other.trim() && (
+                  <Button type="submit" variant="secondary" className="min-h-11 w-full rounded-full"><Play />Iniciar sem nome</Button>
+                )}
+              </form>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </>
@@ -208,6 +237,8 @@ function RunningCardio({ session, onChange, onFinish, onCancel }: {
         </div>
         <button type="button" onClick={onCancel} className="-m-2 min-h-11 shrink-0 px-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Cancelar</button>
       </div>
+
+      <div className="mt-3"><CardioGoal elapsedS={elapsedS} /></div>
 
       {session.kind === "esteira" && (
         <div className="mt-3 border-t border-border pt-3">
@@ -307,5 +338,45 @@ export function WaitingCardio({ record, onDelete }: { record: CardioRecord; onDe
         <button type="button" onClick={() => { if (confirm("Excluir este cardio?")) onDelete(); }} className="min-h-11 px-1 text-xs font-semibold text-muted-foreground hover:text-destructive">Excluir</button>
       </div>
     </details>
+  );
+}
+
+/** Today's cardio target: minutes from the week of the training cycle and the heart rate band from the age and the band's resting rate. */
+function useCardioGoal() {
+  const date = today();
+  const [profile] = useLocal<Profile | null>(KEYS.profile, null);
+  const [plan] = useLocal<Plan | null>(KEYS.plan, null);
+  const [thisMonth] = useLocal<HealthMonth>(healthKey(date), {});
+  const [prevMonth] = useLocal<HealthMonth>(healthKey(addDays(date, -10)), {});
+  if (!profile) return null;
+  const week = plan ? programAt(plan, date) : null;
+  const measured = restingAverage({ ...prevMonth, ...thisMonth }, date);
+  const zone = cardioZone(measured ?? DEFAULT_RESTING_HR, hrMax(profile.age));
+  return { minutes: week?.cardioMin ?? PROGRAM_WEEKS[0].cardioMin, week: week?.week ?? 1, zone, measured: measured !== null };
+}
+
+/** The target, before starting and while the stopwatch runs (with a bar up to the target time). */
+function CardioGoal({ elapsedS }: { elapsedS?: number }) {
+  const goal = useCardioGoal();
+  if (!goal) return null;
+  const pct = elapsedS === undefined ? 0 : Math.min(100, (elapsedS / (goal.minutes * 60)) * 100);
+  const done = elapsedS !== undefined && pct >= 100;
+  return (
+    <div className="rounded-2xl bg-muted/60 p-3">
+      <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Objetivo · semana {goal.week} do ciclo</div>
+      <dl className="mt-1 grid grid-cols-2 gap-3">
+        <div className="flex flex-col"><dt className="text-xs text-muted-foreground">Tempo</dt><dd className="font-display text-xl font-extrabold tabular-nums">{goal.minutes} min</dd></div>
+        <div className="flex flex-col"><dt className="text-xs text-muted-foreground">Zona-alvo</dt><dd className="font-display text-xl font-extrabold tabular-nums">{goal.zone.low}–{goal.zone.high}<span className="text-sm font-semibold text-muted-foreground"> bpm</span></dd></div>
+      </dl>
+      {elapsedS !== undefined && (
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-card" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Tempo até o objetivo">
+          <div className={`h-full rounded-full ${done ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${pct}%` }} />
+        </div>
+      )}
+      <p className="mt-2 text-xs text-muted-foreground">
+        {done ? <b className="text-[#3f9d6b]">Tempo do objetivo cumprido. </b> : null}
+        Mantenha o batimento na faixa (confira na Mi Band): dá para conversar, mas não cantar.{goal.measured ? "" : " A faixa usa um repouso estimado até a Mi Band mandar o seu."}
+      </p>
+    </div>
   );
 }

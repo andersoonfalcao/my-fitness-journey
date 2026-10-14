@@ -294,6 +294,8 @@ export const KEYS = {
   /** The fast in progress (src/lib/fasting.ts) and the finished ones. */
   fast: "forma.fast",
   fasts: "forma.fasts",
+  /** Guided max tests per exercise ({ [exerciseId]: MaxTest }, src/lib/program.ts). */
+  maxTests: "forma.maxtests",
 };
 
 /** Food planned for a day and not eaten yet, one document per month like the food log. */

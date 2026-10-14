@@ -15,6 +15,8 @@ import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { defaultTrainingDays, musclesOf } from "@/components/WeekPlan";
 import { WeightNotices } from "@/components/WeightInsights";
 import { TrainingInsights } from "@/components/TrainingInsights";
+import { MeasuresNotice, WeekGoal } from "@/components/WeekGoal";
+import { AchievementWatcher } from "@/components/Achievements";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -68,6 +70,8 @@ function Index() {
         </p>
         <h1 className="mt-1 text-4xl font-extrabold">Olá, {profile.name || "você"}.</h1>
       </div>
+
+      <WeekGoal planned={profile.days} />
 
       {session && <WorkoutNow session={session} plan={plan} />}
 
@@ -172,6 +176,10 @@ function Index() {
       <WeightNotices profile={profile} />
 
       <CalibrationNotice profile={profile} />
+
+      <MeasuresNotice />
+
+      <AchievementWatcher profile={profile} />
 
       {/* Sunday evening and Monday: the week just lived, one tap away. */}
       {[0, 1].includes(new Date().getDay()) && (

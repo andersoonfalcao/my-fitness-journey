@@ -21,6 +21,7 @@ import { CARDIO_SESSION_KEY, cardioByDate, cardioKey, cardioLabel, type CardioRe
 import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { formatDuration, WorkoutClock } from "@/components/WorkoutClock";
+import { CYCLE_WEEKS, PROGRAM_WEEKS, programAt, referenceMax, rirText, weekLoad, type MaxTest } from "@/lib/program";
 import { workoutCard } from "@/lib/share-card";
 import { barKg, lastRecordBefore, loadAdvice, muscleRecovery, personalRecords, platesPerSide, recordTotal, repsOfSet, setsByGroup, strengthHistory, sumKg, volume, warmupSets, weekStart, type PersonalRecord, type SetValues } from "@/lib/workout-stats";
 import { askRestNotifications, notifyRestOver, useWakeLock } from "@/lib/workout-device";
@@ -58,6 +59,9 @@ function TreinosPage() {
   // Reps left after the set (optional), per exercise; it stays chosen for the next sets like the weight does.
   const [rirInputs, setRirInputs] = useState<Record<string, number | null>>({});
   const [notes, setNotes] = useLocal<Record<string, string>>(KEYS.exNotes, {});
+  const [maxTests, setMaxTests] = useLocal<Record<string, MaxTest>>(KEYS.maxTests, {});
+  const [testing, setTesting] = useState<Exercise | null>(null);
+  const [methodOpen, setMethodOpen] = useState(false);
   // Time-based sets (plank): the time chosen for each exercise, and the countdown that is running (one at a time).
   const [holdTimes, setHoldTimes] = useState<Record<string, number>>({});
   const [hold, setHold] = useState<{ item: number; endsAt: number } | null>(null);
@@ -124,6 +128,10 @@ function TreinosPage() {
   // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
   // so only the next one can be started (going back takes "Recomeçar"). Other tabs are view-only.
   const tracksSets = session ? sessionIdx === active || sessionIdx < 0 : active === nextIdx && !lockedToday;
+  // Week of the six-week cycle: its intensity sets the effort and the suggested load.
+  const week = programAt(plan, today());
+  // Inside the exercise cards `history` is the load list of that exercise; the workouts go by this name there.
+  const workouts = history;
 
   /**
    * The load history (evolution chart, "Última") fills itself: each session keeps one entry per exercise with its
@@ -425,6 +433,7 @@ function TreinosPage() {
         onChangeDays={setSchedule}
         onOpenDone={setViewRecords}
       />
+      <ProgramCard plan={plan} history={history} days={profile.days} nextIdx={nextIdx} lockedToday={lockedToday} />
       <RecoveryCard records={history} dayGroups={[...new Set(day.items.map((it) => byId(it.exId).group))]} dayName={day.name} />
       {nextIdx !== 0 && !session && (
         <button
@@ -446,7 +455,8 @@ function TreinosPage() {
             {viewingDone ? "Concluído hoje" : isCurrentClass ? `Aula ${classNumber}` : lockedToday && active === nextIdx ? "Próximo treino" : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
           </div>
           <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(day.items.map((it) => it.exId))}</h2>
-          <p className="mt-1 text-sm opacity-75"><span className="whitespace-nowrap">{day.items.length} exercícios</span> · <span className="whitespace-nowrap">{plan.method}</span></p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap opacity-75">{day.items.length} exercícios ·</span>
+            <button type="button" onClick={() => setMethodOpen(true)} className="-my-2 inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold underline-offset-4 hover:underline">{plan.method}<Info className="h-4 w-4 text-accent" aria-label="Como o forma monta seu treino" /></button></p>
           {openItem !== null && day.items[openItem] && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />agora: {byId(day.items[openItem]!.exId).name}
@@ -740,6 +750,26 @@ function TreinosPage() {
                   </div>
                   {setKg !== null && Number.isFinite(setKg) && <PlatesLine ex={ex} kg={setKg} />}
                   {showAdvice && <p className="mt-1.5 text-xs text-muted-foreground">{advice.reason}</p>}
+                  {tracksSets && setsLeft > 0 && targetReps !== null && (() => {
+                    const points = strengthHistory(workouts, ex.id);
+                    const ref = referenceMax(points, maxTests[ex.id], today());
+                    // What was done last time (the progression badge) leads; the computed load is for an exercise
+                    // without history, or right after a test newer than the last workout with it.
+                    const test = maxTests[ex.id];
+                    const fresh = !advice || (!!test && test.date >= (points.at(-1)?.date ?? ""));
+                    const kg = ref && fresh ? weekLoad(ref.kg, targetReps, week.rir, barKg(ex) !== null) : null;
+                    return (
+                      <div className="mt-2 rounded-2xl bg-muted/60 px-3 py-2 text-xs">
+                        <span className="font-bold">Semana {week.week} · {week.pct}%:</span> {rirText(week.rir)}.
+                        {advice && !fresh ? null : kg ? (
+                          <> Para {targetReps} repetições, cerca de{" "}
+                            <button type="button" onClick={() => setLoadInputs((inputs) => ({ ...inputs, [ex.id]: kgInput(kg) }))}
+                              className="-my-2 inline-flex min-h-9 items-center font-bold text-primary underline underline-offset-4">{formatKg(kg)}</button>
+                            {ref?.fromTest ? " (pelo seu teste)" : ""}.</>
+                        ) : <> Faça um treino com carga (ou o teste em Detalhes) para o app sugerir o peso.</>}
+                      </div>
+                    );
+                  })()}
                   {tracksSets && setsLeft > 0 && targetReps !== null && !holding && (
                     <RirPicker value={rirInputs[ex.id] ?? null} onChange={(v) => setRirInputs((all) => ({ ...all, [ex.id]: v }))} />
                   )}
@@ -885,6 +915,19 @@ function TreinosPage() {
                 <h4 className="font-bold">Postura</h4>
                 <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">{detail.posture.map((s) => <li key={s}>{s}</li>)}</ul>
               </div>
+              {detail.group !== "cardio" && detail.group !== "core" && (
+                <section className="rounded-2xl border border-border p-4">
+                  <h4 className="font-bold">Teste de carga máxima</h4>
+                  {maxTests[detail.id] ? (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Último teste em {formatDate(maxTests[detail.id]!.date)}: <b className="text-foreground">{kgNumber(maxTests[detail.id]!.kg)} kg × {maxTests[detail.id]!.reps}</b>, força estimada de {formatKg(Math.round(maxTests[detail.id]!.e1rm * 10) / 10)}.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">Um teste de 3 a 5 repetições dá o ponto de partida da carga sugerida, bom para exercício novo ou depois de uma pausa.</p>
+                  )}
+                  <Button type="button" variant="secondary" onClick={() => setTesting(detail)} className="mt-3 min-h-11 w-full rounded-full">{maxTests[detail.id] ? "Refazer o teste" : "Fazer o teste"}</Button>
+                </section>
+              )}
               <LoadHistory
                 points={strengthHistory(history, detail.id)}
                 entries={historyFor(detail.id)}
@@ -894,6 +937,10 @@ function TreinosPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <MaxTestDialog exercise={testing} estimate={testing ? referenceMax(strengthHistory(history, testing.id), maxTests[testing.id], today())?.kg ?? null : null} onClose={() => setTesting(null)}
+        onSave={(exId, test) => { setMaxTests((all) => ({ ...all, [exId]: test })); toast.success(`Teste salvo: ${kgNumber(test.kg)} kg × ${test.reps}`, { description: `Força estimada de ${formatKg(Math.round(test.e1rm * 10) / 10)}. A carga sugerida passa a partir dela.` }); }} />
+      <MethodDialog open={methodOpen} onClose={() => setMethodOpen(false)} method={plan.method} />
 
       <Dialog open={!!combining} onOpenChange={(o) => !o && setCombining(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -1659,5 +1706,176 @@ function RecoveryCard({ records, dayGroups, dayName }: { records: WorkoutRecord[
       </div>
       <p className="mt-2 text-xs text-muted-foreground">Pelo tempo desde o último treino de cada músculo e pelas séries que ele recebeu: até 6 séries pedem cerca de 48 h; mais que isso, 72 h.</p>
     </details>
+  );
+}
+
+/** The six intensity bars of a cycle, the given week lit. */
+function IntensityBars({ current, small = false }: { current: number; small?: boolean }) {
+  return (
+    <div className={`flex items-end gap-1 ${small ? "h-8" : "h-12"}`} role="img" aria-label={`Intensidade da semana ${current}: ${PROGRAM_WEEKS[current - 1]!.pct}%`}>
+      {PROGRAM_WEEKS.map((w, i) => (
+        <span key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
+          {!small && <span className={`text-[10px] tabular-nums ${i + 1 === current ? "font-bold text-foreground" : "text-muted-foreground"}`}>{w.pct}%</span>}
+          <span className={`w-full rounded-sm ${i + 1 === current ? "bg-accent" : "bg-muted"}`} style={{ height: `${(w.pct / 65) * (small ? 28 : 26)}px` }} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Treino: the six-week cycle. Closed it says where the week is; open it lists the weeks with their intensity, the
+ * workouts done (date and total weight), the one of today and the ones still to come, in sequence order.
+ */
+function ProgramCard({ plan, history, days, nextIdx, lockedToday }: { plan: Plan; history: WorkoutRecord[]; days: number; nextIdx: number; lockedToday: boolean }) {
+  const now = programAt(plan, today());
+  let upcoming = 0;
+  const nextName = () => plan.days[(nextIdx + upcoming++) % plan.days.length]!.name;
+  const weeks = PROGRAM_WEEKS.map((w, i) => {
+    const start = addDaysTo(now.cycleStart, i * 7);
+    const end = addDaysTo(start, 6);
+    const done = history.filter((r) => r.date >= start && r.date <= end);
+    const n = i + 1;
+    const todo = n < now.week ? 0 : Math.max(0, days - (n === now.week ? done.length : 0));
+    const planned = Array.from({ length: todo }, nextName);
+    return { n, ...w, start, done, planned, missed: n < now.week ? Math.max(0, days - done.length) : 0 };
+  });
+  return (
+    <details className="group rounded-3xl border border-border bg-card px-4 py-3">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Ciclo {now.cycle} · semana {now.week} de {CYCLE_WEEKS}</span>
+          <span className="block text-sm font-semibold">Intensidade {now.pct}%: {rirText(now.rir)}</span>
+        </span>
+        <span className="w-20 shrink-0"><IntensityBars current={now.week} small /></span>
+        <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      <div className="mt-3 space-y-5 border-t border-border pt-3">
+        <p className="text-sm text-muted-foreground">
+          Seis semanas com a intensidade subindo de 40% a 65%: as séries vão chegando mais perto do limite, enquanto a carga sobe pelo selo de progressão. Depois começa um ciclo novo, a partir das cargas maiores que você alcançou.
+        </p>
+        {weeks.map((w) => (
+          <section key={w.n} className={w.n < now.week ? "opacity-80" : ""}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className={`font-display text-lg font-bold ${w.n === now.week ? "text-accent" : ""}`}>Semana {w.n}{w.n === now.week ? " · agora" : ""}</h3>
+              <span className="text-xs tabular-nums text-muted-foreground">{formatDate(w.start)} · {w.pct}%</span>
+            </div>
+            <div className="mt-1"><IntensityBars current={w.n} /></div>
+            <ul className="mt-2 space-y-2">
+              {w.done.map((r) => (
+                <li key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#3f9d6b] px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block font-bold leading-tight">{r.dayName}</span>
+                    <span className="block text-xs tabular-nums text-muted-foreground">{formatDate(r.date)}{recordTotal(r) > 0 ? ` · peso total ${formatKg(recordTotal(r))}` : ""}</span>
+                  </span>
+                  <Check className="h-5 w-5 shrink-0 text-[#3f9d6b]" aria-label="concluído" />
+                </li>
+              ))}
+              {w.planned.map((name, k) => {
+                const isNext = w.n === now.week && k === 0 && !lockedToday;
+                return (
+                  <li key={`p${k}`} className={`flex items-center justify-between gap-3 rounded-2xl border-2 px-3 py-2 ${isNext ? "border-accent" : "border-border text-muted-foreground"}`}>
+                    <span className="font-bold leading-tight">{name}</span>
+                    {isNext && <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold uppercase text-accent-foreground">Próximo treino</span>}
+                  </li>
+                );
+              })}
+              {w.missed > 0 && <li className="px-1 text-xs text-muted-foreground">{w.missed} {w.missed === 1 ? "treino ficou" : "treinos ficaram"} de fora nesta semana.</li>}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+const addDaysTo = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+const MAX_TEST_ATTEMPTS = 3;
+
+/**
+ * Guided test of 3 to 5 max reps: warm-up, up to three attempts with a long rest, and the best one (highest
+ * estimated max) is saved. Lighter than a true 1-rep max and safer without a spotter.
+ */
+function MaxTestDialog({ exercise, estimate, onClose, onSave }: { exercise: Exercise | null; estimate: number | null; onClose: () => void; onSave: (exId: string, test: MaxTest) => void }) {
+  const [tries, setTries] = useState<{ kg: string; reps: string }[]>([{ kg: "", reps: "" }]);
+  useEffect(() => { setTries([{ kg: estimate ? kgInput(Math.floor(estimate * 0.87 / 2.5) * 2.5) : "", reps: "" }]); }, [exercise, estimate]);
+  if (!exercise) return null;
+  const parsed = tries.map((t) => ({ kg: Number(t.kg.replace(",", ".")), reps: Number(t.reps) }));
+  const valid = parsed.filter((t) => Number.isFinite(t.kg) && t.kg > 0 && Number.isInteger(t.reps) && t.reps >= 1 && t.reps <= 10);
+  const best = valid.map((t) => ({ ...t, e1rm: e1rmOf(t.kg, t.reps) })).sort((a, b) => b.e1rm - a.e1rm)[0];
+  const startKg = parsed[0]?.kg && parsed[0].kg > 0 ? parsed[0].kg : estimate ? estimate * 0.87 : 0;
+  const warm = startKg ? warmupSets(startKg, { ...exercise, compound: true }) : [];
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader><DialogTitle className="font-display text-xl">Teste · {exercise.name}</DialogTitle></DialogHeader>
+        <ol className="list-decimal space-y-1 pl-5 text-sm">
+          <li>Aqueça com as séries leves abaixo.</li>
+          <li>Escolha uma carga que você levante de 3 a 5 vezes com boa execução, sem chegar a falhar a técnica.</li>
+          <li>Faça o máximo de repetições e anote. Sobrou fôlego? Descanse 3 minutos e tente mais pesado (até 3 tentativas).</li>
+        </ol>
+        {warm.length > 0 && (
+          <p className="rounded-2xl bg-muted/60 px-3 py-2 text-sm tabular-nums">Aquecimento: {warm.map((s) => `${kgNumber(s.kg)} kg × ${s.reps}`).join(" · ")}</p>
+        )}
+        <div className="space-y-2">
+          {tries.map((t, i) => (
+            <div key={i} className="grid grid-cols-[2rem_1fr_1fr] items-center gap-2">
+              <span className="text-sm font-bold" aria-hidden>{i + 1}ª</span>
+              <div className="relative">
+                <Input inputMode="decimal" aria-label={`Carga da tentativa ${i + 1}`} value={t.kg} placeholder="kg" onFocus={(e) => e.target.select()}
+                  onChange={(e) => setTries((all) => all.map((x, j) => (j === i ? { ...x, kg: e.target.value } : x)))} className="pr-9" />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+              </div>
+              <div className="relative">
+                <Input inputMode="numeric" aria-label={`Repetições da tentativa ${i + 1}`} value={t.reps} placeholder="reps" onFocus={(e) => e.target.select()}
+                  onChange={(e) => setTries((all) => all.map((x, j) => (j === i ? { ...x, reps: e.target.value } : x)))} className="pr-11" />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">reps</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        {tries.length < MAX_TEST_ATTEMPTS && (
+          <button type="button" onClick={() => setTries((all) => [...all, { kg: all.at(-1)?.kg ?? "", reps: "" }])} className="inline-flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-primary">
+            <Plus className="h-4 w-4" />Outra tentativa
+          </button>
+        )}
+        <p className="text-sm text-muted-foreground">
+          {best ? <>Melhor: <b className="text-foreground">{kgNumber(best.kg)} kg × {best.reps}</b>, força estimada de <b className="text-foreground">{formatKg(Math.round(best.e1rm * 10) / 10)}</b>.</> : "Preencha a carga e as repetições (de 1 a 10)."}
+          {best && best.reps > 6 ? " Com mais de 6 repetições a estimativa perde precisão: da próxima vez, use mais peso." : ""}
+        </p>
+        <Button type="button" disabled={!best} onClick={() => { if (best) { onSave(exercise.id, { kg: best.kg, reps: best.reps, e1rm: best.e1rm, date: today() }); onClose(); } }}
+          className="min-h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Salvar teste</Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const e1rmOf = (kg: number, reps: number) => (reps <= 1 ? kg : kg * (1 + reps / 30));
+
+/** How the app builds and moves the training, in plain words, with the references behind it. */
+function MethodDialog({ open, onClose, method }: { open: boolean; onClose: () => void; method: string }) {
+  const part = (title: string, text: ReactNode) => (
+    <section>
+      <h3 className="font-bold">{title}</h3>
+      <p className="mt-0.5 text-sm text-muted-foreground">{text}</p>
+    </section>
+  );
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader><DialogTitle className="font-display text-xl">Como o forma monta seu treino</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          {part("O método", <>Seu plano é <b className="text-foreground">{method}</b>. O método sai do seu foco, do nível e dos dias por semana (full body para poucos dias, divisões para mais dias); você pode trocar no Perfil.</>)}
+          {part("Os exercícios", "Cada músculo recebe exercícios compostos primeiro e isolados depois. Panturrilha, trapézio e antebraço entram em todos os métodos. Trocar mantém o mesmo músculo e um movimento parecido.")}
+          {part("Séries e volume", "A referência para ganho de massa é de 10 a 20 séries por músculo na semana (Schoenfeld et al. 2017). A tela Histórico mostra quanto cada músculo recebeu.")}
+          {part("Ciclo de 6 semanas", "A intensidade sobe de 40% a 65%: as séries chegam mais perto do limite (de 4 repetições sobrando até 1). Num exercício sem histórico, ou logo depois de um teste, a carga sugerida sai da sua força estimada (fórmula de Epley) e das repetições que devem sobrar.")}
+          {part("Subir carga", "Fez todas as repetições em todas as séries? Suba 2,5 kg (5 kg nos compostos de perna). Falhou duas vezes seguidas? Reduza uns 10%. Se marcou que chegou no limite, a carga se repete.")}
+          {part("Descanso e recuperação", "O descanso entre séries segue os Ajustes. Cada músculo precisa de cerca de 48 h depois de até 6 séries e 72 h depois de mais que isso; o quadro de recuperação mostra quem está pronto.")}
+          {part("Cardio", "A meta de tempo sobe junto com a semana do ciclo, e a zona-alvo fica entre 55% e 70% da sua reserva cardíaca (Karvonen), com a FC máxima pela idade (Tanaka) e a de repouso da Mi Band.")}
+        </div>
+        <Button type="button" onClick={onClose} className="min-h-11 w-full rounded-full">Entendi</Button>
+      </DialogContent>
+    </Dialog>
   );
 }

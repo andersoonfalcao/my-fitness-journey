@@ -7,6 +7,7 @@ import { Activity, ArrowRight, CalendarDays, Clock, Dumbbell, Eye, Pencil, Refre
 import { useAuth } from "@/lib/auth";
 import { MethodPicker } from "@/components/MethodPicker";
 import { CalibrationCard } from "@/components/CalibrationCard";
+import { AchievementsGrid } from "@/components/Achievements";
 import { RegenerateDialog } from "@/components/RegenerateDialog";
 
 export const Route = createFileRoute("/perfil")({
@@ -233,6 +234,8 @@ function PerfilPage() {
         setProfile({ ...saved, weekendExtra: weekendExtra || undefined });
         toast.success(weekendExtra ? `Fim de semana com +${weekendExtra} kcal por dia` : "Mesma meta todos os dias");
       }} />}
+
+      {!showForm && saved && <AchievementsGrid profile={saved} />}
 
       {showForm && (
         <div className="flex flex-col gap-3 sm:flex-row">
