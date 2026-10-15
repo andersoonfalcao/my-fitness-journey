@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Youtube } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Youtube } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -435,18 +435,37 @@ function TreinosPage() {
       />
       <ProgramCard plan={plan} history={history} days={profile.days} nextIdx={nextIdx} lockedToday={lockedToday} />
       <RecoveryCard records={history} dayGroups={[...new Set(day.items.map((it) => byId(it.exId).group))]} dayName={day.name} />
-      {nextIdx !== 0 && !session && (
-        <button
-          onClick={() => {
-            if (!confirm(`Recomeçar a sequência? O próximo treino passa a ser o ${plan.days[0]!.name}. Seu histórico não muda.`)) return;
-            setCycleStart(doneLog.length);
-            setDayIdx(null);
-            toast.success(`Sequência recomeçada: próximo é o ${plan.days[0]!.name}`);
-          }}
-          className="-mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline"
-        >
-          <RotateCcw className="h-4 w-4" />Recomeçar do {plan.days[0]!.name}
-        </button>
+      {!session && plan.days.length > 1 && (
+        <div className="-my-3 flex flex-wrap gap-x-5">
+          {nextIdx !== 0 && (
+            <button
+              onClick={() => {
+                if (!confirm(`Recomeçar a sequência? O próximo treino passa a ser o ${plan.days[0]!.name}. Seu histórico não muda.`)) return;
+                setCycleStart(doneLog.length);
+                setDayIdx(null);
+                toast.success(`Sequência recomeçada: próximo é o ${plan.days[0]!.name}`);
+              }}
+              className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              <RotateCcw className="h-4 w-4" />Recomeçar do {plan.days[0]!.name}
+            </button>
+          )}
+          {/* Skipping moves the sequence one step ahead without recording a workout: the skipped one waits for the next round. */}
+          <button
+            onClick={() => {
+              const skipped = plan.days[nextIdx]!.name;
+              const after = plan.days[(nextIdx + 1) % plan.days.length]!.name;
+              if (!confirm(`Pular o ${skipped}? O próximo treino passa a ser o ${after}. Nada é gravado no histórico.`)) return;
+              setCycleStart(cycleStart - 1);
+              setDayIdx(null);
+              setOpenItem(null);
+              toast.success(`${skipped} pulado: próximo é o ${after}`);
+            }}
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            <SkipForward className="h-4 w-4" />Pular o {plan.days[nextIdx]!.name}
+          </button>
+        </div>
       )}
 
       <section className="flex items-center gap-3 rounded-3xl bg-primary p-4 text-primary-foreground sm:p-5">
