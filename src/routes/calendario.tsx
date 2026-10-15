@@ -117,7 +117,7 @@ function CalendarPage() {
   const summary: [string, string][] = [
     ["dias com treino", String(all.filter((d) => d.trained).length)],
     ["dias com refeições", String(logged.length)],
-    ["média de calorias", logged.length ? `${Math.round(logged.reduce((s, d) => s + d.kcal, 0) / logged.length)} kcal` : "—"],
+    ["média de calorias", logged.length ? `${Math.round(logged.reduce((s, d) => s + d.kcal, 0) / logged.length).toLocaleString("pt-BR")} kcal` : "—"],
     ["dias na meta de calorias", String(all.filter((d) => d.onCalories).length)],
     ["dias na meta de água", String(all.filter((d) => d.waterMl >= d.goal.waterMl).length)],
     // Distance as the number and the count in the label, so the value fits half a phone screen.
@@ -186,7 +186,7 @@ function CalendarPage() {
                 {d && (
                   <span className="flex flex-wrap justify-center gap-0.5 sm:gap-1">
                     {d.trained && <Dot color="var(--accent)" />}
-                    {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--chart-2)" : "var(--muted-foreground)"} />}
+                    {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--chart-2)" : "var(--muted-foreground)"} ring={!d.onCalories} />}
                     {d.waterMl >= d.goal.waterMl && <Dot color="#4fb3c9" />}
                     {d.workouts.length > 0 && (d.cardio.length > 0 || d.strava.some(isCardio)) && <Dot color="#fc4c02" ring />}
                   </span>
@@ -198,7 +198,7 @@ function CalendarPage() {
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground">
           <Legend color="var(--accent)" label="treino" />
           <Legend color="var(--chart-2)" label="calorias na meta" />
-          <Legend color="var(--muted-foreground)" label="refeições fora da meta" />
+          <Legend color="var(--muted-foreground)" label="refeições fora da meta" ring />
           <Legend color="#4fb3c9" label="água na meta" />
           <Legend color="#fc4c02" label="cardio além do treino" ring />
           <span><b className="text-accent">7</b> dia fechado</span>
@@ -216,7 +216,7 @@ function CalendarPage() {
         </DialogHeader>
         <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat label={`de ${sel.goal.kcal} kcal`} value={`${sel.kcal} kcal`} />
+          <Stat label={`de ${sel.goal.kcal.toLocaleString("pt-BR")} kcal`} value={`${sel.kcal.toLocaleString("pt-BR")} kcal`} />
           <Stat label={`proteína de ${sel.goal.protein} g`} value={`${sel.protein} g`} />
           <Stat label={`água de ${num(sel.goal.waterMl / 1000)} L`} value={`${num(sel.waterMl / 1000)} L`} />
           <Stat label="peso" value={sel.weight ? `${fmtKg(sel.weight)} kg` : "—"} />
@@ -255,7 +255,7 @@ function CalendarPage() {
                 <div>
                   <div className="font-display text-lg font-bold">{r.dayName}</div>
                   <div className="text-sm text-muted-foreground">
-                    {r.durationMs !== undefined ? `${Math.round(r.durationMs / 60000)} min · ` : ""}{done}/{planned} séries{total ? ` · ${num(total, 0)} kg de volume` : ""}
+                    {r.durationMs !== undefined ? `${Math.round(r.durationMs / 60000)} min · ` : ""}{done}/{planned} séries{total ? ` · peso total ${num(total, 0)} kg` : ""}
                   </div>
                 </div>
               </div>

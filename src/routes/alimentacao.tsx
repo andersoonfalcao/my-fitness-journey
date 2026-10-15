@@ -40,6 +40,8 @@ const MEALS: { v: MealType; t: string }[] = [
   { v: "jantar", t: "Jantar" },
 ];
 const r1 = (n: number) => Math.round(n * 10) / 10;
+/** One decimal with a comma, as the rest of the app writes numbers. */
+const num1 = (n: number) => r1(n).toLocaleString("pt-BR");
 /** First day of the month before a date's month. */
 const monthBefore = (date: string) => {
   const d = new Date(`${date.slice(0, 7)}-01T12:00:00`);
@@ -161,7 +163,7 @@ function FoodPage() {
               className="w-[8.5rem] bg-transparent text-primary-foreground [color-scheme:dark]" />
           </label>
         </div>
-        <div className="mt-1 font-display text-4xl font-extrabold">{Math.round(sum.kcal)}<span className="text-lg opacity-75"> / {t.kcal} kcal</span></div>
+        <div className="mt-1 font-display text-4xl font-extrabold">{Math.round(sum.kcal).toLocaleString("pt-BR")}<span className="text-lg opacity-75"> / {t.kcal.toLocaleString("pt-BR")} kcal</span></div>
         <div className="mt-4 grid gap-3 [&_span]:!text-primary-foreground/80">
           <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--chart-1)" />
           <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--chart-3)" />
@@ -174,7 +176,7 @@ function FoodPage() {
         {plannedKcal > 0 && (
           <p className="mt-3 flex items-start gap-2 rounded-2xl bg-primary-foreground/10 px-3 py-2 text-sm">
             <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
-            <span>Planejado: <b>+{plannedKcal} kcal</b>. Se comer tudo, o dia fecha em <b>{Math.round(sum.kcal) + plannedKcal}</b> de {t.kcal} kcal
+            <span>Planejado: <b>+{plannedKcal} kcal</b>. Se comer tudo, o dia fecha em <b>{(Math.round(sum.kcal) + plannedKcal).toLocaleString("pt-BR")}</b> de {t.kcal.toLocaleString("pt-BR")} kcal
               {Math.round(sum.kcal) + plannedKcal <= t.kcal ? `, sobrando ${t.kcal - Math.round(sum.kcal) - plannedKcal}` : `, ${Math.round(sum.kcal) + plannedKcal - t.kcal} acima`}.</span>
           </p>
         )}
@@ -249,7 +251,7 @@ function FoodPage() {
                       <button onClick={() => { setSel(f); setGrams(f.unit?.g ?? 100); }} className="flex w-full items-center justify-between gap-3 px-1 py-2.5 text-left hover:text-accent">
                         <span className="min-w-0">
                           <span className="block font-semibold">{f.name}</span>
-                          <span className="block text-xs text-muted-foreground">P {f.p}g · C {f.c}g · G {f.f}g por 100 g</span>
+                          <span className="block text-xs text-muted-foreground">P {num1(f.p)} g · C {num1(f.c)} g · G {num1(f.f)} g por 100 g</span>
                         </span>
                         <span className="shrink-0 text-right text-sm text-muted-foreground">
                           {f.kcal} kcal
@@ -279,7 +281,7 @@ function FoodPage() {
                   )}
                 </div>
                 <div className="mt-3 text-sm text-muted-foreground">
-                  {Math.round(sel.kcal * grams / 100)} kcal · P {r1(sel.p * grams / 100)}g · C {r1(sel.c * grams / 100)}g · G {r1(sel.f * grams / 100)}g
+                  {Math.round(sel.kcal * grams / 100)} kcal · P {num1(sel.p * grams / 100)} g · C {num1(sel.c * grams / 100)} g · G {num1(sel.f * grams / 100)} g
                 </div>
                 <div className="mt-4 flex gap-2">
                   <button onClick={addFood} className="rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground">{planning ? "Planejar" : "Adicionar"}</button>
@@ -403,7 +405,7 @@ function FoodHistory({ t, onEdit }: { t: ReturnType<typeof targets>; onEdit: (da
     <div className="space-y-4">
       <MacrosCard t={t} />
       <section className="space-y-2">
-        <h2 className="px-1 text-xl font-bold">Dias anteriores</h2>
+        <h2 className="px-1 text-xl font-bold">Últimos dias</h2>
         {days.length === 0 ? (
           <p className="px-1 text-sm text-muted-foreground">Nenhuma refeição registrada nos últimos {DAYS_SHOWN} dias.</p>
         ) : days.map(({ date, d, items, sum }) => (
@@ -414,7 +416,7 @@ function FoodHistory({ t, onEdit }: { t: ReturnType<typeof targets>; onEdit: (da
                   {date === end ? "Hoje" : d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
                 </span>
                 <span className="block font-display text-lg font-bold tabular-nums">
-                  {Math.round(sum.kcal)} <span className="text-sm font-semibold text-muted-foreground">/ {t.kcal} kcal · {Math.round((sum.kcal / t.kcal) * 100)}%</span>
+                  {Math.round(sum.kcal).toLocaleString("pt-BR")} <span className="text-sm font-semibold text-muted-foreground">/ {t.kcal.toLocaleString("pt-BR")} kcal · {Math.round((sum.kcal / t.kcal) * 100)}%</span>
                 </span>
                 <span className="block text-xs tabular-nums text-muted-foreground">
                   <b style={{ color: "var(--chart-1)" }}>C</b> {Math.round(sum.c)} g · <b style={{ color: "var(--chart-3)" }}>G</b> {Math.round(sum.f)} g · <b style={{ color: "var(--chart-2)" }}>P</b> {Math.round(sum.p)} g

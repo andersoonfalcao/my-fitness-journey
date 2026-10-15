@@ -99,7 +99,7 @@ export function HealthTrends() {
               <BarChart data={steps}>
                 <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={11} interval="preserveStartEnd" />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} width={46} tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)} mil` : String(v))} />
+                <YAxis stroke="var(--muted-foreground)" fontSize={12} width={54} tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil` : String(v))} />
                 <Tooltip formatter={(v, _n, item) => { const m = (item.payload as { m?: number }).m; return [`${Number(v).toLocaleString("pt-BR")}${m !== undefined ? ` · ${kmLabel(m)}` : ""}`, "passos"]; }} contentStyle={tooltip} />
                 <Bar dataKey="passos" fill="var(--accent)" radius={[6, 6, 0, 0]} />
               </BarChart>

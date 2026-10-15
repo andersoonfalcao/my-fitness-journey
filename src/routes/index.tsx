@@ -77,7 +77,7 @@ function Index() {
 
         <section className="rounded-3xl border border-border bg-card p-6">
           <div className="flex flex-col items-center gap-6 sm:flex-row">
-            <Ring value={sum.kcal} max={t.kcal} label={`${Math.abs(left)}`} sub={left >= 0 ? "kcal restantes" : "kcal acima"} />
+            <Ring value={sum.kcal} max={t.kcal} label={Math.abs(left).toLocaleString("pt-BR")} sub={left >= 0 ? "kcal restantes" : "kcal acima"} />
             <div className="w-full flex-1 space-y-3">
               <MacroBar name="Proteína" value={sum.p} max={t.protein} color="var(--chart-2)" />
               <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--chart-1)" />

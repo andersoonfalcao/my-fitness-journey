@@ -223,7 +223,7 @@ function PerfilPage() {
       <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
         <h2 className="text-xl font-bold">Suas metas diárias</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[["Calorias", `${t.kcal}`, "kcal"], ["Proteína", `${t.protein}`, "g"], ["Carboidratos", `${t.carbs}`, "g"], ["Gorduras", `${t.fat}`, "g"]].map(([a, b, c]) => (
+          {[["Calorias", t.kcal.toLocaleString("pt-BR"), "kcal"], ["Proteína", `${t.protein}`, "g"], ["Carboidratos", `${t.carbs}`, "g"], ["Gorduras", `${t.fat}`, "g"]].map(([a, b, c]) => (
             <div key={a}><div className="text-sm opacity-75">{a}</div><div className="font-display text-3xl font-extrabold">{b}<span className="ml-1 text-base opacity-75">{c}</span></div></div>
           ))}
         </div>

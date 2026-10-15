@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { BedDouble, Flame, Footprints, HeartPulse } from "lucide-react";
 import { useLocal } from "@/lib/store";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
+import { overreach } from "@/lib/insights";
 import { clock, dayDistanceM, DEFAULT_STEPS_GOAL, healthKey, kmLabel, readiness, sleepLabel, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -16,7 +17,7 @@ const TONE = {
 /** Hoje: readiness, last night's sleep and the day's steps (against the goal), active energy and resting heart rate. */
 export function HealthToday({ date }: { date: string }) {
   const [thisMonth] = useLocal<HealthMonth>(healthKey(date), {});
-  const [prevMonth] = useLocal<HealthMonth>(healthKey(addDays(date, -14)), {});
+  const [prevMonth] = useLocal<HealthMonth>(healthKey(addDays(date, -17)), {});
   const [stepsGoal] = useLocal<number>(STEPS_GOAL_KEY, DEFAULT_STEPS_GOAL);
   const [strava] = useLocal<StravaActivity[]>(stravaKey(date), []);
   const day = thisMonth[date];
@@ -24,7 +25,11 @@ export function HealthToday({ date }: { date: string }) {
   const walked = dayDistanceM(day, date, strava);
   const all = { ...prevMonth, ...thisMonth };
   const before = Object.entries(all).filter(([d]) => d < date && d >= addDays(date, -14)).map(([, v]) => v);
-  const ready = readiness(day, before);
+  // Three days in a row above normal is accumulated fatigue: it replaces today's reading so the screen says it once.
+  const sustained = overreach(all, [], date);
+  const ready = sustained?.kind === "batimento"
+    ? { level: "baixo" as const, title: "Cansaço acumulado", detail: `Batimento em repouso pelo menos ${sustained.above} acima do seu normal nos últimos três dias: vale um dia de descanso ou uma semana com menos carga.` }
+    : readiness(day, before);
 
   const tiles: [typeof BedDouble, string, string, string | null, number | null][] = [];
   if (day.sleepMin !== undefined) tiles.push([BedDouble, "Sono", sleepLabel(day.sleepMin), day.sleepStart && day.sleepEnd ? `${clock(day.sleepStart)}–${clock(day.sleepEnd)}` : null, null]);

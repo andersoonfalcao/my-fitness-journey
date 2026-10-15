@@ -1139,7 +1139,7 @@ function TreinosPage() {
                   <div className="grid grid-cols-2 gap-2">
                     {(Object.keys(GROUP_LABEL) as Group[]).map((g) => (
                       <button key={g} type="button" onClick={() => setAdding({ ...adding, group: g })}
-                        className="flex min-h-14 items-center justify-between gap-2 rounded-2xl border border-border px-3 py-2 text-left hover:border-accent">
+                        className="flex min-h-14 items-center justify-between gap-1 rounded-2xl border border-border py-2 pl-3 pr-2 text-left hover:border-accent">
                         <span className="min-w-0 text-sm font-bold leading-tight">{GROUP_LABEL[g]}</span>
                         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                       </button>

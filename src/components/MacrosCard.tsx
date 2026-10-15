@@ -123,7 +123,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
                     <td className="py-2">{d.label}</td>
                     {day.logged ? (
                       <>
-                        <td className="py-2 text-right">{Math.round(day.kcal)}</td>
+                        <td className="py-2 text-right">{Math.round(day.kcal).toLocaleString("pt-BR")}</td>
                         {MACROS.map((m) => <td key={m.key} className="py-2 text-right">{Math.round(day[m.key])}</td>)}
                       </>
                     ) : (
@@ -134,7 +134,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
               })}
               <tr className="text-muted-foreground">
                 <td className="py-2">Meta diária</td>
-                <td className="py-2 text-right">{t.kcal}</td>
+                <td className="py-2 text-right">{t.kcal.toLocaleString("pt-BR")}</td>
                 {MACROS.map((m) => <td key={m.key} className="py-2 text-right">{m.target(t)}</td>)}
               </tr>
             </tbody>

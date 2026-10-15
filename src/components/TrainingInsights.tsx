@@ -20,7 +20,9 @@ export function TrainingInsights({ planned }: { planned: number }) {
   const [thisMonth] = useLocal<HealthMonth>(healthKey(date), {});
   const [prevMonth] = useLocal<HealthMonth>(healthKey(addDays(date, -17)), {});
   const streak = weekStreak(trained, planned, date);
-  const tired = overreach({ ...prevMonth, ...thisMonth }, trained, date);
+  // A resting heart rate high for days is told in the Mi Band card (with today's numbers), not twice on the screen.
+  const found = overreach({ ...prevMonth, ...thisMonth }, trained, date);
+  const tired = found?.kind === "sem-descanso" ? found : null;
   if (streak < 2 && !tired) return null;
   return (
     <>
@@ -33,9 +35,7 @@ export function TrainingInsights({ planned }: { planned: number }) {
         <section className="flex items-start gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
           <Activity className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
           <p className="min-w-0 flex-1 text-sm">
-            {tired.kind === "batimento"
-              ? <><b>Batimento em repouso {tired.above} acima do seu normal há três dias.</b> É sinal de cansaço acumulado: vale um dia de descanso ou uma semana com menos carga.</>
-              : <><b>{tired.days} dias seguidos de treino, sem descanso.</b> O corpo evolui na recuperação: inclua um dia livre antes do próximo treino pesado.</>}
+            <b>{tired.days} dias seguidos de treino, sem descanso.</b> O corpo evolui na recuperação: inclua um dia livre antes do próximo treino pesado.
           </p>
         </section>
       )}

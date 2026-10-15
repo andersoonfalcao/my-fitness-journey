@@ -81,7 +81,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string; history?: true; evolution?: true };
   const checks: [string, boolean, string, Target][] = [
     // Complete only with all four meals logged, and the water target fully reached.
-    ["Refeições", missingMeals.length === 0, meals.length ? `${kcal} de ${t.kcal} kcal · proteína ${protein}/${t.protein} g${missingMeals.length ? ` · falta: ${missingMeals.join(", ")}` : ""}` : "nada registrado", { to: "/alimentacao", hash: missingMeals.length ? "registrar" : "refeicoes" }],
+    ["Refeições", missingMeals.length === 0, meals.length ? `${kcal.toLocaleString("pt-BR")} de ${t.kcal.toLocaleString("pt-BR")} kcal · proteína ${protein}/${t.protein} g${missingMeals.length ? ` · falta: ${missingMeals.join(", ")}` : ""}` : "nada registrado", { to: "/alimentacao", hash: missingMeals.length ? "registrar" : "refeicoes" }],
     ["Água", waterMl >= t.waterMl, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
     ["Treino", trained, lifted ? "concluído" : trained ? `cardio concluído: ${[...new Set(cardioDone)].join(", ")}` : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
     ["Peso", weighed, weighed ? `${fmtKg(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado (opcional)", weighed ? { to: "/corpo", hash: "evolucao", evolution: true } : { to: "/corpo", hash: "pesagem" }],
@@ -150,7 +150,7 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
   const { day, sinceStart: s, ai } = record;
   const weightChange = s.weightNow - s.weightStart;
   const stats: [string, string][] = [
-    ["Calorias", `${day.kcal} / ${day.targets.kcal}`],
+    ["Calorias", `${Math.round(day.kcal).toLocaleString("pt-BR")} / ${day.targets.kcal.toLocaleString("pt-BR")}`],
     ["Proteína", `${day.protein} / ${day.targets.protein} g`],
     ["Água", `${num(day.waterMl / 1000)} / ${num(day.targets.waterMl / 1000)} L`],
     ["Treino", day.workout ? `${day.workout.setsDone}/${day.workout.setsPlanned} séries${day.workout.volumeKg ? ` · ${num(day.workout.volumeKg)} kg` : ""}` : "—"],

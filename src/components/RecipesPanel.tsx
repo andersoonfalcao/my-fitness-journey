@@ -194,7 +194,7 @@ function RecipeEditor({ draft, onChange, onCancel, onSave }: { draft: Draft; onC
       <dl className="grid grid-cols-2 gap-3">
         <div className="flex flex-col rounded-xl bg-card p-3">
           <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Receita inteira</dt>
-          <dd className="font-display text-xl font-extrabold tabular-nums">{Math.round(total.kcal)}<span className="text-sm font-semibold text-muted-foreground"> kcal</span></dd>
+          <dd className="font-display text-xl font-extrabold tabular-nums">{Math.round(total.kcal).toLocaleString("pt-BR")}<span className="text-sm font-semibold text-muted-foreground"> kcal</span></dd>
         </div>
         <div className="flex flex-col rounded-xl bg-card p-3">
           <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Por porção</dt>
