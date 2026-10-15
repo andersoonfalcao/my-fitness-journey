@@ -14,7 +14,9 @@ import { Route as AlimentacaoRouteImport } from './routes/alimentacao'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as CorpoRouteImport } from './routes/corpo'
+import { Route as MesRouteImport } from './routes/mes'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PergunteRouteImport } from './routes/pergunte'
 import { Route as PesoRouteImport } from './routes/peso'
 import { Route as SemanaRouteImport } from './routes/semana'
 import { Route as StravaRouteImport } from './routes/strava'
@@ -45,9 +47,19 @@ const CorpoRoute = CorpoRouteImport.update({
   path: '/corpo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MesRoute = MesRouteImport.update({
+  id: '/mes',
+  path: '/mes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PerfilRoute = PerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PergunteRoute = PergunteRouteImport.update({
+  id: '/pergunte',
+  path: '/pergunte',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PesoRoute = PesoRouteImport.update({
@@ -77,7 +89,9 @@ export interface FileRoutesByFullPath {
   '/calendario': typeof CalendarioRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
+  '/mes': typeof MesRoute
   '/perfil': typeof PerfilRoute
+  '/pergunte': typeof PergunteRoute
   '/peso': typeof PesoRoute
   '/semana': typeof SemanaRoute
   '/strava': typeof StravaRoute
@@ -89,7 +103,9 @@ export interface FileRoutesByTo {
   '/calendario': typeof CalendarioRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
+  '/mes': typeof MesRoute
   '/perfil': typeof PerfilRoute
+  '/pergunte': typeof PergunteRoute
   '/peso': typeof PesoRoute
   '/semana': typeof SemanaRoute
   '/strava': typeof StravaRoute
@@ -102,7 +118,9 @@ export interface FileRoutesById {
   '/calendario': typeof CalendarioRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
+  '/mes': typeof MesRoute
   '/perfil': typeof PerfilRoute
+  '/pergunte': typeof PergunteRoute
   '/peso': typeof PesoRoute
   '/semana': typeof SemanaRoute
   '/strava': typeof StravaRoute
@@ -116,7 +134,9 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/configuracoes'
     | '/corpo'
+    | '/mes'
     | '/perfil'
+    | '/pergunte'
     | '/peso'
     | '/semana'
     | '/strava'
@@ -128,7 +148,9 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/configuracoes'
     | '/corpo'
+    | '/mes'
     | '/perfil'
+    | '/pergunte'
     | '/peso'
     | '/semana'
     | '/strava'
@@ -140,7 +162,9 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/configuracoes'
     | '/corpo'
+    | '/mes'
     | '/perfil'
+    | '/pergunte'
     | '/peso'
     | '/semana'
     | '/strava'
@@ -153,7 +177,9 @@ export interface RootRouteChildren {
   CalendarioRoute: typeof CalendarioRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   CorpoRoute: typeof CorpoRoute
+  MesRoute: typeof MesRoute
   PerfilRoute: typeof PerfilRoute
+  PergunteRoute: typeof PergunteRoute
   PesoRoute: typeof PesoRoute
   SemanaRoute: typeof SemanaRoute
   StravaRoute: typeof StravaRoute
@@ -197,11 +223,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CorpoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mes': {
+      id: '/mes'
+      path: '/mes'
+      fullPath: '/mes'
+      preLoaderRoute: typeof MesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/perfil': {
       id: '/perfil'
       path: '/perfil'
       fullPath: '/perfil'
       preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pergunte': {
+      id: '/pergunte'
+      path: '/pergunte'
+      fullPath: '/pergunte'
+      preLoaderRoute: typeof PergunteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/peso': {
@@ -241,7 +281,9 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarioRoute: CalendarioRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   CorpoRoute: CorpoRoute,
+  MesRoute: MesRoute,
   PerfilRoute: PerfilRoute,
+  PergunteRoute: PergunteRoute,
   PesoRoute: PesoRoute,
   SemanaRoute: SemanaRoute,
   StravaRoute: StravaRoute,

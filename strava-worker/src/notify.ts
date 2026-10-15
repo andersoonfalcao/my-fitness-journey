@@ -14,8 +14,11 @@ export interface NotifyEnv {
   VAPID_PRIVATE_JWK: string; // secret
 }
 
-/** A reminder the person wrote in the app: title, optional text, HH:MM and weekdays (0 = Sunday). */
-type Custom = { id: string; title: string; body: string; time: string; days: number[]; on: boolean; url?: string };
+/**
+ * A reminder the person wrote in the app: title, optional text, HH:MM and weekdays (0 = Sunday). `monthDay` (only the
+ * app's own monthly review sets it) sends it on that day of the month instead of by weekday.
+ */
+type Custom = { id: string; title: string; body: string; time: string; days: number[]; on: boolean; url?: string; monthDay?: number };
 /** `custom` and the day each one last went out (`customLast`) live in the value: they don't fit the 1 KB metadata. */
 type Stored = { sub: PushSubscriptionJSON; refreshToken: string; custom?: Custom[]; customLast?: Record<string, string> };
 /** `custom`: the device has reminders switched on, so the cron reads its value. */
@@ -151,7 +154,7 @@ export async function runDaily(env: NotifyEnv) {
       if (!daily && !meta.custom) continue;
       const stored = await env.TOKENS.get<Stored>(k.name, "json");
       if (stored === null) continue;
-      const customDue = (stored.custom ?? []).filter((c) => c.on && c.days.includes(now.weekday) && stored.customLast?.[c.id] !== now.date && due(c.time, now.minutes));
+      const customDue = (stored.custom ?? []).filter((c) => c.on && (c.monthDay ? Number(now.date.slice(8)) === c.monthDay : c.days.includes(now.weekday)) && stored.customLast?.[c.id] !== now.date && due(c.time, now.minutes));
       if (!daily && !customDue.length) continue;
       // Marked as sent first, so a slow push never goes out twice from overlapping runs.
       const customLast = { ...stored.customLast, ...Object.fromEntries(customDue.map((c) => [c.id, now.date])) };
@@ -175,7 +178,8 @@ function cleanCustom(value: unknown): Custom[] {
     if (!title || !time || !days.length || typeof r.id !== "string" || !/^[\w-]{1,32}$/.test(r.id)) return [];
     // Only a path inside the app (e.g. "/semana") may be opened by a tap.
     const url = typeof r.url === "string" && /^\/[a-z0-9/?=&-]{0,60}$/.test(r.url) ? r.url : undefined;
-    return [{ id: r.id, title, body: typeof r.body === "string" ? r.body.trim().slice(0, 140) : "", time, days, on: r.on !== false, ...(url ? { url } : {}) }];
+    const monthDay = Number.isInteger(r.monthDay) && (r.monthDay as number) >= 1 && (r.monthDay as number) <= 28 ? (r.monthDay as number) : undefined;
+    return [{ id: r.id, title, body: typeof r.body === "string" ? r.body.trim().slice(0, 140) : "", time, days, on: r.on !== false, ...(url ? { url } : {}), ...(monthDay ? { monthDay } : {}) }];
   });
 }
 

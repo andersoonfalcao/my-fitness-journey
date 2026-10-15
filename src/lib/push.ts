@@ -24,8 +24,13 @@ export type Settings = {
   custom: CustomReminder[];
   /** Sunday 20:00 notice that opens the weekly summary (/semana). */
   weeklySummary: boolean;
+  /** Notice on the 1st of the month, 20:00, that opens the review of the month that ended (/mes). */
+  monthlyReview: boolean;
+  /** Spoken cues during a workout (end of rest, next set, next exercise), only while the app is on screen. */
+  voice: boolean;
 };
 const WEEKLY: CustomReminder = { id: "semana", title: "Sua semana no forma", body: "Veja o resumo da semana e o foco para a próxima.", time: "20:00", days: [0], on: true, url: "/semana" };
+const MONTHLY: CustomReminder = { id: "mes", title: "Seu mês no forma", body: "A retrospectiva do mês que terminou está pronta.", time: "20:00", days: [0, 1, 2, 3, 4, 5, 6], on: true, url: "/mes", monthDay: 1 };
 export type CustomReminder = {
   id: string;
   title: string;
@@ -37,6 +42,8 @@ export type CustomReminder = {
   on: boolean;
   /** Screen the notification opens (only the app's own reminders set it; the person's open Hoje). */
   url?: string | undefined;
+  /** Day of the month it goes out on, in place of the weekdays (only the monthly review). */
+  monthDay?: number | undefined;
 };
 export const MAX_REMINDERS = 10;
 export const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
@@ -47,6 +54,8 @@ export const DEFAULT_SETTINGS: Settings = {
   // The Mi Band only reaches the app when Mi Fitness is opened (src/lib/health.ts), so the list starts with that nudge.
   custom: [{ id: "miband", title: "Sincronize a Mi Band", body: "Abra o Mi Fitness para o forma receber o sono, os passos e o batimento de hoje.", time: "21:45", days: EVERY_DAY, on: true }],
   weeklySummary: true,
+  monthlyReview: true,
+  voice: false,
 };
 
 export function useSettings() {
@@ -172,7 +181,7 @@ async function register(subscription: PushSubscription, settings: Settings) {
     refreshToken: user?.refreshToken,
     daily: settings.reminder,
     time: settings.reminderTime,
-    custom: [...settings.custom, ...(settings.weeklySummary ? [WEEKLY] : [])],
+    custom: [...settings.custom, ...(settings.weeklySummary ? [WEEKLY] : []), ...(settings.monthlyReview ? [MONTHLY] : [])],
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   storage.set(DEVICE_KEY, id ?? null);
@@ -192,7 +201,7 @@ export async function disablePush() {
 }
 
 /** The endpoint is part of the stamp: a subscription the phone replaced reaches the server at once. */
-const syncStamp = (s: Settings, endpoint: string) => JSON.stringify([new Date().toDateString(), endpoint, s.reminder, s.reminderTime, s.custom, s.weeklySummary]);
+const syncStamp = (s: Settings, endpoint: string) => JSON.stringify([new Date().toDateString(), endpoint, s.reminder, s.reminderTime, s.custom, s.weeklySummary, s.monthlyReview]);
 
 let syncing: Promise<void> | null = null;
 let settled = false;

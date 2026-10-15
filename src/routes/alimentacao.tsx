@@ -17,6 +17,7 @@ import { PlatePhoto } from "@/components/PlatePhoto";
 import { RecipesPanel } from "@/components/RecipesPanel";
 import { FastingCard } from "@/components/FastingCard";
 import { WeekMenu } from "@/components/WeekMenu";
+import { CloseGapCard } from "@/components/CloseGapCard";
 import { addDays, FIBER_REFERENCE, fiberOf, proteinByMeal, proteinPerMeal } from "@/lib/insights";
 
 export const Route = createFileRoute("/alimentacao")({
@@ -79,6 +80,7 @@ function FoodPage() {
   const proteinAim = proteinPerMeal(Math.min(profile.weight, Math.max(profile.goalWeight, 1)));
   const plannedDay = planned.filter((f) => f.date === date);
   const plannedKcal = Math.round(plannedDay.reduce((s, f) => s + f.kcal, 0));
+  const plannedProtein = plannedDay.reduce((s, f) => s + f.p, 0);
 
   const mealLabel = MEALS.find((m) => m.v === meal)!.t;
   /** Everything added goes through here: to the log, or to the plan while planning, with an undo in the toast. */
@@ -101,6 +103,15 @@ function FoodPage() {
     const k = grams / 100;
     addItems([{ name: sel.name, grams, kcal: Math.round(sel.kcal * k), p: r1(sel.p * k), c: r1(sel.c * k), f: r1(sel.f * k), ...(sel.fiber !== undefined ? { fiber: r1(sel.fiber * k) } : {}) }], sel.name);
     setSel(null); setQ("");
+  };
+
+  /** "Para fechar o dia": goes straight to the log, in the meal the suggestion names. */
+  const addToMeal = (m: MealType, items: FavItem[], what: string) => {
+    const added: FoodEntry[] = items.map((i) => ({ ...i, id: uid(), date, meal: m }));
+    const ids = new Set(added.map((a) => a.id));
+    setFoods((fs) => [...fs, ...added]);
+    const where = MEALS.find((x) => x.v === m)?.t.toLowerCase() ?? "dia";
+    toast.success(`${what} adicionado ao ${where}`, { action: { label: "Desfazer", onClick: () => setFoods((fs) => fs.filter((f) => !ids.has(f.id))) } });
   };
 
   /** A planned food was eaten: it leaves the plan and enters the log as it is. */
@@ -184,6 +195,11 @@ function FoodPage() {
           <button type="button" onClick={() => setDate(today())} className="mt-4 text-sm font-semibold underline underline-offset-4">Voltar para hoje</button>
         )}
       </section>
+
+      {date === today() && (
+        <CloseGapCard left={{ protein: t.protein - sum.p - plannedProtein, kcal: t.kcal - sum.kcal - plannedKcal }}
+          history={[...prevMonthFoods.filter((f) => f.date < date), ...foods.filter((f) => f.date <= date)]} onAdd={addToMeal} />
+      )}
 
       <WaterCard date={date} targetMl={t.waterMl} />
 

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { CustomReminders } from "@/components/CustomReminders";
+import { speak, unlockVoice } from "@/lib/voice";
 import { CLOSED_TEST_SECONDS, disablePush, enablePush, sendClosedAppTest, sendTestReminder, usePushState, useSettings, type Settings } from "@/lib/push";
 
 const RESTS = [30, 45, 60, 75, 90, 120, 150, 180];
@@ -42,6 +43,14 @@ export function SettingsPanel() {
           {RESTS.map((s) => <option key={s} value={s}>{restLabel(s)}{s === 60 ? " (padrão)" : ""}</option>)}
         </select>
         <span className="mt-1 block text-xs text-muted-foreground">Vale para todos os exercícios. Depois da última série de um exercício não há contagem.</span>
+      </label>
+
+      <label className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold">Voz no treino</span>
+          <span className="block text-xs text-muted-foreground">Fala o fim do descanso, a próxima série com a carga e o próximo exercício. Só com o app aberto na tela; com o celular travado fica a notificação.</span>
+        </span>
+        <Switch checked={settings.voice} onCheckedChange={(on) => { if (on) { unlockVoice(); speak("Voz ligada."); } update({ voice: on }); }} />
       </label>
 
       <div className="space-y-4 border-t border-border pt-5">
@@ -110,6 +119,13 @@ export function SettingsPanel() {
             <span className="block text-xs text-muted-foreground">Domingo às 20:00, abre a semana comparada com a anterior</span>
           </span>
           <Switch checked={settings.weeklySummary} onCheckedChange={(on) => change({ weeklySummary: on })} />
+        </label>
+        <label className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-3">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold">Retrospectiva do mês</span>
+            <span className="block text-xs text-muted-foreground">Dia 1º às 20:00, abre o mês que terminou</span>
+          </span>
+          <Switch checked={settings.monthlyReview} onCheckedChange={(on) => change({ monthlyReview: on })} />
         </label>
         <p className="text-xs text-muted-foreground">
           O lembrete aponta refeições sem registro, água abaixo da meta, o treino da semana e se falta fechar o dia.

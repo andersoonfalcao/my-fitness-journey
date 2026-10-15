@@ -159,6 +159,13 @@ function CalendarPage() {
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </Link>
+      <Link to="/mes" search={{ m: month }} className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+        <span className="min-w-0">
+          <span className="block font-bold">Retrospectiva de {new Date(`${month}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}</span>
+          <span className="block text-xs text-muted-foreground">{month === now.slice(0, 7) ? "O mês até hoje, " : "O mês inteiro, "}comparado com o anterior, com os recordes</span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+      </Link>
 
       <section className="rounded-3xl border border-border bg-card p-3 sm:p-5">
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold uppercase text-muted-foreground">

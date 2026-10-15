@@ -1,5 +1,5 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sun, User } from "lucide-react";
+import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useEffect, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const onVisible = () => document.visibilityState === "visible" && void syncPush(settings);
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [settingsReady, settings.reminder, settings.reminderTime, JSON.stringify(settings.custom), settings.weeklySummary]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settingsReady, settings.reminder, settings.reminderTime, JSON.stringify(settings.custom), settings.weeklySummary, settings.monthlyReview]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Links like /alimentacao#agua: the section only exists once the account data loads, so wait for it a little.
   const { pathname, hash } = useLocation();
@@ -43,6 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
   const toggleCalendar = toggle("/calendario");
   const toggleSettings = toggle("/configuracoes");
+  const toggleAsk = toggle("/pergunte");
   useEffect(() => {
     if (!hash) return;
     let tries = 0;
@@ -76,6 +77,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-1">
+            <Link to="/pergunte" onClick={toggleAsk} aria-label={pathname === "/pergunte" ? "Fechar o Pergunte ao forma" : "Pergunte ao forma"} title="Pergunte ao forma" className="rounded-full p-2.5 text-muted-foreground hover:text-foreground" activeProps={{ className: "!text-accent" }}>
+              <Sparkles className="h-6 w-6" />
+            </Link>
             <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
               <CalendarDays className="h-6 w-6" />
             </Link>

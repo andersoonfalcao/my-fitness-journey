@@ -2,6 +2,7 @@
 import { fmtKg, type DayRecord, type WorkoutRecord } from "./store";
 import { decodePolyline, duration, km, pace, sportLabel, usesPace, type StravaDetail } from "./strava";
 import { recordTotal, repsOfSet } from "./workout-stats";
+import { monthName, type MonthReview } from "./month";
 // Official "Powered by Strava" mark from Strava's brand guidelines, used unchanged.
 import stravaLogo from "@/assets/strava-powered-white.svg";
 
@@ -277,6 +278,25 @@ export async function dayCard(record: DayRecord, bg: Background): Promise<Blob> 
   tile(ctx, 80, 990, W - 160, 170,
     `${change <= 0 ? "−" : "+"}${fmtKg(Math.abs(change))} kg em ${s.days} dia${s.days === 1 ? "" : "s"}`,
     `desde o início · ${s.workouts} treino${s.workouts === 1 ? "" : "s"} · meta ${fmtKg(s.weightGoal)} kg`, true);
+  footer(ctx);
+  return toBlob(el);
+}
+
+/** Image for the monthly review (/mes). */
+export async function monthCard(r: MonthReview, bg: Background): Promise<Blob> {
+  const { el, ctx } = await canvas(bg);
+  const s = r.stats;
+  logo(ctx, 80, 150, 88);
+  text(ctx, monthName(r.month).toUpperCase(), 80, 250, `700 30px ${BODY}`, C.orange);
+  text(ctx, r.inProgress ? "Meu mês até aqui" : "Meu mês", 80, 340, `800 92px ${DISPLAY}`, C.cream);
+
+  const half = (W - 160 - 30) / 2;
+  tile(ctx, 80, 420, W - 160, 220, s.volumeKg ? `${n(s.volumeKg)} kg` : `${s.workouts} treinos`, s.volumeKg ? "levantados no mês" : "no mês", true);
+  tile(ctx, 80, 670, half, 200, `${s.workouts} treino${s.workouts === 1 ? "" : "s"}`, r.planned ? `de ${r.planned} planejados` : "no mês");
+  const change = r.weight ? r.weight.to - r.weight.from : null;
+  tile(ctx, 80 + half + 30, 670, half, 200, change === null ? `${s.loggedDays} dias` : `${change <= 0 ? "−" : "+"}${fmtKg(Math.abs(change))} kg`, change === null ? "com refeições" : "no peso médio");
+  tile(ctx, 80, 900, half, 200, `${s.kcalOnTarget} dia${s.kcalOnTarget === 1 ? "" : "s"}`, "na meta de calorias");
+  tile(ctx, 80 + half + 30, 900, half, 200, `${r.records.length} recorde${r.records.length === 1 ? "" : "s"}`, "de carga no mês");
   footer(ctx);
   return toBlob(el);
 }

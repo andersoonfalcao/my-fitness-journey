@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Youtube } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { workoutCard } from "@/lib/share-card";
 import { barKg, dropVolume, lastRecordBefore, loadAdvice, muscleRecovery, personalRecords, platesPerSide, recordTotal, repsOfSet, setsByGroup, strengthHistory, sumKg, volume, warmupSets, weekStart, type PersonalRecord, type SetValues } from "@/lib/workout-stats";
 import { askRestNotifications, notifyRestOver, useWakeLock } from "@/lib/workout-device";
 import { cancelRestPush, deviceId, scheduleRestPush, useSettings } from "@/lib/push";
+import { nextSetSpeech, speak, unlockVoice } from "@/lib/voice";
 
 export const Route = createFileRoute("/treinos")({
   head: () => ({
@@ -82,7 +83,8 @@ function TreinosPage() {
   // The workout just saved, waiting for "how did it feel?" before the share card opens.
   const [feelAsk, setFeelAsk] = useState<{ id: string; dayName: string; share: ShareRequest } | null>(null);
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
-  const [settings] = useSettings();
+  const [settings, updateSettings] = useSettings();
+  const say = (text: string) => { if (settings.voice) speak(text); };
   const [schedule, setSchedule] = useLocal<number[] | null>(KEYS.schedule, null);
   // Cardio has its own tab, so it never sits in the middle of the gym workout; a day with cardio counts as trained.
   const [cardio] = useLocal<CardioSession | null>(CARDIO_SESSION_KEY, null);
@@ -155,6 +157,7 @@ function TreinosPage() {
   const completeSets = (i: number, kg: number | null, reps: number | null, count: number, rirLeft: number | null = null) => {
     const item = day.items[i]!;
     unlockAudio();
+    if (settings.voice) unlockVoice();
     setHold(null);
     const started = session ?? { dayName: day.name, startedAt: Date.now() };
     // Doing a set of an exercise left for later brings it back into the order.
@@ -175,6 +178,7 @@ function TreinosPage() {
     // The last set of the workout finishes it: nothing is left to do but save it.
     if (pending.length === 0) {
       setOpenItem(null);
+      say("Treino concluído. Bom trabalho!");
       finishWorkout({ ...base, sets, kgs, repsDone, rir, rest: undefined });
       return;
     }
@@ -191,6 +195,7 @@ function TreinosPage() {
       if (nextJ !== undefined) {
         setSession({ ...base, sets, kgs, repsDone, rir, rest: undefined });
         toast(`Sem descanso: ${byId(day.items[nextJ]!.exId).name}`);
+        say(`Sem descanso. Agora, ${byId(day.items[nextJ]!.exId).name}.`);
         goTo(nextJ);
         return;
       }
@@ -200,7 +205,8 @@ function TreinosPage() {
         const next = `Série ${(sets[firstJ] ?? 0) + 1} de ${firstItem.sets} · ${byId(firstItem.exId).name}`;
         const endsAt = Date.now() + settings.restSeconds * 1000;
         // The countdown shows on the exercise the next round starts with.
-        setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: firstJ, endsAt, next: `Fim da rodada · ${next}` } });
+        const speech = nextSetSpeech(byId(firstItem.exId).name, (sets[firstJ] ?? 0) + 1, firstItem.sets, kgs[firstJ]?.at(-1));
+        setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: firstJ, endsAt, next: `Fim da rodada · ${next}`, say: speech } });
         scheduleRestPush(endsAt, next);
         goTo(firstJ);
         return;
@@ -215,11 +221,12 @@ function TreinosPage() {
         setSession({ ...base, sets, kgs, repsDone, rir, rest: undefined });
         setOpenItem(nextJ);
         toast(`Próximo: ${byId(nextItem.exId).name}`);
+        say(`Próximo: ${byId(nextItem.exId).name}.`);
         document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
       }
       const endsAt = Date.now() + settings.restSeconds * 1000;
-      setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: i, endsAt, next: `Fim da volta · ${next}` } });
+      setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: i, endsAt, next: `Fim da volta · ${next}`, say: nextSetSpeech(byId(nextItem.exId).name, (sets[nextJ] ?? 0) + 1, nextItem.sets, kgs[nextJ]?.at(-1)) } });
       scheduleRestPush(endsAt, next);
       return;
     }
@@ -228,13 +235,14 @@ function TreinosPage() {
     if (done >= item.sets) {
       setSession({ ...base, sets, kgs, repsDone, rir, rest: undefined });
       const nextJ = nextInLine(pending, base.later, i)!;
+      say(`Próximo exercício: ${byId(day.items[nextJ]!.exId).name}.`);
       setOpenItem(nextJ);
       setTimeout(() => document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
       return;
     }
     const next = `Série ${done + 1} de ${item.sets} · ${byId(item.exId).name}`;
     const endsAt = Date.now() + settings.restSeconds * 1000;
-    setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: i, endsAt, next } });
+    setSession({ ...base, sets, kgs, repsDone, rir, rest: { item: i, endsAt, next, say: nextSetSpeech(byId(item.exId).name, done + 1, item.sets, kg) } });
     scheduleRestPush(endsAt, next);
   };
 
@@ -940,6 +948,9 @@ function TreinosPage() {
                     key={session.rest.endsAt}
                     endsAt={session.rest.endsAt}
                     next={session.rest.next}
+                    say={session.rest.say}
+                    voice={settings.voice}
+                    onVoice={(on) => { if (on) unlockVoice(); updateSettings({ voice: on }); toast(on ? "Voz ligada: fala o fim do descanso e a próxima série." : "Voz desligada."); }}
                     onAdd={(seconds) => {
                       const rest = session.rest!;
                       scheduleRestPush(rest.endsAt + seconds * 1000, rest.next);
@@ -1317,9 +1328,19 @@ function beep() {
   }
 }
 
-function RestCountdown({ endsAt, next, onAdd, onSkip, onDone }: { endsAt: number; next: string; onAdd: (seconds: number) => void; onSkip: () => void; onDone: () => void }) {
+function RestCountdown({ endsAt, next, say, voice, onVoice, onAdd, onSkip, onDone }: {
+  endsAt: number; next: string; say?: string | undefined; voice: boolean; onVoice: (on: boolean) => void;
+  onAdd: (seconds: number) => void; onSkip: () => void; onDone: () => void;
+}) {
   const [now, setNow] = useState(() => Date.now());
   const left = Math.max(0, endsAt - now);
+  // Long enough rests get a heads-up at 10 s; it only fires when the count crosses that mark on screen.
+  const [startLeft] = useState(() => endsAt - Date.now());
+  const warn = left > 0 && left <= 10_000 && startLeft > 20_000;
+  useEffect(() => {
+    if (warn && voice) speak("Faltam 10 segundos.");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warn]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 250);
@@ -1333,6 +1354,8 @@ function RestCountdown({ endsAt, next, onAdd, onSkip, onDone }: { endsAt: number
     if (left > 0) return;
     navigator.vibrate?.([300, 150, 300]);
     beep();
+    // After the beep, so the two don't talk over each other.
+    if (voice) setTimeout(() => speak(say ?? `Descanso acabou. ${next}.`), 700);
     // Devices with push on get the server's notification instead (it also works with the screen off).
     if (!deviceId()) void notifyRestOver(next);
     toast("Descanso acabou! Hora da próxima série", { description: next });
@@ -1348,6 +1371,10 @@ function RestCountdown({ endsAt, next, onAdd, onSkip, onDone }: { endsAt: number
           <div className="font-display text-3xl font-extrabold leading-none tabular-nums text-accent" role="timer" aria-label="Descanso restante">{formatDuration(left + 999)}</div>
         </div>
         <div className="flex gap-2">
+          <button type="button" onClick={() => onVoice(!voice)} aria-pressed={voice} aria-label={voice ? "Desligar a voz" : "Ligar a voz"}
+            className={`relative grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/30 before:absolute before:-inset-1 before:content-[""] ${voice ? "bg-primary-foreground/15" : "opacity-60"}`}>
+            {voice ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
           <button type="button" onClick={() => onAdd(15)} className="rounded-full border border-primary-foreground/30 px-3 py-1.5 text-sm font-semibold">+15s</button>
           <button type="button" onClick={onSkip} className="rounded-full bg-accent px-3 py-1.5 text-sm font-bold text-accent-foreground">Pular</button>
         </div>

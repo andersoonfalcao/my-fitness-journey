@@ -195,7 +195,7 @@ function Index() {
 
       <TrainingInsights planned={profile.days} />
 
-      <HealthToday date={today()} />
+      <HealthToday date={today()} age={profile.age} />
 
       <DayClose profile={profile} date={today()} />
     </div>

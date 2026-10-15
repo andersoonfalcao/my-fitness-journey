@@ -202,7 +202,8 @@ export type WorkoutSession = {
   /** Reps the person says were still left in each set (0 = to failure, 3 = three or more); null = not told. */
   rir?: Record<number, (number | null)[]>;
   /** Rest after a set; `item` is the plan item index whose card shows the countdown. */
-  rest?: { item: number; endsAt: number; next: string } | undefined;
+  /** `say`: what the voice cue says when the rest ends (Configurações → "Voz no treino"). */
+  rest?: { item: number; endsAt: number; next: string; say?: string | undefined } | undefined;
   /** Plan item indexes left for later (machine busy), in the order they were left: they come back after the others. */
   later?: number[] | undefined;
   /** Drop sets done right after a set, per plan item index and then per set index (0 = first set). */

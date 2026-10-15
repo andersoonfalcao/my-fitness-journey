@@ -39,9 +39,12 @@ export type WeekInputs = {
   targets: { kcal: number; waterMl: number };
 };
 
-/** Numbers of the week starting `start`, up to `last` (today for the week in progress). */
-export function weekStats(start: string, last: string, x: WeekInputs): WeekStats {
-  const end = addDays(start, 6) < last ? addDays(start, 6) : last;
+/**
+ * Numbers of the week starting `start`, up to `last` (today for the week in progress). `span` days other than 7
+ * give the same numbers for a month (the monthly review).
+ */
+export function weekStats(start: string, last: string, x: WeekInputs, span = 7): WeekStats {
+  const end = addDays(start, span - 1) < last ? addDays(start, span - 1) : last;
   const inWeek = (d: string) => d >= start && d <= end;
   const days = new Map<string, { kcal: number; p: number; meals: Set<string> }>();
   for (const f of x.foods) {
