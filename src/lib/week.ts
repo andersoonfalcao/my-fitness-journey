@@ -15,6 +15,8 @@ export type WeekStats = {
   fiberAvg: number | null;
   waterDays: number;
   workouts: number; volumeKg: number; workoutMinutes: number;
+  /** Average of how the workouts felt (1 to 5) and how many were rated; null = none rated. */
+  feelAvg: number | null; feelCount: number;
   /** Days trained with cardio only (no gym workout), already inside `workouts`. */
   cardioOnlyDays: number;
   stravaCount: number; stravaKm: number;
@@ -65,6 +67,8 @@ export function weekStats(start: string, last: string, x: WeekInputs): WeekStats
   const fibers = [...days.keys()].map((d) => fiberOf(x.foods.filter((f) => f.date === d))).filter((f) => f.known > 0 && f.known >= f.unknown).map((f) => f.grams);
   const fiberAvg = avg(fibers);
   const cardio = strava.filter((a) => a.sport !== "WeightTraining");
+  const feels = workouts.flatMap((r) => (r.feel ? [r.feel] : []));
+  const feelAvg = avg(feels);
   return {
     start, end, days: Math.round((new Date(`${end}T12:00:00`).getTime() - new Date(`${start}T12:00:00`).getTime()) / 86_400_000) + 1,
     weightAvg: weightAvg === null ? null : Math.round(weightAvg * 100) / 100,
@@ -80,6 +84,8 @@ export function weekStats(start: string, last: string, x: WeekInputs): WeekStats
     cardioOnlyDays,
     volumeKg: Math.round(workouts.reduce((s, r) => s + recordTotal(r), 0)),
     workoutMinutes: Math.round(workouts.reduce((s, r) => s + (r.durationMs ?? 0), 0) / 60000),
+    feelAvg: feelAvg === null ? null : Math.round(feelAvg * 10) / 10,
+    feelCount: feels.length,
     stravaCount: strava.length,
     cardioCount: cardio.length,
     cardioMinutes: Math.round(cardio.reduce((s, a) => s + a.movingS, 0) / 60),

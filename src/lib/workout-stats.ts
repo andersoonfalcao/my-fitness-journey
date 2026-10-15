@@ -1,6 +1,6 @@
 import { byId, type Exercise, type Group } from "./exercises";
 import { repsCount } from "./plan";
-import type { WorkoutRecord } from "./store";
+import type { DropSet, WorkoutRecord } from "./store";
 
 export type SetValues = (number | null)[] | undefined;
 
@@ -17,9 +17,14 @@ export function volume(kgs: SetValues, setReps: SetValues, reps: string) {
   return (kgs ?? []).reduce<number>((sum, kg, j) => sum + (kg ?? 0) * (repsOfSet(setReps, j, reps) ?? 0), 0);
 }
 
-/** Volume of a whole workout (kg × reps of every set). */
+/** Volume of the drop sets of an exercise (kg × reps of every drop). */
+export function dropVolume(drops: Record<number, DropSet[]> | undefined) {
+  return Object.values(drops ?? {}).flat().reduce((sum, d) => sum + (d.kg ?? 0) * d.reps, 0);
+}
+
+/** Volume of a whole workout (kg × reps of every set, drop sets included). */
 export function recordTotal(record: WorkoutRecord | undefined) {
-  return record?.exercises.reduce((sum, e) => sum + volume(e.setKgs, e.setReps, e.reps), 0) ?? 0;
+  return record?.exercises.reduce((sum, e) => sum + volume(e.setKgs, e.setReps, e.reps) + dropVolume(e.setDrops), 0) ?? 0;
 }
 
 export function lastRecordBefore(records: WorkoutRecord[], dayName: string) {

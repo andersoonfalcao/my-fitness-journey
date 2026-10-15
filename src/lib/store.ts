@@ -203,7 +203,18 @@ export type WorkoutSession = {
   rir?: Record<number, (number | null)[]>;
   /** Rest after a set; `item` is the plan item index whose card shows the countdown. */
   rest?: { item: number; endsAt: number; next: string } | undefined;
+  /** Plan item indexes left for later (machine busy), in the order they were left: they come back after the others. */
+  later?: number[] | undefined;
+  /** Drop sets done right after a set, per plan item index and then per set index (0 = first set). */
+  drops?: Record<number, Record<number, DropSet[]>> | undefined;
 };
+
+/** Weight lowered right after a set, going on until failure: one entry per drop. */
+export type DropSet = { kg: number | null; reps: number };
+
+/** How the workout felt, told when it ends: 1 = no energy … 5 = excellent. */
+export type WorkoutFeel = 1 | 2 | 3 | 4 | 5;
+export const FEEL_LABEL: Record<WorkoutFeel, string> = { 1: "Sem energia", 2: "Pesado", 3: "Normal", 4: "Bom", 5: "Excelente" };
 
 /** Snapshot of a finished workout; names are copied so the log survives plan changes. */
 export type WorkoutRecord = {
@@ -225,7 +236,13 @@ export type WorkoutRecord = {
     setReps?: (number | null)[] | undefined;
     /** Reps left in each set as told by the person (0 = to failure, 3 = three or more); missing = not told. */
     setRir?: (number | null)[] | undefined;
+    /** Drop sets by set index; missing = none. */
+    setDrops?: Record<number, DropSet[]> | undefined;
+    /** Left for later during the workout and not finished. */
+    skipped?: true | undefined;
   }[];
+  /** How it felt, told at the end (missing = not told, or saved before 2026-10-15). */
+  feel?: WorkoutFeel | undefined;
 };
 
 /** Water drunk per day in a month document: { "YYYY-MM-DD": ml }. */
@@ -242,6 +259,8 @@ export type DayRecord = {
       name: string; minutes: number | null; setsDone: number; setsPlanned: number; volumeKg: number; volumeDiffKg: number | null;
       /** What was trained (exercise and muscle); missing in older records. */
       exercises?: { name: string; muscle: string }[] | undefined;
+      /** How it felt (1 to 5), when told. */
+      feel?: number | undefined;
     } | null;
     weightKg: number | null;
     /** Strava activities of the day (missing in records closed before the integration). */

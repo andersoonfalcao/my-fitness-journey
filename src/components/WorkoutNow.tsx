@@ -12,8 +12,10 @@ export function WorkoutNow({ session, plan }: { session: WorkoutSession; plan: P
   const done = (i: number) => session.sets?.[i] ?? 0;
   const pending = items.map((_, i) => i).filter((i) => done(i) < items[i]!.sets);
   const finished = items.length - pending.length;
-  // The exercise resting between sets, else the one already started, else the first one still to do.
-  const current = session.rest && pending.includes(session.rest.item) ? session.rest.item : pending.find((i) => done(i) > 0) ?? pending[0];
+  // The exercise resting between sets, else the one already started, else the first one still to do; the ones left
+  // for later (machine busy) only once nothing else is left.
+  const inOrder = pending.filter((i) => !session.later?.includes(i));
+  const current = session.rest && pending.includes(session.rest.item) ? session.rest.item : inOrder.find((i) => done(i) > 0) ?? inOrder[0] ?? pending[0];
   const item = current === undefined ? undefined : items[current];
 
   return (

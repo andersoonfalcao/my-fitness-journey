@@ -1,6 +1,6 @@
 import { BEST_MODELS, generateJson, Schema } from "./ai";
 import { foodsKey, readCloudOnce, waterKey } from "./cloud-store";
-import { targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
+import { FEEL_LABEL, targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutFeel, type WorkoutRecord } from "./store";
 import { lastRecordBefore, recordTotal } from "./workout-stats";
 import { byId, GROUP_LABEL } from "./exercises";
 import { sportLabel, stravaActivityDetail, stravaKey, type StravaActivity, type StravaDetail } from "./strava";
@@ -22,6 +22,7 @@ Use SOMENTE os números recebidos; não invente dados. Escreva números no forma
 Não dê diagnóstico médico nem recomende remédios ou suplementos específicos.
 Campos:
 Sobre a musculação, use hoje.treino: diga o que foi treinado e quais músculos, e compare a carga total do treino (soma de peso × repetições de todos os exercícios) com a última vez que esse mesmo treino foi feito: cargaTotalHoje e cargaTotalUltimaVez, no formato "de 3.400 kg para 3.650 kg" (nunca use ×). Não compare exercício por exercício e não fale de séries nem de repetições. Quando hoje.treino trouxer fcMedia, fcMaxima, kcalGastas e esforco, são do Strava para esse mesmo treino (a pulseira gravou a musculação): comente o esforço e as calorias gastas como parte dele, um treino só, nunca como uma segunda atividade.
+Quando hoje.treino.sensacao vier preenchida, é como o aluno disse que se sentiu no treino (1 = sem energia, 5 = excelente): relacione com o sono da noite (hoje.health.sleepMin), com a alimentação de ontem e de hoje e com a carga comparada à última vez. Se for 1 ou 2, sugira com calma o que ajustar antes do próximo treino (dormir mais, comer melhor antes), sem alarde; se for 4 ou 5 com carga maior, reconheça. Se for null, não comente.
 Analise também cada atividade do Strava em hoje.strava e relacione com o resto do dia (calorias, proteína, água, descanso). Em todas, use o tempo em movimento (minutes), a frequência cardíaca média e máxima (avgHr, maxHr), as calorias (kcal) e o esforço relativo do Strava (effort, quanto maior mais puxado). Nas que têm distância, use também distância, ritmo ou velocidade e desnível; em musculação e outras sem distância, ignore distância, ritmo e desnível.
 - overview: 2 a 4 frases sobre o dia, citando o treino e as atividades do Strava quando houver.
 - goingWell: 2 a 4 pontos curtos do que foi bem hoje ou no acompanhamento.
@@ -134,6 +135,7 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
       volumeKg: Math.round(volumeKg),
       volumeDiffKg: volumeKg > 0 && beforeKg > 0 ? Math.round(volumeKg - beforeKg) : null,
       exercises: todaysWorkout.exercises.map((e) => ({ name: e.name, muscle: muscleOf(e.exId) })),
+      ...(todaysWorkout.feel ? { feel: todaysWorkout.feel } : {}),
     };
   }
 
@@ -228,6 +230,7 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
       exercicios: numbers.day.workout.exercises?.map((e) => ({ exercicio: e.name, musculo: e.muscle })),
       cargaTotalHoje: numbers.day.workout.volumeKg || null,
       cargaTotalUltimaVez: numbers.day.workout.volumeDiffKg === null ? null : numbers.day.workout.volumeKg - numbers.day.workout.volumeDiffKg,
+      sensacao: numbers.day.workout.feel ? `${numbers.day.workout.feel} de 5 (${FEEL_LABEL[numbers.day.workout.feel as WorkoutFeel].toLowerCase()})` : null,
     } },
     desdeOInicio: numbers.sinceStart,
     tendencias,

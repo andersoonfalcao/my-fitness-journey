@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { KEYS, today, uid, useHistory, useLocal, type LoadEntry, type Profile, type WorkoutRecord, type WorkoutSession } from "@/lib/store";
+import { FEEL_LABEL, KEYS, today, uid, useHistory, useLocal, type DropSet, type LoadEntry, type Profile, type WorkoutFeel, type WorkoutRecord, type WorkoutSession } from "@/lib/store";
 import { generatePlan, holdSeconds, nextWorkoutIndex, normalizePlan, prescribeFor, repsCount, repsFor, withSmallMuscles, comboName, comboOf, tidyCombos, type Plan, type PlanItem } from "@/lib/plan";
 import { alternatives, byId, EXERCISES, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
@@ -23,7 +23,7 @@ import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { formatDuration, WorkoutClock } from "@/components/WorkoutClock";
 import { CYCLE_WEEKS, PROGRAM_WEEKS, programAt, referenceMax, rirText, weekLoad, type MaxTest } from "@/lib/program";
 import { workoutCard } from "@/lib/share-card";
-import { barKg, lastRecordBefore, loadAdvice, muscleRecovery, personalRecords, platesPerSide, recordTotal, repsOfSet, setsByGroup, strengthHistory, sumKg, volume, warmupSets, weekStart, type PersonalRecord, type SetValues } from "@/lib/workout-stats";
+import { barKg, dropVolume, lastRecordBefore, loadAdvice, muscleRecovery, personalRecords, platesPerSide, recordTotal, repsOfSet, setsByGroup, strengthHistory, sumKg, volume, warmupSets, weekStart, type PersonalRecord, type SetValues } from "@/lib/workout-stats";
 import { askRestNotifications, notifyRestOver, useWakeLock } from "@/lib/workout-device";
 import { cancelRestPush, deviceId, scheduleRestPush, useSettings } from "@/lib/push";
 
@@ -77,6 +77,10 @@ function TreinosPage() {
   const [combining, setCombining] = useState<{ d: number; picked: number[] } | null>(null);
   const [smallDismissed, setSmallDismissed] = useState(() => typeof window !== "undefined" && window.localStorage?.getItem("forma.small-muscles.dismissed") === "1");
   const [confirmFinish, setConfirmFinish] = useState(false);
+  // A drop set being typed: the exercise (plan item index) and the fields.
+  const [dropForm, setDropForm] = useState<{ item: number; kg: string; reps: string } | null>(null);
+  // The workout just saved, waiting for "how did it feel?" before the share card opens.
+  const [feelAsk, setFeelAsk] = useState<{ id: string; dayName: string; share: ShareRequest } | null>(null);
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
   const [settings] = useSettings();
   const [schedule, setSchedule] = useLocal<number[] | null>(KEYS.schedule, null);
@@ -152,7 +156,9 @@ function TreinosPage() {
     const item = day.items[i]!;
     unlockAudio();
     setHold(null);
-    const base = session ?? { dayName: day.name, startedAt: Date.now() };
+    const started = session ?? { dayName: day.name, startedAt: Date.now() };
+    // Doing a set of an exercise left for later brings it back into the order.
+    const base = started.later?.includes(i) ? { ...started, later: started.later.filter((j) => j !== i) } : started;
     const before = base.sets?.[i] ?? 0;
     const done = Math.min(item.sets, before + count);
     if (done === before) return;
@@ -221,7 +227,7 @@ function TreinosPage() {
     // so its card closes and the next pending one opens.
     if (done >= item.sets) {
       setSession({ ...base, sets, kgs, repsDone, rir, rest: undefined });
-      const nextJ = pending.find((j) => j > i) ?? pending[0]!;
+      const nextJ = nextInLine(pending, base.later, i)!;
       setOpenItem(nextJ);
       setTimeout(() => document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
       return;
@@ -242,7 +248,8 @@ function TreinosPage() {
   const finishSets = (session && sessionIdx >= 0 ? session.sets : undefined) ?? {};
   const finishKgs = (session && sessionIdx >= 0 ? session.kgs : undefined) ?? {};
   const finishReps = (session && sessionIdx >= 0 ? session.repsDone : undefined) ?? {};
-  const todayTotal = finishDay.items.reduce((sum, it, i) => sum + volume(finishKgs[i], finishReps[i], it.reps), 0);
+  const finishDrops = (session && sessionIdx >= 0 ? session.drops : undefined) ?? {};
+  const todayTotal = finishDay.items.reduce((sum, it, i) => sum + volume(finishKgs[i], finishReps[i], it.reps) + dropVolume(finishDrops[i]), 0);
   const lastFinishTotal = recordTotal(lastRecordOf(finishDay.name));
   const pendingItems = finishDay.items
     .map((it, i) => ({ it, i, done: finishSets[i] ?? 0 }))
@@ -262,7 +269,7 @@ function TreinosPage() {
     const finishSets = tracked?.sets ?? {};
     const finishKgs = tracked?.kgs ?? {};
     const finishReps = tracked?.repsDone ?? {};
-    const todayTotal = finishDay.items.reduce((sum, it, i) => sum + volume(finishKgs[i], finishReps[i], it.reps), 0);
+    const todayTotal = finishDay.items.reduce((sum, it, i) => sum + volume(finishKgs[i], finishReps[i], it.reps) + dropVolume(tracked?.drops?.[i]), 0);
     const record: WorkoutRecord = {
       id: uid(),
       date: today(),
@@ -277,11 +284,20 @@ function TreinosPage() {
         const top = Math.max(0, ...(finishKgs[i] ?? []).map((value) => value ?? 0));
         const kg = top || (session ? loads.filter((l) => l.exerciseId === ex.id && (l.createdAt ?? 0) >= session.startedAt).at(-1)?.kg : undefined);
         const setRir = tracked?.rir?.[i];
-        return { exId: ex.id, name: ex.name, setsDone: finishSets[i] ?? 0, setsPlanned: it.sets, reps: it.reps, kg, setKgs: finishKgs[i] ?? [], setReps: finishReps[i] ?? [], ...(setRir?.some((r) => r !== null) ? { setRir } : {}) };
+        const setDrops = tracked?.drops?.[i];
+        const skipped = !!tracked?.later?.includes(i) && (finishSets[i] ?? 0) < it.sets;
+        return {
+          exId: ex.id, name: ex.name, setsDone: finishSets[i] ?? 0, setsPlanned: it.sets, reps: it.reps, kg, setKgs: finishKgs[i] ?? [], setReps: finishReps[i] ?? [],
+          ...(setRir?.some((r) => r !== null) ? { setRir } : {}),
+          ...(setDrops && Object.keys(setDrops).length > 0 ? { setDrops } : {}),
+          ...(skipped ? { skipped: true as const } : {}),
+        };
       }),
     };
     setHistory((records) => [...records, record]);
-    setShare(workoutShare(record, lastRecordBefore(history, record.dayName)));
+    // "How did it feel?" comes first; the share card opens after it is answered or skipped.
+    setFeelAsk({ id: record.id, dayName: record.dayName, share: workoutShare(record, lastRecordBefore(history, record.dayName)) });
+    setDropForm(null);
     setDone((d) => [...d, `${today()}|${finishDay.name}`]);
     setDayIdx(null);
     setConfirmFinish(false);
@@ -307,8 +323,12 @@ function TreinosPage() {
     cancelRestPush();
     setHold(null);
     syncLoad(day.items[i]!.exId, session.startedAt, (session.kgs?.[i] ?? []).slice(0, -1));
+    // The drops of the set being undone go with it.
+    const { [(session.sets?.[i] ?? 0) - 1]: _undone, ...dropsKept } = session.drops?.[i] ?? {};
+    setDropForm(null);
     setSession({
       ...session,
+      drops: { ...session.drops, [i]: dropsKept },
       sets: { ...session.sets, [i]: Math.max(0, (session.sets?.[i] ?? 0) - 1) },
       kgs: { ...session.kgs, [i]: (session.kgs?.[i] ?? []).slice(0, -1) },
       repsDone: { ...session.repsDone, [i]: (session.repsDone?.[i] ?? []).slice(0, -1) },
@@ -347,9 +367,10 @@ function TreinosPage() {
       const follow = <T,>(byItem: Record<number, T> | undefined) =>
         Object.fromEntries(order.flatMap((from, to) => (byItem?.[from] === undefined ? [] : [[to, byItem[from]]]))) as Record<number, T>;
       cancelRestPush();
-      setSession({ ...session, sets: follow(session.sets), kgs: follow(session.kgs), repsDone: follow(session.repsDone), rir: follow(session.rir), rest: undefined });
+      setSession({ ...session, sets: follow(session.sets), kgs: follow(session.kgs), repsDone: follow(session.repsDone), rir: follow(session.rir), drops: follow(session.drops), later: session.later?.map((from) => order.indexOf(from)), rest: undefined });
     }
     setHold(null);
+    setDropForm(null);
     if (moved) setOpenItem(null);
     setPlan({ ...plan, days: plan.days.map((day, di) => (di === d ? { ...day, items: tidyCombos(items) } : day)) });
   };
@@ -380,11 +401,52 @@ function TreinosPage() {
     setHold(null);
     if (session && sessionIdx === active) {
       cancelRestPush();
-      setSession({ ...session, sets: shift(session.sets), kgs: shift(session.kgs), repsDone: shift(session.repsDone), rir: shift(session.rir), rest: undefined });
+      setSession({ ...session, sets: shift(session.sets), kgs: shift(session.kgs), repsDone: shift(session.repsDone), rir: shift(session.rir), drops: shift(session.drops), later: session.later?.filter((j) => j !== i).map((j) => (j > i ? j - 1 : j)), rest: undefined });
     }
     setPlan({ ...plan, days: plan.days.map((d, di) => (di === active ? { ...d, items: tidyCombos(d.items.filter((_, ii) => ii !== i)) } : d)) });
     setOpenItem(null);
     toast.success(`${byId(day.items[i]!.exId).name} removido do treino`);
+  };
+
+  /** Machine busy: the exercise goes to the end of the line and the next one in order opens. */
+  const leaveForLater = (i: number) => {
+    if (!session) return;
+    const later = [...(session.later ?? []).filter((j) => j !== i), i];
+    const pending = day.items.map((_, j) => j).filter((j) => (session.sets?.[j] ?? 0) < day.items[j]!.sets);
+    const nextJ = nextInLine(pending, later, i);
+    if (session.rest) cancelRestPush();
+    setHold(null);
+    setDropForm(null);
+    setSession({ ...session, later, rest: undefined });
+    toast(`${byId(day.items[i]!.exId).name} ficou para o fim`, nextJ !== undefined && nextJ !== i ? { description: `Agora: ${byId(day.items[nextJ]!.exId).name}` } : undefined);
+    if (nextJ !== undefined && nextJ !== i) {
+      setOpenItem(nextJ);
+      setTimeout(() => document.getElementById(`exercicio-${nextJ}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  };
+
+  /** A drop set goes with the last set marked of the exercise, and its kg × reps add to the session total. */
+  const saveDrop = () => {
+    if (!dropForm || !session) return;
+    const i = dropForm.item;
+    const setIdx = (session.sets?.[i] ?? 0) - 1;
+    const kgText = dropForm.kg.trim().replace(",", ".");
+    const kg = kgText ? Number(kgText) : null;
+    const reps = Number(dropForm.reps.trim());
+    if (setIdx < 0) return;
+    if (kg !== null && (!Number.isFinite(kg) || kg < 0)) return void toast.error("Digite um peso válido em kg");
+    if (!Number.isInteger(reps) || reps < 1 || reps > 100) return void toast.error("Digite as repetições do drop (1 a 100)");
+    const drop: DropSet = { kg, reps };
+    setSession({ ...session, drops: { ...session.drops, [i]: { ...session.drops?.[i], [setIdx]: [...(session.drops?.[i]?.[setIdx] ?? []), drop] } } });
+    setDropForm(null);
+    toast.success(`Drop salvo: ${kg !== null ? formatKg(kg) : "sem peso"} × ${reps}`);
+  };
+
+  const undoDrop = (i: number, setIdx: number) => {
+    if (!session) return;
+    const list = (session.drops?.[i]?.[setIdx] ?? []).slice(0, -1);
+    const { [setIdx]: _old, ...others } = session.drops?.[i] ?? {};
+    setSession({ ...session, drops: { ...session.drops, [i]: list.length ? { ...others, [setIdx]: list } : others } });
   };
 
   const historyFor = (exerciseId: string) =>
@@ -626,7 +688,13 @@ function TreinosPage() {
           const finished = (tracksSets || !!doneEx) && setsDone >= it.sets;
           const combo = plan.circuit ? null : comboOf(day.items, i);
           const open = openItem === i;
-          const exTotal = volume(kgsToday, repsToday, it.reps);
+          const dropsToday = (tracksSets ? session?.drops?.[i] : doneEx?.setDrops) ?? {};
+          const exTotal = volume(kgsToday, repsToday, it.reps) + dropVolume(dropsToday);
+          const isLater = tracksSets && !!session?.later?.includes(i);
+          // Leaving for later needs another exercise still to do in order; blocks and circuits keep their own sequence.
+          const canLeave = tracksSets && !!session && setsLeft > 0 && !isLater && !combo && !plan.circuit
+            && day.items.some((other, j) => j !== i && !session.later?.includes(j) && (session.sets?.[j] ?? 0) < other.sets);
+          const lastSetKg = kgsToday[setsDone - 1] ?? null;
           return (
             <article key={i} id={`exercicio-${i}`} className={`scroll-mt-28 overflow-hidden rounded-3xl border-2 ${finished ? "border-[#3f9d6b] bg-[#3f9d6b]/5" : open ? "border-primary bg-card" : "border-border bg-card"}`}>
               <button type="button" onClick={() => setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
@@ -634,7 +702,7 @@ function TreinosPage() {
                 <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {combo && <span className="text-accent">{combo.label} · {combo.position}/{combo.members.length} · </span>}{GROUP_LABEL[ex.group]} · {ex.equipment}
+                    {isLater && <span className="text-accent">Para depois · </span>}{combo && <span className="text-accent">{combo.label} · {combo.position}/{combo.members.length} · </span>}{GROUP_LABEL[ex.group]} · {ex.equipment}
                   </span>
                   <span className="block font-display text-base font-bold leading-tight">{ex.name}</span>
                   <span className="mt-0.5 block text-sm">
@@ -706,7 +774,45 @@ function TreinosPage() {
                     {setsDone > 0 && (
                       <button type="button" onClick={() => undoSet(i)} className="px-1 py-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
                     )}
+                    {session && setsDone > 0 && targetReps !== null && dropForm?.item !== i && (
+                      <button type="button" onClick={() => setDropForm({ item: i, kg: lastSetKg ? kgInput(dropKg(lastSetKg)) : "", reps: "" })}
+                        className="inline-flex min-h-11 items-center gap-1 px-1 text-sm font-semibold text-accent underline-offset-4 hover:underline"><Plus className="h-4 w-4" />Drop na série {setsDone}</button>
+                    )}
                   </div>
+                )}
+                {tracksSets && dropForm?.item === i && (
+                  <div className="mt-2 rounded-2xl border border-accent/40 bg-accent/10 p-3">
+                    <p className="text-sm font-bold">Drop na série {setsDone}</p>
+                    <p className="text-xs text-muted-foreground">Baixou o peso logo depois da série e continuou: anote o peso e quantas repetições saíram.</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <Input aria-label="Peso do drop em kg" inputMode="decimal" placeholder="kg" value={dropForm.kg} onFocus={(event) => event.target.select()}
+                          onChange={(event) => setDropForm((f) => f && { ...f, kg: event.target.value })} className="pr-9" />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+                      </div>
+                      <div className="relative">
+                        <Input aria-label="Repetições do drop" inputMode="numeric" placeholder="Ex: 8" value={dropForm.reps} autoFocus
+                          onChange={(event) => setDropForm((f) => f && { ...f, reps: event.target.value })} onKeyDown={(event) => event.key === "Enter" && saveDrop()} className="pr-11" />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">reps</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <Button type="button" variant="secondary" onClick={() => setDropForm(null)} className="min-h-11 rounded-full">Cancelar</Button>
+                      <Button type="button" onClick={saveDrop} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90"><Check />Salvar drop</Button>
+                    </div>
+                  </div>
+                )}
+                {Object.keys(dropsToday).length > 0 && (
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {Object.entries(dropsToday).sort(([a], [b]) => Number(a) - Number(b)).map(([setIdx, list]) => (
+                      <li key={setIdx} className="flex items-center justify-between gap-2 rounded-2xl bg-accent/10 px-3 py-1.5">
+                        <span className="min-w-0"><b>Drop · série {Number(setIdx) + 1}:</b> {list.map((d) => `${d.kg !== null ? kgNumber(d.kg) : "—"} kg × ${d.reps}`).join(" · ")}</span>
+                        {tracksSets && session && (
+                          <button type="button" onClick={() => undoDrop(i, Number(setIdx))} className="-my-1.5 min-h-11 shrink-0 px-1 text-xs font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
                 <div className="mt-3 border-t border-border pt-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-xs">
@@ -819,6 +925,15 @@ function TreinosPage() {
                       )}
                     </div>
                   )}
+                  {canLeave && !holding && (
+                    <button type="button" onClick={() => leaveForLater(i)}
+                      className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline">
+                      <SkipForward className="h-4 w-4" />Aparelho ocupado? Deixar para depois
+                    </button>
+                  )}
+                  {isLater && (
+                    <p className="mt-2 text-xs text-muted-foreground">Este exercício ficou para o fim. Quando os outros acabarem, ele abre sozinho; se não der para fazer, conclua o treino e ele fica registrado como pulado.</p>
+                  )}
                 </div>
                 {tracksSets && session?.rest?.item === i && (
                   <RestCountdown
@@ -890,7 +1005,7 @@ function TreinosPage() {
             {pendingItems.map(({ it, i, done }) => (
               <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="min-w-0">{byId(it.exId).name}</span>
-                <span className="shrink-0 font-semibold tabular-nums text-accent">faltam {it.sets - done} de {it.sets}</span>
+                <span className="shrink-0 text-right font-semibold tabular-nums text-accent">faltam {it.sets - done} de {it.sets}{session?.later?.includes(i) && <span className="block text-xs font-normal text-muted-foreground">deixado para depois</span>}</span>
               </li>
             ))}
           </ul>
@@ -912,6 +1027,13 @@ function TreinosPage() {
         <WeeklyVolume records={history} />
         <StravaActivities />
       </>)}
+      <FeelDialog ask={feelAsk}
+        onAnswer={(feel) => {
+          if (!feelAsk) return;
+          if (feel) setHistory((records) => records.map((r) => (r.id === feelAsk.id ? { ...r, feel } : r)));
+          setShare(feelAsk.share);
+          setFeelAsk(null);
+        }} />
       <ShareDialog request={share} onClose={() => setShare(null)} />
       <RecordDialog records={viewRecords} all={history} onClose={() => setViewRecords(null)} />
 
@@ -1312,6 +1434,38 @@ const kgInput = (kg: number) => String(kg).replace(".", ",");
 
 const formatRest = (seconds: number) => (seconds % 60 === 0 ? `${seconds / 60} min` : seconds > 60 ? `${Math.floor(seconds / 60)} min ${seconds % 60}s` : `${seconds}s`);
 
+/** Starting weight for a drop: 20% below the set, rounded to 0,5 kg. */
+const dropKg = (kg: number) => Math.max(0, Math.round(kg * 0.8 * 2) / 2);
+
+/** The next exercise to open: the ones in order first (after `from`, then from the top), the ones left for later last. */
+function nextInLine(pending: number[], later: number[] | undefined, from: number) {
+  const inOrder = pending.filter((j) => !later?.includes(j));
+  return inOrder.find((j) => j > from) ?? inOrder[0] ?? (later ?? []).find((j) => pending.includes(j));
+}
+
+const FEELS = [5, 4, 3, 2, 1] as const;
+
+/** Asked once the workout is saved; the answer goes into the record and feeds the day and week reviews. */
+function FeelDialog({ ask, onAnswer }: { ask: { dayName: string } | null; onAnswer: (feel: WorkoutFeel | null) => void }) {
+  return (
+    <Dialog open={!!ask} onOpenChange={(open) => !open && onAnswer(null)}>
+      <DialogContent className="w-[calc(100%-2rem)] rounded-3xl sm:max-w-sm">
+        <DialogHeader><DialogTitle className="font-display text-xl">Como foi o {ask?.dayName}?</DialogTitle></DialogHeader>
+        <p className="-mt-2 text-sm text-muted-foreground">A IA do Fechar o dia e do Resumo da semana cruza isso com o seu sono e com a carga.</p>
+        <div className="grid gap-2">
+          {FEELS.map((n) => (
+            <button key={n} type="button" onClick={() => onAnswer(n)}
+              className="flex min-h-12 items-center gap-3 rounded-2xl border border-input bg-card px-4 text-left font-semibold hover:border-primary">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted font-display font-extrabold tabular-nums">{n}</span>{FEEL_LABEL[n]}
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={() => onAnswer(null)} className="min-h-11 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Pular</button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function formatDiff(kg: number) {
   return kg === 0 ? "igual" : `${kg > 0 ? "+" : "−"}${kgNumber(Math.abs(kg))} kg`;
 }
@@ -1352,6 +1506,12 @@ function RecordExercises({ r, prs }: { r: WorkoutRecord; prs: Set<string> }) {
           <div className="text-xs tabular-nums text-muted-foreground">
             {e.setKgs && sumKg(e.setKgs) > 0 ? formatSetKgs(e.setKgs, e.setReps, e.reps) : `${e.reps}${repsCount(e.reps) ? " reps" : ""}${e.kg !== undefined ? ` · carga ${formatKg(e.kg)}` : ""}`}
           </div>
+          {e.setDrops && Object.keys(e.setDrops).length > 0 && (
+            <div className="text-xs tabular-nums text-accent">
+              {Object.entries(e.setDrops).map(([setIdx, list]) => `drop na série ${Number(setIdx) + 1}: ${list.map((d) => `${d.kg !== null ? kgNumber(d.kg) : "—"}×${d.reps}`).join(" · ")}`).join(" · ")} = {formatKg(dropVolume(e.setDrops))}
+            </div>
+          )}
+          {e.skipped && <div className="text-xs text-muted-foreground">deixado para depois e não feito</div>}
         </li>
       ))}
     </ul>
@@ -1439,6 +1599,7 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
                       {r.dayName}
                       {prs.size > 0 && <span className="ml-2 align-middle text-xs font-bold text-accent">🏆 {prs.size === 1 ? "recorde" : `${prs.size} recordes`}</span>}
                     </div>
+                    {r.feel && <div className="text-xs font-semibold text-muted-foreground">Como foi: {FEEL_LABEL[r.feel]} ({r.feel} de 5)</div>}
                   </div>
                   <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                 </div>

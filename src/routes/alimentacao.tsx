@@ -16,6 +16,7 @@ import { FoodEditDialog } from "@/components/FoodEditDialog";
 import { PlatePhoto } from "@/components/PlatePhoto";
 import { RecipesPanel } from "@/components/RecipesPanel";
 import { FastingCard } from "@/components/FastingCard";
+import { WeekMenu } from "@/components/WeekMenu";
 import { addDays, FIBER_REFERENCE, fiberOf, proteinByMeal, proteinPerMeal } from "@/lib/insights";
 
 export const Route = createFileRoute("/alimentacao")({
@@ -198,6 +199,7 @@ function FoodPage() {
           ))}
         </div>
         {planning && <p className="-mt-2 mb-3 text-xs text-muted-foreground">O que você adicionar fica planejado (em cinza) e não conta até você tocar em “Comi”. Dá para planejar até 7 dias à frente pelo “Outro dia”.</p>}
+        {planning && <WeekMenu profile={profile} entries={[...prevMonthFoods.filter((f) => f.date < date), ...foods.filter((f) => f.date <= date)]} />}
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {MEALS.map((m) => (
             <button key={m.v} onClick={() => setMeal(m.v)}
