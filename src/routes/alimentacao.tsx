@@ -165,9 +165,9 @@ function FoodPage() {
         </div>
         <div className="mt-1 font-display text-4xl font-extrabold">{Math.round(sum.kcal).toLocaleString("pt-BR")}<span className="text-lg opacity-75"> / {t.kcal.toLocaleString("pt-BR")} kcal</span></div>
         <div className="mt-4 grid gap-3 [&_span]:!text-primary-foreground/80">
+          <MacroBar name="Proteína" value={sum.p} max={t.protein} color="#6cc495" />
           <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--chart-1)" />
           <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--chart-3)" />
-          <MacroBar name="Proteínas" value={sum.p} max={t.protein} color="var(--chart-2)" />
           {fiber.known > 0 && <MacroBar name="Fibras" value={fiber.grams} max={FIBER_REFERENCE} color="var(--chart-4)" />}
         </div>
         {fiber.known > 0 && (
@@ -419,7 +419,7 @@ function FoodHistory({ t, onEdit }: { t: ReturnType<typeof targets>; onEdit: (da
                   {Math.round(sum.kcal).toLocaleString("pt-BR")} <span className="text-sm font-semibold text-muted-foreground">/ {t.kcal.toLocaleString("pt-BR")} kcal · {Math.round((sum.kcal / t.kcal) * 100)}%</span>
                 </span>
                 <span className="block text-xs tabular-nums text-muted-foreground">
-                  <b style={{ color: "var(--chart-1)" }}>C</b> {Math.round(sum.c)} g · <b style={{ color: "var(--chart-3)" }}>G</b> {Math.round(sum.f)} g · <b style={{ color: "var(--chart-2)" }}>P</b> {Math.round(sum.p)} g
+                  <b style={{ color: "var(--chart-2)" }}>P</b> {Math.round(sum.p)} g · <b style={{ color: "var(--chart-1)" }}>C</b> {Math.round(sum.c)} g · <b style={{ color: "var(--chart-3)" }}>G</b> {Math.round(sum.f)} g
                 </span>
               </span>
               <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { X } from "lucide-react";
+import { Ruler, X } from "lucide-react";
 import { useState } from "react";
 import { KEYS, today, useLocal, type MeasureEntry } from "@/lib/store";
 import { useTrainedDays } from "@/lib/trained";
@@ -51,14 +51,15 @@ export function MeasuresNotice() {
   if (!due || (dismissed && dismissed > addDays(today(), -MEASURES_EVERY_DAYS))) return null;
   const days = last ? Math.round((new Date(`${today()}T12:00:00`).getTime() - new Date(`${last}T12:00:00`).getTime()) / 86_400_000) : null;
   return (
-    <section role="status" className="rounded-3xl border-2 border-accent/50 bg-accent/10 p-4">
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 font-bold">{days === null ? "Você ainda não registrou suas medidas" : `Faz ${days} dias que você não tira as medidas`}</p>
-        <button type="button" aria-label="Fechar o aviso por 30 dias" onClick={() => { const d = today(); setDismissed(d); try { localStorage.setItem(DISMISS_KEY, d); } catch { /* private mode */ } }}
-          className="-m-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground"><X className="h-5 w-5" /></button>
-      </div>
-      <p className="mt-0.5 text-sm text-muted-foreground">Cintura, abdômen e braço mostram se o que sai é gordura, mesmo quando a balança para.</p>
-      <Link to="/corpo" hash="medidas" className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-primary underline underline-offset-4">Tirar as medidas</Link>
+    // A reminder that can wait: a quiet row instead of an orange alert.
+    <section role="status" className="flex items-center gap-3 rounded-3xl border border-border bg-card py-1 pl-4 pr-2">
+      <Ruler className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+      <Link to="/corpo" hash="medidas" className="flex min-h-12 min-w-0 flex-1 flex-col justify-center py-1.5">
+        <span className="text-sm font-bold">{days === null ? "Tirar as medidas" : `Medidas: faz ${days} dias`}</span>
+        <span className="text-xs text-muted-foreground">Cintura e braço mostram se o que sai é gordura</span>
+      </Link>
+      <button type="button" aria-label="Fechar o aviso por 30 dias" onClick={() => { const d = today(); setDismissed(d); try { localStorage.setItem(DISMISS_KEY, d); } catch { /* private mode */ } }}
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground"><X className="h-5 w-5" /></button>
     </section>
   );
 }

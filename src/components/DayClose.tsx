@@ -102,17 +102,19 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
           <CalendarCheck className="h-5 w-5 text-accent" />
           <h2 className="text-2xl font-bold">{closed ? "Dia fechado" : "Fechar o dia"}</h2>
         </div>
+        {closed && (
         <div className="flex flex-wrap gap-2">
-          {closed && !busy && (
+          {!busy && (
             <Button type="button" onClick={() => setShare(dayShare(closed))} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
               <Share2 />Compartilhar
             </Button>
           )}
-          <Button type="button" onClick={() => void close()} disabled={busy} variant={closed ? "outline" : "default"} className="rounded-full">
-            {busy ? <Loader2 className="animate-spin" /> : closed ? <RefreshCw /> : <Sparkles />}
-            {busy ? "Analisando o dia…" : closed ? "Gerar de novo" : "Fechar o dia"}
+          <Button type="button" onClick={() => void close()} disabled={busy} variant="outline" className="rounded-full">
+            {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            {busy ? "Analisando o dia…" : "Gerar de novo"}
           </Button>
         </div>
+        )}
       </div>
       <ShareDialog request={share} onClose={() => setShare(null)} />
 
@@ -132,7 +134,16 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
         ))}
       </ul>
 
-      {!closed && <p className="text-sm text-muted-foreground">Depois do treino e da última refeição, feche o dia para receber a análise da IA. Você pode gerar de novo se registrar algo depois.</p>}
+      {/* Not closed yet: the button comes after what is still missing, as the text says. */}
+      {!closed && (
+        <>
+          <p className="text-sm text-muted-foreground">Depois do treino e da última refeição, feche o dia para receber a análise da IA. Você pode gerar de novo se registrar algo depois.</p>
+          <Button type="button" onClick={() => void close()} disabled={busy} className="min-h-11 w-full rounded-full">
+            {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {busy ? "Analisando o dia…" : "Gerar análise do dia"}
+          </Button>
+        </>
+      )}
       {closed && <DaySummary record={closed} />}
 
     </section>

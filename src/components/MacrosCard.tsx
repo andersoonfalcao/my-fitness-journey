@@ -8,9 +8,9 @@ type Targets = ReturnType<typeof targets>;
 type Key = "c" | "f" | "p";
 
 const MACROS: { key: Key; name: string; color: string; target: (t: Targets) => number }[] = [
+  { key: "p", name: "Proteína", color: "var(--chart-2)", target: (t) => t.protein },
   { key: "c", name: "Carboidratos", color: "var(--chart-1)", target: (t) => t.carbs },
   { key: "f", name: "Gorduras", color: "var(--chart-3)", target: (t) => t.fat },
-  { key: "p", name: "Proteínas", color: "var(--chart-2)", target: (t) => t.protein },
 ];
 // Day initials in pt-BR, Sunday first (Date.getDay order).
 const INITIALS = ["D", "S", "T", "Q", "Q", "S", "S"];

@@ -63,8 +63,8 @@ export function AchievementWatcher({ profile }: { profile: Profile }) {
   const recent = list.filter((a) => won[a.id] && won[a.id] !== "antes" && won[a.id]! >= addDays(today(), -2));
   if (hidden || recent.length === 0) return null;
   return (
-    <section className="flex items-start gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
-      <Trophy className="mt-0.5 h-6 w-6 shrink-0 text-accent" aria-hidden />
+    <section className="flex items-start gap-3 rounded-3xl border border-[#3f9d6b]/40 bg-[#3f9d6b]/10 p-4">
+      <Trophy className="mt-0.5 h-6 w-6 shrink-0 text-[#2f7d54] dark:text-[#6cc495]" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="font-bold">{recent.length === 1 ? `Conquista nova: ${recent[0]!.title}` : `${recent.length} conquistas novas`}</p>
         <p className="text-sm text-muted-foreground">{recent.length === 1 ? recent[0]!.how : recent.map((a) => a.title).join(" · ")}</p>

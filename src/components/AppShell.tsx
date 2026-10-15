@@ -90,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {pathname !== "/configuracoes" && <PushNotice />}
+        {pathname === "/" && <PushNotice />}
         {children}
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card md:hidden">

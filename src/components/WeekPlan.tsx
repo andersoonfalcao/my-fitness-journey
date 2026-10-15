@@ -129,7 +129,7 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
             : cell.kind === "done" || cell.kind === "cardio" ? "border-[#3f9d6b] bg-[#3f9d6b]/10"
             : cell.kind === "missed" ? "border-border bg-muted/50"
             : cell.kind === "planned" ? selected ? "border-primary bg-primary text-primary-foreground" : c.today ? "border-accent bg-accent/10" : "border-border bg-card"
-            : "border-transparent bg-muted/40";
+            : c.today ? "border-accent/60 bg-muted/40" : "border-transparent bg-muted/40";
           const label = editing ? `${WEEKDAYS[c.w]}: ${c.training ? "treino" : "descanso"}`
             : cell.kind === "done" ? `${WEEKDAYS[c.w]} ${c.dateText}: concluído, ${musclesOf(exIds)}. Toque para conferir`
             : cell.kind === "cardio" ? `${WEEKDAYS[c.w]} ${c.dateText}: cardio concluído, ${cell.names.join(", ")}`
@@ -140,7 +140,16 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
             : cell.kind === "planned" ? () => onSelect(cell.idx)
             : cell.kind === "done" ? () => onOpenDone(cell.records)
             : undefined;
-          const body = (
+          // Rest and missed days are narrow on the phone, so the week fits without much sliding.
+          const narrow = !editing && (cell.kind === "rest" || cell.kind === "missed");
+          const body = narrow ? (
+            <span className="flex w-full flex-1 flex-col items-center gap-1 text-center sm:items-start sm:text-left">
+              <span className={`text-xs font-bold uppercase tracking-wide ${c.today ? "text-accent" : "opacity-70"}`}>{c.today ? "Hoje" : WEEKDAYS[c.w]}</span>
+              <span className="text-xs tabular-nums opacity-70">{c.dateText}</span>
+              <span className="mt-2 text-muted-foreground">{cell.kind === "missed" ? <X className="h-5 w-5" aria-hidden /> : <Moon className="h-5 w-5" aria-hidden />}</span>
+              <span className="text-[11px] font-semibold leading-tight text-muted-foreground">{cell.kind === "missed" ? "Sem treino" : "Descanso"}</span>
+            </span>
+          ) : (
             <>
               <span className="flex w-full items-baseline justify-between gap-1">
                 <span className={`text-xs font-bold uppercase tracking-wide ${c.today && !selected ? "text-accent" : "opacity-70"}`}>{c.today ? "Hoje" : WEEKDAYS[c.w]}</span>
@@ -167,9 +176,9 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
               </span>
             </>
           );
-          const cls = `flex h-full min-h-[10.5rem] w-full flex-col rounded-2xl border-2 p-3 text-left ${tone}`;
+          const cls = `flex h-full min-h-[10.5rem] w-full flex-col rounded-2xl border-2 text-left ${narrow ? "px-1 py-3 sm:p-3" : "p-3"} ${tone}`;
           return (
-            <li key={c.date} data-today={c.today || undefined} className="w-[8.75rem] shrink-0 snap-start sm:w-auto">
+            <li key={c.date} data-today={c.today || undefined} className={`${narrow ? "w-[4.25rem]" : "w-[8.75rem]"} shrink-0 snap-start sm:w-auto`}>
               {onClick ? (
                 <button type="button" onClick={onClick} aria-pressed={editing ? c.training : selected || undefined} aria-label={label} className={cls}>{body}</button>
               ) : (

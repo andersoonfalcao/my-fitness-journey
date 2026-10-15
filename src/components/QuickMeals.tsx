@@ -85,7 +85,7 @@ export function QuickMeals({ date, meal, mealLabel, onAdd }: { date: string; mea
             ))}
           </ul>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-3 sm:grid-cols-4">
-            {([["Calorias", itemsKcal(shown.items), "kcal", undefined], ["Carboidratos", r1(total.c), "g", "var(--chart-1)"], ["Proteínas", r1(total.p), "g", "var(--chart-2)"], ["Gorduras", r1(total.f), "g", "var(--chart-3)"]] as const).map(([label, value, unit, color]) => (
+            {([["Calorias", itemsKcal(shown.items), "kcal", undefined], ["Proteína", r1(total.p), "g", "var(--chart-2)"], ["Carboidratos", r1(total.c), "g", "var(--chart-1)"], ["Gorduras", r1(total.f), "g", "var(--chart-3)"]] as const).map(([label, value, unit, color]) => (
               <div key={label} className="flex min-w-0 flex-col">
                 <dt className="text-[11px] font-bold uppercase tracking-wide" style={{ color: color ?? "var(--muted-foreground)" }}>{label}</dt>
                 <dd className="font-display text-xl font-bold tabular-nums">{value}<span className="text-xs font-semibold text-muted-foreground"> {unit}</span></dd>
