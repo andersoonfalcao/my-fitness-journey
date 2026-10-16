@@ -15,6 +15,7 @@ import {
   fmtKg,
   foodsKey,
   KEYS,
+  mealSlot,
   targets,
   today,
   useHistory,
@@ -239,7 +240,7 @@ function CalendarPage() {
             <h3 className="font-bold">Refeições</h3>
             <ul className="mt-1 space-y-1 text-sm">
               {(Object.keys(MEAL_LABEL) as MealType[]).map((m) => {
-                const items = sel.eaten.filter((f) => f.meal === m);
+                const items = sel.eaten.filter((f) => (m === "suplementos" ? f.meal === m && !f.countsAs : mealSlot(f) === m));
                 if (!items.length) return null;
                 return (
                   <li key={m}>

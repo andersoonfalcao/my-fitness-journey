@@ -1,4 +1,4 @@
-import type { FoodEntry, MealType, WeightEntry, WorkoutRecord } from "./store";
+import { mealSlot, type FoodEntry, type MealType, type WeightEntry, type WorkoutRecord } from "./store";
 import type { HealthDay, HealthMonth } from "./health";
 
 // Readings of the person's own logs (weight trend, eating patterns, sleep regularity, training consistency).
@@ -93,7 +93,7 @@ export function completeDays(foods: FoodEntry[], from: string, to: string) {
     if (f.date < from || f.date > to) continue;
     const d = days.get(f.date) ?? { date: f.date, kcal: 0, meals: new Set<string>() };
     d.kcal += f.kcal;
-    if (f.meal !== "suplementos") d.meals.add(f.meal);
+    { const slot = mealSlot(f); if (slot) d.meals.add(slot); }
     days.set(f.date, d);
   }
   return [...days.values()].filter((d) => d.meals.size >= 3).sort((a, b) => a.date.localeCompare(b.date));
@@ -105,7 +105,7 @@ export const proteinPerMeal = (weightKg: number) => Math.round(weightKg * 0.3);
 /** Protein of each meal of one day's entries. */
 export function proteinByMeal(day: FoodEntry[]): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const m of MEALS) out[m] = Math.round(day.filter((f) => f.meal === m).reduce((s, f) => s + f.p, 0));
+  for (const m of MEALS) out[m] = Math.round(day.filter((f) => mealSlot(f) === m).reduce((s, f) => s + f.p, 0));
   return out;
 }
 

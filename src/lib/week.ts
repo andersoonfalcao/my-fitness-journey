@@ -1,4 +1,4 @@
-import type { FoodEntry, WaterLog, WeightEntry, WorkoutRecord } from "./store";
+import { mealSlot, type FoodEntry, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
 import { isGymCopy, type StravaActivity } from "./strava";
 import type { HealthMonth } from "./health";
 import { recordTotal } from "./workout-stats";
@@ -51,7 +51,7 @@ export function weekStats(start: string, last: string, x: WeekInputs, span = 7):
     if (!inWeek(f.date)) continue;
     const d = days.get(f.date) ?? { kcal: 0, p: 0, meals: new Set<string>() };
     d.kcal += f.kcal; d.p += f.p;
-    if (f.meal !== "suplementos") d.meals.add(f.meal);
+    { const slot = mealSlot(f); if (slot) d.meals.add(slot); }
     days.set(f.date, d);
   }
   const logged = [...days.values()].filter((d) => d.meals.size > 0);

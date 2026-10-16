@@ -1,4 +1,4 @@
-import { foodsKey, today, useLocal, KEYS, targets, type FoodEntry, type Profile, type WeightEntry } from "./store";
+import { foodsKey, mealSlot, today, useLocal, KEYS, targets, type FoodEntry, type Profile, type WeightEntry } from "./store";
 
 /**
  * Energy spent per day measured from the person's own logs ("adaptive TDEE"): over the last four weeks, what was
@@ -28,7 +28,7 @@ export function calibrate(foods: FoodEntry[], weights: WeightEntry[], end = addD
     if (f.date < from || f.date > end) continue;
     const d = days.get(f.date) ?? { kcal: 0, meals: new Set<string>() };
     d.kcal += f.kcal;
-    if (f.meal !== "suplementos") d.meals.add(f.meal);
+    { const slot = mealSlot(f); if (slot) d.meals.add(slot); }
     days.set(f.date, d);
   }
   const complete = [...days.values()].filter((d) => d.meals.size >= 3);

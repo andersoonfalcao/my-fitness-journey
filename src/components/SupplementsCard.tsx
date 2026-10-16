@@ -11,7 +11,13 @@ import { doseLabel, PRESETS, SUPPLEMENTS_KEY, UNITS, type Supplement } from "@/l
 const macros = (s: Pick<Supplement, "kcal" | "p" | "c" | "f">) =>
   s.kcal || s.p || s.c || s.f ? `${s.kcal} kcal · P ${s.p} · C ${s.c} · G ${s.f}` : "sem calorias";
 
-const entryOf = (s: Omit<Supplement, "id">, date: string, suppId?: string): FoodEntry => ({
+/** Meals a supplement can stand in for (its macros still count once, in the day). */
+const AS_MEAL: { v: Supplement["countsAs"]; t: string }[] = [
+  { v: undefined, t: "Não" }, { v: "cafe", t: "Café" }, { v: "almoco", t: "Almoço" }, { v: "lanche", t: "Lanche" }, { v: "jantar", t: "Jantar" },
+];
+export const asMealLabel = (m: Supplement["countsAs"]) => AS_MEAL.find((x) => x.v === m)?.t.toLowerCase() ?? "";
+
+export const entryOf = (s: Omit<Supplement, "id">, date: string, suppId?: string): FoodEntry => ({
   id: uid(),
   date,
   meal: "suplementos",
@@ -23,6 +29,7 @@ const entryOf = (s: Omit<Supplement, "id">, date: string, suppId?: string): Food
   c: s.c,
   f: s.f,
   suppId,
+  ...(s.countsAs ? { countsAs: s.countsAs } : {}),
 });
 
 /** Alimentação: the daily supplement routine (tap to mark as taken) and adding any supplement to the day. */
@@ -66,7 +73,7 @@ export function SupplementsCard({ date }: { date: string }) {
                 </button>
                 <div className="min-w-0 flex-1">
                   <div className={`font-semibold leading-tight ${taken ? "text-muted-foreground line-through decoration-1" : ""}`}>{s.name}</div>
-                  <div className="text-xs text-muted-foreground">{doseLabel(s)} · {macros(s)}</div>
+                  <div className="text-xs text-muted-foreground">{doseLabel(s)} · {macros(s)}{s.countsAs ? ` · conta como ${asMealLabel(s.countsAs)}` : ""}</div>
                 </div>
                 <button type="button" onClick={() => setEditing(s)} aria-label={`Editar ${s.name}`} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></button>
               </li>
@@ -90,6 +97,8 @@ export function SupplementsCard({ date }: { date: string }) {
         onSave={(s, daily, takeNow) => {
           if (editing && editing !== "new") {
             setRoutine((list) => list.map((x) => (x.id === editing.id ? { ...s, id: editing.id } : x)));
+            // A dose already taken today follows the meal it now stands in for.
+            if (takenIds.has(editing.id)) setFoods((fs) => fs.map((f) => (f.date === date && f.suppId === editing.id ? { ...f, countsAs: s.countsAs } : f)));
             toast.success("Suplemento atualizado");
           } else if (daily && routine.some((x) => x.name.trim().toLowerCase() === s.name.toLowerCase())) {
             // Already in the routine: no second copy, just mark it if asked.
@@ -114,9 +123,10 @@ export function SupplementsCard({ date }: { date: string }) {
   );
 }
 
-type Draft = { name: string; amount: string; unit: string; kcal: string; p: string; c: string; f: string };
-const toDraft = (s: Omit<Supplement, "id">): Draft => ({ name: s.name, amount: String(s.amount), unit: s.unit, kcal: String(s.kcal), p: String(s.p), c: String(s.c), f: String(s.f) });
-const EMPTY: Draft = { name: "", amount: "1", unit: "dose(s)", kcal: "0", p: "0", c: "0", f: "0" };
+type Draft = { name: string; amount: string; unit: string; kcal: string; p: string; c: string; f: string; countsAs: Supplement["countsAs"] };
+type TextField = Exclude<keyof Draft, "countsAs">;
+const toDraft = (s: Omit<Supplement, "id">): Draft => ({ name: s.name, amount: String(s.amount), unit: s.unit, kcal: String(s.kcal), p: String(s.p), c: String(s.c), f: String(s.f), countsAs: s.countsAs });
+const EMPTY: Draft = { name: "", amount: "1", unit: "dose(s)", kcal: "0", p: "0", c: "0", f: "0", countsAs: undefined };
 const n = (v: string) => Number(v.replace(",", "."));
 
 function SupplementDialog({ value, onClose, onSave, onDelete }: {
@@ -138,18 +148,18 @@ function SupplementDialog({ value, onClose, onSave, onDelete }: {
     setQuery("");
   }
 
-  const set = (k: keyof Draft, v: string) => setDraft((d) => ({ ...d, [k]: v }));
+  const set = (k: TextField, v: string) => setDraft((d) => ({ ...d, [k]: v }));
   const presets = PRESETS.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   const submit = (takeNow: boolean) => {
-    const s = { name: draft.name.trim(), amount: n(draft.amount), unit: draft.unit, kcal: Math.round(n(draft.kcal)), p: n(draft.p), c: n(draft.c), f: n(draft.f) };
+    const s = { name: draft.name.trim(), amount: n(draft.amount), unit: draft.unit, kcal: Math.round(n(draft.kcal)), p: n(draft.p), c: n(draft.c), f: n(draft.f), ...(draft.countsAs ? { countsAs: draft.countsAs } : {}) };
     if (!s.name) { toast.error("Dê um nome ao suplemento."); return; }
     if (!(s.amount > 0)) { toast.error("Informe a quantidade da dose."); return; }
     if ([s.kcal, s.p, s.c, s.f].some((x) => !Number.isFinite(x) || x < 0)) { toast.error("Confira calorias e macros (use 0 quando não tiver)."); return; }
     onSave(s, editing ? true : daily, takeNow);
   };
 
-  const field = (k: keyof Draft, label: string, unit?: string) => (
+  const field = (k: TextField, label: string, unit?: string) => (
     <label className="block">
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
       <div className="relative mt-1">
@@ -198,6 +208,16 @@ function SupplementDialog({ value, onClose, onSave, onDelete }: {
             {field("p", "Proteína", "g")}
             {field("c", "Carbo", "g")}
             {field("f", "Gordura", "g")}
+          </div>
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground">Conta como refeição</span>
+            <div className="mt-1 grid grid-cols-5 gap-1">
+              {AS_MEAL.map((m) => (
+                <button key={m.t} type="button" onClick={() => setDraft((d) => ({ ...d, countsAs: m.v }))} aria-pressed={draft.countsAs === m.v}
+                  className={`min-h-11 rounded-full border text-xs font-semibold ${draft.countsAs === m.v ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{m.t}</button>
+              ))}
+            </div>
+            <span className="mt-1 block text-xs text-muted-foreground">Ex.: o whey no horário do lanche. A refeição fica feita e as calorias contam uma vez só.</span>
           </div>
           {!editing && (
             <label className="flex items-center justify-between gap-3 rounded-2xl border border-border p-3">

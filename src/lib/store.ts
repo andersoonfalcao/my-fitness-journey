@@ -146,7 +146,12 @@ export type FoodEntry = {
   suppId?: string | undefined;
   /** Dose shown instead of grams for supplements ("5 g", "1 cápsula(s)"). */
   dose?: string | undefined;
+  /** A supplement that stands in for a meal (the whey at snack time): it fills that meal; its macros count once, as always. */
+  countsAs?: Exclude<MealType, "suplementos"> | undefined;
 };
+
+/** The meal an entry fills: its own, or the one a supplement stands in for; undefined = a supplement only. */
+export const mealSlot = (f: Pick<FoodEntry, "meal" | "countsAs">) => (f.meal === "suplementos" ? f.countsAs : f.meal);
 export type WeightEntry = { date: string; kg: number };
 /** Body weight is shown and kept with two decimals (78,45 kg). */
 export const fmtKg = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -1,6 +1,6 @@
 import { BEST_MODELS, generateJson, Schema } from "./ai";
 import { foodsKey, readCloudOnce, waterKey } from "./cloud-store";
-import { FEEL_LABEL, targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutFeel, type WorkoutRecord } from "./store";
+import { FEEL_LABEL, mealSlot, targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutFeel, type WorkoutRecord } from "./store";
 import { lastRecordBefore, recordTotal } from "./workout-stats";
 import { byId, GROUP_LABEL } from "./exercises";
 import { sportLabel, stravaActivityDetail, stravaKey, type StravaActivity, type StravaDetail } from "./strava";
@@ -102,7 +102,7 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
   const byDay = new Map<string, { kcal: number; p: number; c: number; f: number; meals: Set<string> }>();
   for (const f of foods) {
     const d = byDay.get(f.date) ?? { kcal: 0, p: 0, c: 0, f: 0, meals: new Set<string>() };
-    d.kcal += f.kcal; d.p += f.p; d.c += f.c; d.f += f.f; if (f.meal !== "suplementos") d.meals.add(f.meal);
+    d.kcal += f.kcal; d.p += f.p; d.c += f.c; d.f += f.f; { const slot = mealSlot(f); if (slot) d.meals.add(slot); }
     byDay.set(f.date, d);
   }
   const todayFood = byDay.get(date);

@@ -1,4 +1,4 @@
-import type { FoodEntry, WorkoutRecord } from "./store";
+import { mealSlot, type FoodEntry, type WorkoutRecord } from "./store";
 import type { HealthMonth } from "./health";
 import type { FastRecord } from "./fasting";
 import { personalRecords, recordTotal } from "./workout-stats";
@@ -49,7 +49,7 @@ export function achievements(x: AchievementInput): Achievement[] {
   const streak = weekStreak(x.trained, x.plannedDays, x.today);
   const fullFasts = x.fasts.filter((f) => f.endedAt - f.startedAt >= f.goalH * 3_600_000).length;
   const mealsByDay = new Map<string, Set<string>>();
-  for (const f of x.foods) if (f.meal !== "suplementos") mealsByDay.set(f.date, (mealsByDay.get(f.date) ?? new Set()).add(f.meal));
+  for (const f of x.foods) { const slot = mealSlot(f); if (slot) mealsByDay.set(f.date, (mealsByDay.get(f.date) ?? new Set()).add(slot)); }
   const foodRun = longestRun([...mealsByDay].filter(([, m]) => m.size >= 3).map(([d]) => d));
   const stepsRun = longestRun(Object.entries(x.health).filter(([, d]) => (d.steps ?? 0) >= x.stepsGoal).map(([d]) => d));
   const cardioDays = x.trained.filter((d) => !x.history.some((r) => r.date === d)).length;

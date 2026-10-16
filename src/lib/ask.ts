@@ -7,7 +7,7 @@ import { addDays, overreach, readSleep, readWeight } from "./insights";
 import { nextWorkoutIndex, type Plan } from "./plan";
 import { stravaKey, sportLabel, type StravaActivity } from "./strava";
 import { cardioAsActivity, cardioKey, type CardioRecord } from "./cardio";
-import { FEEL_LABEL, targets, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
+import { FEEL_LABEL, mealSlot, targets, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
 import { weekStart, weekStats } from "./week";
 import { recordTotal } from "./workout-stats";
 
@@ -70,7 +70,7 @@ export async function chatData({ uid, date, profile, weights, history, plan, don
       data: d,
       kcal: day.length ? Math.round(day.reduce((s, f) => s + f.kcal, 0)) : null,
       proteina: day.length ? Math.round(day.reduce((s, f) => s + f.p, 0)) : null,
-      refeicoes: new Set(day.filter((f) => f.meal !== "suplementos").map((f) => f.meal)).size,
+      refeicoes: new Set(day.map(mealSlot).filter(Boolean)).size,
       aguaMl: water[d] ?? null,
       peso: weights.find((x) => x.date === d)?.kg ?? null,
       treino: w.map((r) => ({ nome: r.dayName, cargaKg: Math.round(recordTotal(r)), minutos: r.durationMs ? Math.round(r.durationMs / 60000) : null, sensacao: r.feel ? FEEL_LABEL[r.feel] : null })),

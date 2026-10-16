@@ -1,3 +1,5 @@
+import type { MealType } from "./store";
+
 /**
  * Supplements: a dose (amount + unit) and the macros of that dose. The ones taken every day form the routine
  * (`forma.supplements`); taking one writes a food entry in the "suplementos" meal, so whey or a mass gainer
@@ -12,6 +14,8 @@ export type Supplement = {
   p: number;
   c: number;
   f: number;
+  /** Meal it stands in for when taken (the whey at snack time); missing = only a supplement. */
+  countsAs?: Exclude<MealType, "suplementos"> | undefined;
 };
 
 export const SUPPLEMENTS_KEY = "forma.supplements";

@@ -15,6 +15,7 @@ import {
   daysKey,
   foodsKey,
   KEYS,
+  mealSlot,
   targets,
   useHistory,
   useLocal,
@@ -47,8 +48,8 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
 
   const t = targets(profile, date);
   const eaten = foods.filter((f) => f.date === date);
-  const meals = eaten.filter((f) => f.meal !== "suplementos");
-  const missingMeals = MEAL_NAMES.filter(([m]) => !meals.some((f) => f.meal === m)).map(([, label]) => label);
+  const meals = eaten.filter((f) => mealSlot(f));
+  const missingMeals = MEAL_NAMES.filter(([m]) => !meals.some((f) => mealSlot(f) === m)).map(([, label]) => label);
   const supplementsTaken = new Set(eaten.map((f) => f.suppId).filter(Boolean));
   const supplementsDone = routine.filter((s) => supplementsTaken.has(s.id)).length;
   const kcal = Math.round(eaten.reduce((s, f) => s + f.kcal, 0));

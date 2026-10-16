@@ -8,7 +8,9 @@ import { estimateFood } from "@/lib/ai-food";
 import { searchFoods, type Food } from "@/lib/foods";
 import { FAV_MEALS_KEY, frequentFoods, type FavItem, type FavMeal } from "@/lib/quick-foods";
 import { CARDIO_KINDS, cardioKey, type CardioKind, type CardioRecord } from "@/lib/cardio";
-import { dayComplete, MAIN_MEALS, planDayFinish, regram, type FinishPlan } from "@/lib/day-finish";
+import { dayComplete, MAIN_MEALS, missingMealsOf, planDayFinish, regram, type FinishPlan } from "@/lib/day-finish";
+import { SUPPLEMENTS_KEY, type Supplement } from "@/lib/supplements";
+import { entryOf } from "@/components/SupplementsCard";
 import { nextWorkoutIndex, type Plan } from "@/lib/plan";
 import { byId } from "@/lib/exercises";
 import {
@@ -16,6 +18,7 @@ import {
   fmtKg,
   foodsKey,
   KEYS,
+  mealSlot,
   roundKg,
   targets,
   uid,
@@ -50,6 +53,34 @@ const monthBefore = (date: string) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 };
 const field = "h-11 w-full rounded-xl border border-input bg-background px-3 text-base";
+/**
+ * A supplement filling a missing meal (the whey at snack time): one already logged that day only gets the meal, so
+ * its macros aren't counted twice; one from the routine not taken that day is logged once, already as that meal.
+ */
+type StandIn = { key: string; meal: Exclude<MealType, "suplementos">; name: string; kcal: number; p: number; entryId?: string; supp?: Supplement };
+
+function standInsFor(missing: MealType[], eaten: FoodEntry[], routine: Supplement[]): StandIn[] {
+  const out: StandIn[] = [];
+  for (const meal of missing) {
+    if (meal === "suplementos") continue;
+    // Set to this meal in the routine, or (snack only) any supplement with real protein, like whey.
+    const fits = (x: { p: number; countsAs?: MealType | undefined }) => x.countsAs === meal || (meal === "lanche" && !x.countsAs && x.p >= 10);
+    const seen = new Set<string>();
+    for (const f of eaten) {
+      const supp = routine.find((r) => r.id === f.suppId);
+      if (f.meal !== "suplementos" || f.countsAs || !fits({ p: f.p, countsAs: supp?.countsAs }) || seen.has(f.name)) continue;
+      seen.add(f.name);
+      out.push({ key: `ja-${f.id}-${meal}`, meal, name: f.name, kcal: f.kcal, p: f.p, entryId: f.id });
+    }
+    for (const r of routine) {
+      if (!fits(r) || seen.has(r.name) || eaten.some((f) => f.suppId === r.id)) continue;
+      seen.add(r.name);
+      out.push({ key: `nova-${r.id}-${meal}`, meal, name: r.name, kcal: r.kcal, p: r.p, supp: r });
+    }
+  }
+  return out;
+}
+
 const pill = (on: boolean) => `min-h-11 rounded-full px-3 text-sm font-semibold ${on ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`;
 
 /**
@@ -66,6 +97,7 @@ export function DayComplete({ profile, date }: { profile: Profile; date: string 
   const [weights, setWeights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [days, setDays] = useLocal<DayRecord[]>(daysKey(date), []);
   const [favs] = useLocal<FavMeal[]>(FAV_MEALS_KEY, []);
+  const [routine] = useLocal<Supplement[]>(SUPPLEMENTS_KEY, []);
   const [history] = useHistory();
   const [plan, setPlan] = useState<FinishPlan | null>(null);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
@@ -77,6 +109,7 @@ export function DayComplete({ profile, date }: { profile: Profile; date: string 
   const waterMl = water[date] ?? 0;
   const waterLeft = Math.max(0, goal.waterMl - waterMl);
   const closed = days.find((d) => d.date === date);
+  const standIns = standInsFor(missingMealsOf(eaten), eaten, routine);
 
   const addFoods = (meal: MealType, items: FavItem[], what: string) => {
     const added: FoodEntry[] = items.map((i) => ({ ...i, id: uid(), date, meal }));
@@ -106,7 +139,8 @@ export function DayComplete({ profile, date }: { profile: Profile; date: string 
     try {
       const next = await planDayFinish({ date, eaten, goal, recent: [...prevFoods, ...foods].filter((f) => f.date <= date), favs });
       setPlan(next);
-      setPicked(Object.fromEntries(next.items.map((i) => [i.key, true])));
+      // Stand-ins start unticked: the person says whether the whey was that meal.
+      setPicked(Object.fromEntries([...next.items.map((i) => [i.key, true]), ...standIns.map((x) => [x.key, false])]));
       setWaterPick(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível falar com a IA.");
@@ -119,6 +153,11 @@ export function DayComplete({ profile, date }: { profile: Profile; date: string 
   const confirm = async () => {
     if (!plan) return;
     const chosen = plan.items.filter((i) => picked[i.key] && i.grams > 0);
+    const stands = standIns.filter((x) => picked[x.key]);
+    const marked = new Map(stands.filter((x) => x.entryId).map((x) => [x.entryId!, x.meal]));
+    if (marked.size) setFoods((fs) => fs.map((f) => (marked.has(f.id) ? { ...f, countsAs: marked.get(f.id) } : f)));
+    const added = stands.filter((x) => x.supp).map((x) => entryOf({ ...x.supp!, countsAs: x.meal }, date, x.supp!.id));
+    if (added.length) setFoods((fs) => [...fs, ...added]);
     if (chosen.length) setFoods((fs) => [...fs, ...chosen.map(({ key: _k, estimated: _e, meal, ...item }) => ({ ...item, id: uid(), date, meal }))]);
     if (waterPick && waterLeft > 0) setWater((l) => ({ ...l, [date]: (l[date] ?? 0) + waterLeft }));
     await finish();
@@ -148,10 +187,16 @@ export function DayComplete({ profile, date }: { profile: Profile; date: string 
       {open === "cardio" && <CardioForm date={date} onDone={() => setOpen(null)} />}
 
       {plan ? (
-        <FinishReview plan={plan} eaten={eaten} goal={goal} picked={picked} waterLeft={waterLeft} waterPick={waterPick} busy={busy === "close"}
-          onPick={(key, on) => setPicked((p) => ({ ...p, [key]: on }))}
+        <FinishReview plan={plan} standIns={standIns} eaten={eaten} goal={goal} picked={picked} waterLeft={waterLeft} waterPick={waterPick} busy={busy === "close"}
+          onPick={(key, on) => setPicked((p) => {
+            const stand = standIns.find((x) => x.key === key);
+            if (!stand || !on) return { ...p, [key]: on };
+            // The supplement is that meal: the AI's items for it come off (they can be ticked again).
+            const off = [...plan.items.filter((i) => i.meal === stand.meal), ...standIns.filter((x) => x.meal === stand.meal && x !== stand)].map((x) => [x.key, false]);
+            return { ...p, ...Object.fromEntries(off), [key]: true };
+          })}
           onGrams={(key, grams) => setPlan((p) => p && { ...p, items: p.items.map((i) => (i.key === key ? regram(i, grams) : i)) })}
-          onWater={setWaterPick} onConfirm={() => void confirm()} onCancel={() => setPlan(null)} />
+          onWater={setWaterPick} onConfirm={() => void confirm()} onFinishOnly={() => void finish()} onCancel={() => setPlan(null)} />
       ) : (
         <div className="space-y-2 rounded-2xl bg-muted/60 p-4">
           <p className="text-sm text-muted-foreground">
@@ -163,22 +208,29 @@ export function DayComplete({ profile, date }: { profile: Profile; date: string 
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy === "plan" ? "Vendo o que falta…" : busy === "close" ? "Finalizando…" : closed ? "Finalizar de novo com IA" : "Finalizar o dia com IA"}
           </Button>
+          {!nothingMissing && (
+            <Button type="button" variant="outline" onClick={() => void finish()} disabled={!!busy} className="min-h-11 w-full rounded-full">
+              <Check />Finalizar como está, sem sugestões
+            </Button>
+          )}
         </div>
       )}
     </section>
   );
 }
 
-function FinishReview({ plan, eaten, goal, picked, waterLeft, waterPick, busy, onPick, onGrams, onWater, onConfirm, onCancel }: {
-  plan: FinishPlan; eaten: FoodEntry[]; goal: { kcal: number; protein: number; carbs: number; fat: number };
+function FinishReview({ plan, standIns, eaten, goal, picked, waterLeft, waterPick, busy, onPick, onGrams, onWater, onConfirm, onFinishOnly, onCancel }: {
+  plan: FinishPlan; standIns: StandIn[]; eaten: FoodEntry[]; goal: { kcal: number; protein: number; carbs: number; fat: number };
   picked: Record<string, boolean>; waterLeft: number; waterPick: boolean; busy: boolean;
   onPick: (key: string, on: boolean) => void; onGrams: (key: string, grams: number) => void; onWater: (on: boolean) => void;
-  onConfirm: () => void; onCancel: () => void;
+  onConfirm: () => void; onFinishOnly: () => void; onCancel: () => void;
 }) {
   const chosen = plan.items.filter((i) => picked[i.key]);
-  const total = [...eaten, ...chosen].reduce((a, f) => ({ kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
-  const meals = MAIN_MEALS.filter(({ meal }) => plan.items.some((i) => i.meal === meal));
-  const count = chosen.length + (waterPick && waterLeft > 0 ? 1 : 0);
+  // Only a supplement logged now adds macros; one already logged that day is in `eaten`.
+  const stands = standIns.filter((x) => picked[x.key]);
+  const total = [...eaten, ...chosen, ...stands.filter((x) => x.supp).map((x) => ({ kcal: x.kcal, p: x.p, c: x.supp!.c, f: x.supp!.f }))].reduce((a, f) => ({ kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
+  const meals = MAIN_MEALS.filter(({ meal }) => plan.items.some((i) => i.meal === meal) || standIns.some((x) => x.meal === meal));
+  const count = chosen.length + stands.length + (waterPick && waterLeft > 0 ? 1 : 0);
 
   return (
     <div className="space-y-3 rounded-2xl border border-accent/40 p-4">
@@ -193,6 +245,17 @@ function FinishReview({ plan, eaten, goal, picked, waterLeft, waterPick, busy, o
         <div key={meal}>
           <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
           <ul className="mt-1 space-y-1.5">
+            {standIns.filter((x) => x.meal === meal).map((x) => (
+              <li key={x.key} className="rounded-xl border border-dashed border-border px-2 py-1.5">
+                <label className="flex min-h-11 items-center gap-2">
+                  <input type="checkbox" checked={!!picked[x.key]} onChange={(e) => onPick(x.key, e.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--primary)]" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold leading-tight">{x.entryId ? `Contar o ${x.name} como ${label.toLowerCase()}` : `Dose de ${x.name} como ${label.toLowerCase()}`}</span>
+                    <span className="block text-xs tabular-nums text-muted-foreground">{x.entryId ? `já registrado nos suplementos; os ${n0(x.kcal)} kcal não somam de novo` : `${n0(x.kcal)} kcal · P ${r1(x.p).toLocaleString("pt-BR")} g, registrado uma vez só`}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
             {plan.items.filter((i) => i.meal === meal).map((i) => (
               <li key={i.key} className="flex items-center gap-2 rounded-xl bg-muted/60 px-2 py-1.5">
                 <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2">
@@ -232,6 +295,9 @@ function FinishReview({ plan, eaten, goal, picked, waterLeft, waterPick, busy, o
           {busy ? <Loader2 className="animate-spin" /> : <Check />}
           {busy ? "Finalizando…" : count ? `Registrar ${count === 1 ? "1 item" : `${count} itens`} e finalizar` : "Finalizar sem registrar"}
         </Button>
+        {count > 0 && (
+          <Button type="button" variant="outline" onClick={onFinishOnly} disabled={busy} className="min-h-11 rounded-full"><Check />Finalizar sem adicionar nada</Button>
+        )}
         <Button type="button" variant="outline" onClick={onCancel} disabled={busy} className="min-h-11 rounded-full"><X />Cancelar</Button>
       </div>
     </div>
@@ -240,7 +306,7 @@ function FinishReview({ plan, eaten, goal, picked, waterLeft, waterPick, busy, o
 
 function MealForm({ date, recent, onAdd }: { date: string; recent: FoodEntry[]; onAdd: (meal: MealType, items: FavItem[], what: string) => void }) {
   const eaten = recent.filter((f) => f.date === date);
-  const [meal, setMeal] = useState<MealType>(() => MAIN_MEALS.find(({ meal: m }) => !eaten.some((f) => f.meal === m))?.meal ?? "almoco");
+  const [meal, setMeal] = useState<MealType>(() => MAIN_MEALS.find(({ meal: m }) => !eaten.some((f) => mealSlot(f) === m))?.meal ?? "almoco");
   const [mode, setMode] = useState<"busca" | "ia">("busca");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<Food | null>(null);
@@ -282,7 +348,7 @@ function MealForm({ date, recent, onAdd }: { date: string; recent: FoodEntry[]; 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {MAIN_MEALS.map((m) => (
           <button key={m.meal} type="button" onClick={() => setMeal(m.meal)} aria-pressed={meal === m.meal} className={pill(meal === m.meal)}>
-            {MEAL_SHORT[m.meal]}{eaten.some((f) => f.meal === m.meal) ? " ✓" : ""}
+            {MEAL_SHORT[m.meal]}{eaten.some((f) => mealSlot(f) === m.meal) ? " ✓" : ""}
           </button>
         ))}
       </div>

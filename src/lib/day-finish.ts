@@ -1,6 +1,6 @@
 import { FAST_MODELS, BEST_MODELS, generateJson, Schema } from "./ai";
 import { frequentFoods, type FavItem, type FavMeal } from "./quick-foods";
-import type { FoodEntry, MealType } from "./store";
+import { mealSlot, type FoodEntry, type MealType } from "./store";
 
 /**
  * "Finalizar o dia com IA" (Calendário): what is missing on a day (meals not logged, calories and macros under the
@@ -53,7 +53,7 @@ const SCHEMA = Schema.object({
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 /** Meals the day still lacks (supplements don't count as a meal). */
-export const missingMealsOf = (eaten: FoodEntry[]) => MAIN_MEALS.filter(({ meal }) => !eaten.some((f) => f.meal === meal)).map((m) => m.meal);
+export const missingMealsOf = (eaten: FoodEntry[]) => MAIN_MEALS.filter(({ meal }) => !eaten.some((f) => mealSlot(f) === meal)).map((m) => m.meal);
 
 /** What is left to the day's targets (never negative). */
 export function leftOf(eaten: FoodEntry[], goal: Goal) {
@@ -103,7 +103,7 @@ export async function planDayFinish({ date, eaten, goal, recent, favs }: {
     metas: { kcal: goal.kcal, proteinaG: goal.protein, carboG: goal.carbs, gorduraG: goal.fat },
     jaRegistrado: MAIN_MEALS.map(({ meal }) => ({
       refeicao: label(meal),
-      itens: eaten.filter((f) => f.meal === meal).map((f) => `${f.name} (${f.grams} g, ${Math.round(f.kcal)} kcal)`),
+      itens: eaten.filter((f) => mealSlot(f) === meal).map((f) => `${f.name} (${f.grams} g, ${Math.round(f.kcal)} kcal)`),
     })),
     refeicoesQueFaltam: missingMeals.map((m) => ({ codigo: m, nome: label(m) })),
     faltaParaAMeta: { kcal: left.kcal, proteinaG: left.protein, carboG: left.carbs, gorduraG: left.fat },
