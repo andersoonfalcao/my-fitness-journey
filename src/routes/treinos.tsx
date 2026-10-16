@@ -1315,7 +1315,20 @@ function unlockAudio() {
   }
 }
 
+// iOS suspends the context whenever the app leaves the screen; any tap after coming back opens it again.
+if (typeof document !== "undefined") document.addEventListener("pointerdown", () => { if (audio && audio.state !== "running") void audio.resume(); }, { capture: true });
+
 function beep() {
+  if (!audio) return;
+  // A context the phone suspended plays nothing: resume first, then sound once it runs.
+  if (audio.state !== "running") {
+    void audio.resume().then(() => audio?.state === "running" && tones(), () => undefined);
+    return;
+  }
+  tones();
+}
+
+function tones() {
   if (!audio) return;
   for (const at of [0, 0.35]) {
     const osc = audio.createOscillator();

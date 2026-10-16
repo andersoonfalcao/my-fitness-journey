@@ -243,15 +243,25 @@ export const sendTestReminder = () => call("/push/test", { id: deviceId(), tz: I
 export const CLOSED_TEST_SECONDS = 10;
 export const sendClosedAppTest = () => call("/push/test", { id: deviceId(), delay: CLOSED_TEST_SECONDS });
 
+/**
+ * Rest calls go out one after the other. "Concluir série" cancels the running rest and schedules the next one in
+ * the same tap; sent side by side, the cancel could reach the server last and wipe the new alarm, so no push came
+ * and the rest only "ended" when the app was opened again.
+ */
+let restQueue: Promise<unknown> = Promise.resolve();
+const restCall = (path: string, body: Record<string, unknown>) => {
+  restQueue = restQueue.then(() => call(path, body)).catch(() => undefined);
+};
+
 /** Schedules the "rest is over" push for this device (no-op when notifications are off here). */
 export function scheduleRestPush(endsAt: number, next: string) {
   const id = deviceId();
-  if (id) void call("/push/rest", { id, endsAt, next }).catch(() => undefined);
+  if (id) restCall("/push/rest", { id, endsAt, next });
 }
 
 export function cancelRestPush() {
   const id = deviceId();
-  if (id) void call("/push/rest/cancel", { id }).catch(() => undefined);
+  if (id) restCall("/push/rest/cancel", { id });
 }
 
 /** Schedules the "fast complete" push for this device (no-op when notifications are off here). */

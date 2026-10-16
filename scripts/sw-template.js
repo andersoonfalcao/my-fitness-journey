@@ -130,7 +130,8 @@ self.addEventListener("push", (event) => {
       // It is still shown first, since iOS cancels the subscription of an app that receives pushes without showing them.
       if (message.tag !== "forma-descanso") return;
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      if (!windows.some((client) => client.visibilityState === "visible")) return;
+      // "focused" too: a locked iPhone can keep reporting the frozen page as visible, and the notice would vanish unheard.
+      if (!windows.some((client) => client.visibilityState === "visible" && client.focused)) return;
       await new Promise((resolve) => setTimeout(resolve, 300));
       for (const notice of await self.registration.getNotifications({ tag: "forma-descanso" })) notice.close();
     })(),

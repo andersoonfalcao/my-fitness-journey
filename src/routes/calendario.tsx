@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Dumbbell, Share2, X } from "lucide-react";
 import { NeedProfile, useCloseCalendar } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DaySummary, dayShare } from "@/components/DayClose";
+import { DayComplete } from "@/components/DayComplete";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { StravaActivityDialog } from "@/components/StravaActivityDialog";
 import { workoutCard } from "@/lib/share-card";
@@ -125,7 +126,7 @@ function CalendarPage() {
       ? [`de cardio · ${cardioCount} ${cardioCount === 1 ? "atividade" : "atividades"}`, `${km(cardioKm)} km`]
       : [cardioCount === 1 ? "atividade de cardio" : "atividades de cardio", cardioCount ? String(cardioCount) : "—"],
     ["peso no mês", weightChange === null ? "—" : `${weightChange > 0 ? "+" : ""}${fmtKg(weightChange)} kg`],
-    ["dias fechados", String(closedDays.length)],
+    ["dias finalizados", String(closedDays.length)],
   ];
 
   const shift = (delta: number) => {
@@ -208,7 +209,7 @@ function CalendarPage() {
           <Legend color="var(--muted-foreground)" label="refeições fora da meta" ring />
           <Legend color="#4fb3c9" label="água na meta" />
           <Legend color="#fc4c02" label="cardio além do treino" ring />
-          <span><b className="text-accent">7</b> dia fechado</span>
+          <span><b className="text-accent">7</b> dia finalizado</span>
         </div>
       </section>
 
@@ -307,16 +308,18 @@ function CalendarPage() {
           </div>
         )}
 
-        {sel.closed ? (
+        {!sel.closed && sel.eaten.length === 0 && sel.workouts.length === 0 && sel.strava.length === 0 && sel.cardio.length === 0 && !sel.waterMl && !sel.weight && !sel.bio && !sel.health && (
+          <p className="text-sm text-muted-foreground">Nada registrado neste dia.</p>
+        )}
+
+        {sel.closed && (
           <div className="border-t border-border pt-4">
-            <h3 className="mb-3 font-bold">Resumo do dia</h3>
+            <h3 className="mb-3 font-bold">Dia finalizado</h3>
             <DaySummary record={sel.closed} onShare={() => setShare(dayShare(sel.closed!))} />
           </div>
-        ) : sel.eaten.length === 0 && sel.workouts.length === 0 && sel.strava.length === 0 && sel.cardio.length === 0 && !sel.waterMl && !sel.weight && !sel.bio && !sel.health ? (
-          <p className="text-sm text-muted-foreground">Nada registrado neste dia.</p>
-        ) : (
-          <p className="text-sm text-muted-foreground">Este dia não foi fechado. {sel.date === now ? "Feche o dia na tela Hoje para receber o resumo da IA." : ""}</p>
         )}
+
+        <DayComplete key={sel.date} profile={profile} date={sel.date} />
         </div>
         </>)}
         </DialogContent>
