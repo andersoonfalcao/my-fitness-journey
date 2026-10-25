@@ -90,7 +90,8 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (request.mode === "navigate" && url.origin === self.location.origin) event.respondWith(page(request));
+  // Static .html pages (the icon test) are not the app: never answered or saved as its page.
+  if (request.mode === "navigate" && url.origin === self.location.origin && !url.pathname.endsWith(".html")) event.respondWith(page(request));
   else if (url.origin === self.location.origin && url.pathname.startsWith("/assets/")) event.respondWith(asset(request));
   else if (url.origin === self.location.origin && STATIC_FILES.includes(url.pathname)) event.respondWith(refreshing(request));
   else if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") event.respondWith(refreshing(request));
