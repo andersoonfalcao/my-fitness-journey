@@ -791,6 +791,8 @@ function TreinosPage() {
                 <SetsAndRest
                     total={it.sets}
                     done={setsDone}
+                    onComplete={tracksSets && setsLeft > 0 && !holding ? () => onComplete(1) : undefined}
+                    completeHint={[setKg !== null && Number.isFinite(setKg) ? formatKg(setKg) : null, targetReps !== null && setReps !== undefined && Number.isFinite(setReps) ? `${setReps} reps` : null].filter(Boolean).join(" × ")}
                     labels={Array.from({ length: it.sets }, (_, s) => {
                       if (targetReps === null) return it.reps;
                       if (s < setsDone) {
@@ -907,9 +909,6 @@ function TreinosPage() {
                       </div>
                     );
                   })()}
-                  {tracksSets && setsLeft > 0 && targetReps !== null && !holding && (
-                    <RirPicker value={rirInputs[ex.id] ?? null} onChange={(v) => setRirInputs((all) => ({ ...all, [ex.id]: v }))} />
-                  )}
                   {tracksSets && setsLeft > 0 && holdTime != null && suggestedHold != null && session?.rest?.item !== i && (
                     <HoldTimer
                       key={setsDone}
@@ -923,19 +922,12 @@ function TreinosPage() {
                       onFinish={() => { setHold(null); onComplete(1); }}
                     />
                   )}
-                  {tracksSets && setsLeft > 0 && !holding && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button type="button" onClick={() => onComplete(1)} className="h-auto min-h-9 flex-1 basis-40 whitespace-normal rounded-full py-2">
-                        <Check />Concluir série {setsDone + 1}
-                        {setKg !== null && Number.isFinite(setKg) ? ` · ${formatKg(setKg)}` : ""}
-                        {targetReps !== null && setReps !== undefined && Number.isFinite(setReps) ? ` × ${setReps}` : ""}
-                      </Button>
-                      {setsLeft > 1 && (
-                        <Button type="button" variant="secondary" onClick={() => onComplete(setsLeft)} className="h-auto min-h-9 flex-1 basis-40 whitespace-normal rounded-full py-2">
-                          <ListChecks />{setsDone === 0 ? `Concluir as ${setsLeft} séries` : `Concluir as ${setsLeft} restantes`}
-                        </Button>
-                      )}
-                    </div>
+                  {/* "Concluir" for one set is in the middle of the circle; marking all that are left stays here. */}
+                  {tracksSets && setsLeft > 1 && !holding && (
+                    <button type="button" onClick={() => onComplete(setsLeft)}
+                      className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline">
+                      <ListChecks className="h-4 w-4" />{setsDone === 0 ? `Concluir as ${setsLeft} séries de uma vez` : `Concluir as ${setsLeft} restantes de uma vez`}
+                    </button>
                   )}
                   {canLeave && !holding && (
                     <button type="button" onClick={() => leaveForLater(i)}
@@ -1409,8 +1401,12 @@ const LABEL_R = 146;
  * The open exercise: one circle with two rings and each set's numbers beside its own piece of the outer ring.
  * The outer ring has a piece per set, green once done; the inner one is the rest, emptying as it runs out.
  */
-function SetsAndRest({ total, done, labels, caption, rest, restTotal, onAdd, onSkip, onDone }: {
+function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, rest, restTotal, onAdd, onSkip, onDone }: {
   total: number; done: number; rest: WorkoutSession["rest"]; restTotal: number;
+  /** Marks the next set (with the weight and reps typed below the circle); missing when there is nothing to mark. */
+  onComplete?: (() => void) | undefined;
+  /** Weight × reps the next set will be saved with, shown under the button. */
+  completeHint?: string | undefined;
   /** What each set shows beside its piece: weight × reps when done, else the last time (or the target). */
   labels: string[];
   /** Set on a workout that is only there to look at (no set is "next"). */
@@ -1440,11 +1436,24 @@ function SetsAndRest({ total, done, labels, caption, rest, restTotal, onAdd, onS
           <circle cx={c} cy={c} r={INNER_R} fill="none" strokeWidth="10" strokeLinecap="round" className="stroke-accent transition-[stroke-dashoffset] duration-300"
             strokeDasharray={INNER_C} strokeDashoffset={resting ? INNER_C * (1 - Math.min(1, left / restTotal)) : INNER_C} />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center" role="img" aria-label={`${done} de ${total} séries feitas${resting ? `, descanso restante ${time}` : ""}`}>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{resting ? "Descanso" : allDone ? "Concluído" : "Séries"}</span>
-          <span className={`font-display text-4xl font-extrabold leading-none tabular-nums ${resting ? "text-[#c2581b] dark:text-accent" : ""}`} role={resting ? "timer" : undefined}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+          <span className="sr-only">{`${done} de ${total} séries feitas${resting ? `, descanso restante ${time}` : ""}`}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
+            {resting ? "Descanso" : allDone ? "Concluído" : onComplete ? `Série ${done + 1} de ${total}` : "Séries"}
+          </span>
+          <span className={`font-display font-extrabold leading-none tabular-nums ${onComplete ? "text-3xl" : "text-4xl"} ${resting ? "text-[#c2581b] dark:text-accent" : ""}`}
+            role={resting ? "timer" : undefined} aria-hidden={!resting}>
             {resting ? time : `${done}/${total}`}
           </span>
+          {onComplete && (
+            <>
+              <button type="button" onClick={onComplete} aria-label={`Concluir série ${done + 1}${completeHint ? `, ${completeHint}` : ""}`}
+                className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm">
+                <Check className="h-4 w-4" />Concluir
+              </button>
+              {completeHint && <span className="text-[11px] font-semibold text-muted-foreground tabular-nums" aria-hidden>{completeHint}</span>}
+            </>
+          )}
         </div>
         <ol aria-label="Séries">
           {labels.map((value, s) => {
@@ -1939,25 +1948,6 @@ function PlatesLine({ ex, kg }: { ex: Exercise; kg: number }) {
       Cada lado: <b className="tabular-nums text-foreground">{plates.map(kgNumber).join(" + ")} kg</b> · barra de {bar} kg
       {left > 0 && <> · sobram {kgNumber(left * 2)} kg que as anilhas não fecham</>}
     </p>
-  );
-}
-
-const RIR_OPTIONS = [0, 1, 2, 3] as const;
-
-/** Optional: how many more reps the set had in it. It helps the "subir carga" advice; tapping again clears it. */
-function RirPicker({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
-  return (
-    <div className="mt-3">
-      <p className="text-xs font-bold text-muted-foreground">Quantas repetições ainda sobravam? <span className="font-normal">(opcional)</span></p>
-      <div className="mt-1.5 grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Repetições que sobravam">
-        {RIR_OPTIONS.map((n) => (
-          <button key={n} type="button" role="radio" aria-checked={value === n} onClick={() => onChange(value === n ? null : n)}
-            className={`min-h-11 rounded-full border text-sm font-bold ${value === n ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card"}`}>
-            {n === 0 ? "0 · limite" : n === 3 ? "3+" : n}
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }
 
