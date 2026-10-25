@@ -8,8 +8,9 @@ import { askCoach, COACH_STORAGE_KEY, type CoachMessage } from "@/lib/coach";
 
 const SUGGESTIONS = [
   "Minhas cargas estão evoluindo?",
-  "Estou comendo proteína suficiente?",
+  "O que comer no jantar para fechar a proteína de hoje?",
   "Como foi minha semana?",
+  "Meu sono está atrapalhando o treino?",
   "O que devo melhorar agora?",
 ];
 
@@ -80,7 +81,7 @@ export function CoachChat({ open, onOpenChange }: { open: boolean; onOpenChange:
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"><Sparkles className="h-5 w-5" aria-hidden /></span>
             <div className="min-w-0 flex-1">
               <DialogPrimitive.Title className="font-display text-lg font-bold leading-tight">Pergunte ao forma</DialogPrimitive.Title>
-              <DialogPrimitive.Description className="text-xs text-muted-foreground">Treinos, cargas, peso e alimentação, com os seus registros</DialogPrimitive.Description>
+              <DialogPrimitive.Description className="text-xs text-muted-foreground">Perguntas e orientações com os seus registros</DialogPrimitive.Description>
             </div>
             {messages.length > 0 && (
               <button type="button" onClick={() => { setMessages([]); setError(null); }} aria-label="Começar nova conversa" title="Nova conversa"
@@ -93,7 +94,7 @@ export function CoachChat({ open, onOpenChange }: { open: boolean; onOpenChange:
             {messages.length === 0 ? (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Pergunte o que quiser sobre o seu treino e a sua alimentação. As respostas usam os seus números: cargas, séries, peso, calorias, proteína e sono.
+                  Pergunte sobre qualquer coisa que o app registra (treino, cargas, cardio, alimentação, água, peso, medidas, sono) ou peça uma orientação, como o que comer ou como ajustar o treino. As respostas usam os seus números.
                 </p>
                 <div className="flex flex-col gap-2">
                   {SUGGESTIONS.map((s) => (

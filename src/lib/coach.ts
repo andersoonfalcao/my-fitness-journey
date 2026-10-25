@@ -1,8 +1,12 @@
 import { BEST_MODELS, generateJson, Schema } from "./ai";
 import { foodsKey, readCloudOnce, waterKey } from "./cloud-store";
-import { FEEL_LABEL, targets, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
+import { FEEL_LABEL, KEYS, targets, type BodyEntry, type FoodEntry, type MeasureEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutRecord } from "./store";
 import { bestSets, recordTotal, strengthHistory } from "./workout-stats";
-import { stravaKey, type StravaActivity } from "./strava";
+import { sportLabel, stravaKey, type StravaActivity } from "./strava";
+import { cardioAsActivity, cardioKey, type CardioRecord } from "./cardio";
+import { doseLabel, SUPPLEMENTS_KEY, type Supplement } from "./supplements";
+import type { Fast, FastRecord } from "./fasting";
+import { byId } from "./exercises";
 import { healthKey, type HealthMonth } from "./health";
 import { addDays, readSleep, readWeight } from "./insights";
 import { weekStart, weekStats } from "./week";
@@ -22,13 +26,16 @@ const FOCUS_LABEL: Record<Profile["focus"], string> = {
 };
 
 const SYSTEM = `Você é o assistente do forma, um app brasileiro de treino e alimentação. Atua como treinador e nutricionista do aluno.
-Responda em português do Brasil, com tom próximo e direto, em no máximo 6 frases curtas (ou uma lista curta quando ajudar).
-Use SOMENTE os dados recebidos em "dados"; nunca invente números. Escreva números no formato brasileiro (80,45 kg; 2.065 kcal).
-Se a pergunta pedir algo que não está nos dados (por exemplo, sem registros), diga que ainda não há registro e sugira como registrar no app.
-Sobre carga, use "forca" (primeira e última carga mais pesada de cada exercício, e a melhor série) e "treinos" (os mais recentes, com a carga total = soma de peso × repetições).
-Sobre alimentação, use "metas" e "alimentacao" (totais de cada dia registrado nos últimos 14 dias).
-Sobre peso, use "peso": tendencia é kg por semana (negativo = perdendo), previsaoMeta é a data prevista para a meta.
-Não dê diagnóstico médico nem recomende remédios. Suplemento só em termos gerais. Se o assunto fugir de treino, alimentação, sono ou saúde geral, responda em uma frase e volte ao tema.`;
+Responda em português do Brasil, com tom próximo e direto, em até 8 frases curtas ou uma lista curta quando ajudar.
+O aluno pode perguntar sobre qualquer coisa que o app registra (treinos, cargas, plano, cardio, alimentação, água, suplementos, jejum, peso, bioimpedância, medidas, sono, passos, batimentos) e também pedir indicações e orientações: o que comer para fechar as metas do dia, como montar uma refeição, como ajustar o treino, a carga ou o descanso, como dormir melhor, como sair de um platô.
+Regras:
+- Números do aluno: use SOMENTE os de "dados"; nunca invente. Escreva no formato brasileiro (80,45 kg; 2.065 kcal; 1,5 L).
+- Orientações: baseie-se nos dados dele (metas, o que falta hoje em "hojeFalta", o histórico) e em conhecimento geral de treino e nutrição. Seja concreto (alimentos com quantidades caseiras, séries, cargas, horários). Prefira alimentos comuns no Brasil.
+- Se faltar registro para responder, diga isso e explique como registrar no app.
+- Carga: "forca" tem a primeira e a última carga mais pesada de cada exercício e a melhor série; "treinos" traz os mais recentes, com cargaTotalKg = soma de peso × repetições. "plano" traz os treinos do plano com séries × repetições.
+- Peso: "peso.tendencia" é kg por semana (negativo = perdendo); "peso.previsaoMeta" é a data prevista para a meta.
+- Saúde: não dê diagnóstico médico nem indique remédios; diante de dor, lesão, tontura ou sintoma, oriente procurar um profissional. Suplementos só em termos gerais (os que ele já usa estão em "suplementos").
+- Assunto fora de treino, alimentação, sono e saúde geral: responda em uma frase e volte ao tema.`;
 
 const SCHEMA = Schema.object({ properties: { resposta: Schema.string() } });
 
@@ -39,11 +46,18 @@ type Inputs = { uid: string; date: string; profile: Profile; weights: WeightEntr
 /** The person's numbers, computed here (never by the AI), small enough to send with every question. */
 export async function coachData({ uid, date, profile, weights, history, plan }: Inputs) {
   const ms = months(date);
-  const [foodMonths, waterMonths, stravaMonths, healthMonths] = await Promise.all([
+  const quiet = <T,>(read: Promise<T>, fallback: T) => read.catch(() => fallback);
+  const [foodMonths, waterMonths, stravaMonths, healthMonths, cardioMonths, body, measures, supplements, fasts, fast] = await Promise.all([
     Promise.all(ms.map((m) => readCloudOnce<FoodEntry[]>(uid, foodsKey(`${m}-01`), []))),
     Promise.all(ms.map((m) => readCloudOnce<WaterLog>(uid, waterKey(`${m}-01`), {}))),
-    Promise.all(ms.map((m) => readCloudOnce<StravaActivity[]>(uid, stravaKey(`${m}-01`), []).catch((): StravaActivity[] => []))),
-    Promise.all(ms.map((m) => readCloudOnce<HealthMonth>(uid, healthKey(`${m}-01`), {}).catch((): HealthMonth => ({})))),
+    Promise.all(ms.map((m) => quiet(readCloudOnce<StravaActivity[]>(uid, stravaKey(`${m}-01`), []), []))),
+    Promise.all(ms.map((m) => quiet(readCloudOnce<HealthMonth>(uid, healthKey(`${m}-01`), {}), {}))),
+    Promise.all(ms.map((m) => quiet(readCloudOnce<CardioRecord[]>(uid, cardioKey(`${m}-01`), []), []))),
+    quiet(readCloudOnce<BodyEntry[]>(uid, KEYS.body, []), []),
+    quiet(readCloudOnce<MeasureEntry[]>(uid, KEYS.measures, []), []),
+    quiet(readCloudOnce<Supplement[]>(uid, SUPPLEMENTS_KEY, []), []),
+    quiet(readCloudOnce<FastRecord[]>(uid, KEYS.fasts, []), []),
+    quiet(readCloudOnce<Fast | null>(uid, KEYS.fast, null), null),
   ]);
   const foods = foodMonths.flat();
   const water: WaterLog = Object.assign({}, ...waterMonths);
@@ -75,6 +89,17 @@ export async function coachData({ uid, date, profile, weights, history, plan }: 
     return [{ exercicio: name, vezes: points.length, primeiraKg: first.kg, primeiraData: first.date, ultimaKg: last.kg, ultimaData: last.date, melhorSerieRecente: last.set }];
   });
 
+  // Cardio of the last 14 days: Strava, plus what was done in the app and Strava hasn't brought yet.
+  const recent = (d: string) => d >= addDays(date, -13) && d <= date;
+  const cardio = [...strava, ...cardioMonths.flat().map(cardioAsActivity)]
+    .filter((a) => recent(a.date) && a.sport !== "WeightTraining")
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((a) => ({ data: a.date, atividade: a.id < 0 ? a.name : sportLabel(a.sport), minutos: Math.round(a.movingS / 60), km: Math.round(a.distanceM / 100) / 10 || null, kcal: a.kcal ?? null, fcMedia: a.avgHr ?? null }));
+  const todayFoods = foods.filter((f) => f.date === date);
+  const eaten = todayFoods.reduce((s, f) => ({ kcal: s.kcal + f.kcal, p: s.p + f.p, c: s.c + f.c, f: s.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
+  const sortedBody = [...body].sort((a, b) => a.date.localeCompare(b.date));
+  const sortedMeasures = [...measures].sort((a, b) => a.date.localeCompare(b.date));
+
   const week = (start: string) => weekStats(start, date, { foods, water, weights, history, strava, health, targets: { kcal: t.kcal, waterMl: t.waterMl } });
   const thisWeek = weekStart(date);
 
@@ -86,7 +111,15 @@ export async function coachData({ uid, date, profile, weights, history, plan }: 
       pesoMetaKg: profile.goalWeight,
     },
     metas: { kcal: t.kcal, proteinaG: t.protein, carboidratoG: t.carbs, gorduraG: t.fat, aguaMl: t.waterMl },
-    plano: plan ? { metodo: plan.method, treinos: plan.days.map((d) => d.name) } : null,
+    plano: plan ? {
+      metodo: plan.method,
+      treinos: plan.days.map((d) => ({ nome: d.name, exercicios: d.items.map((it) => `${byId(it.exId).name} ${it.sets}x${it.reps}`) })),
+    } : null,
+    hojeComeu: todayFoods.map((f) => ({ refeicao: f.meal, alimento: f.name, gramas: f.grams, kcal: Math.round(f.kcal), proteinaG: Math.round(f.p) })),
+    hojeFalta: {
+      kcal: Math.round(t.kcal - eaten.kcal), proteinaG: Math.round(t.protein - eaten.p), carboidratoG: Math.round(t.carbs - eaten.c), gorduraG: Math.round(t.fat - eaten.f),
+      aguaMl: t.waterMl - (water[date] ?? 0),
+    },
     peso: {
       atualKg: weight.current, inicioKg: sorted[0]?.kg ?? profile.weight, inicioData: sorted[0]?.date ?? null,
       tendencia: weight.rate, previsaoMeta: weight.eta, metaAtingida: weight.goalReached, perdaRapida: !!weight.fast, parado: !!weight.plateau,
@@ -110,6 +143,16 @@ export async function coachData({ uid, date, profile, weights, history, plan }: 
     semanaAtual: week(thisWeek),
     semanaPassada: week(addDays(thisWeek, -7)),
     sono: readSleep(health, date),
+    saudeUltimos7Dias: Object.entries(health).filter(([d]) => d >= addDays(date, -6) && d <= date).sort(([a], [b]) => a.localeCompare(b))
+      .map(([d, h]) => ({ data: d, passos: h.steps ?? null, sonoMin: h.sleepMin ?? null, fcRepouso: h.restingHr ?? null, vo2max: h.vo2max ?? null, kcalAtivas: h.activeKcal ?? null })),
+    cardio,
+    bioimpedancia: sortedBody.length ? { primeira: sortedBody[0], ultimas: sortedBody.slice(-3) } : null,
+    medidasCm: sortedMeasures.length ? { primeira: sortedMeasures[0], ultima: sortedMeasures.at(-1) } : null,
+    suplementos: supplements.map((s) => `${s.name} ${doseLabel(s)}`),
+    jejum: {
+      emAndamentoHoras: fast ? Math.round(((Date.now() - fast.startedAt) / 3_600_000) * 10) / 10 : null,
+      ultimos: fasts.slice(-5).map((f) => ({ data: new Date(f.endedAt).toISOString().slice(0, 10), horas: Math.round(((f.endedAt - f.startedAt) / 3_600_000) * 10) / 10, metaHoras: f.goalH })),
+    },
   };
 }
 
