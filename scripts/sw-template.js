@@ -8,7 +8,7 @@ const PRECACHE = __PRECACHE__;
 const SHELL = "/_shell.html";
 const CACHE = `forma-${VERSION}`;
 const RUNTIME = "forma-runtime";
-const STATIC_FILES = ["/manifest.webmanifest", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"];
+const STATIC_FILES = ["/manifest.webmanifest", "/favicon-32.png", "/app-icon-180.png", "/app-icon-192.png", "/app-icon-512.png", "/icon-192.png"];
 /** A slow connection waits this long for a fresh page before the saved one is used. */
 const NETWORK_TIMEOUT_MS = 3500;
 
