@@ -759,14 +759,15 @@ function TreinosPage() {
                   </div>
                 )}
 
-                {tracksSets && session && (
+                {/* Also before the workout starts (0 done), so today's workout already shows its sets. */}
+                {tracksSets && (
                   <SetsAndRest
                     total={it.sets}
                     done={setsDone}
-                    rest={session.rest?.item === i ? session.rest : undefined}
+                    rest={session?.rest?.item === i ? session.rest : undefined}
                     restTotal={settings.restSeconds * 1000}
                     onAdd={(seconds) => {
-                      const rest = session.rest!;
+                      const rest = session!.rest!;
                       scheduleRestPush(rest.endsAt + seconds * 1000, rest.next);
                       setSession((s) => s?.rest ? { ...s, rest: { ...s.rest, endsAt: s.rest.endsAt + seconds * 1000 } } : s);
                     }}

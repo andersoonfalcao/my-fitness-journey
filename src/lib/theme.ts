@@ -9,13 +9,21 @@ const BAR_COLOR: Record<Theme, string> = { light: "#fbf6ec", dark: "#0d1913" };
 
 /**
  * Runs inline in <head> before the page paints, so a dark device never flashes the light theme.
+ * It also creates the theme-color tag itself: one left to the route head would be added again on hydration
+ * with the light colour, and the iPhone follows the last one.
  * Kept as a string because it goes into the document as is.
  */
-export const THEME_BOOT_SCRIPT = `try{if(localStorage.getItem("${STORAGE_KEY}")==="dark"){document.documentElement.classList.add("dark");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${BAR_COLOR.dark}")}}catch(e){}`;
+export const THEME_BOOT_SCRIPT = `try{var d=localStorage.getItem("${STORAGE_KEY}")==="dark";if(d)document.documentElement.classList.add("dark");var m=document.createElement("meta");m.name="theme-color";m.content=d?"${BAR_COLOR.dark}":"${BAR_COLOR.light}";document.head.appendChild(m)}catch(e){}`;
 
 function apply(theme: Theme) {
   document.documentElement.classList.toggle("dark", theme === "dark");
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", BAR_COLOR[theme]);
+  let bar = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!bar) {
+    bar = document.createElement("meta");
+    bar.name = "theme-color";
+    document.head.appendChild(bar);
+  }
+  bar.content = BAR_COLOR[theme];
 }
 
 export function useTheme() {
