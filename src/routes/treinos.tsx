@@ -131,6 +131,27 @@ function TreinosPage() {
   // changed afterwards (a swap, a regenerated plan). Exercises no longer in the library are left out.
   const doneList = doneRecord?.exercises.filter((e) => EXERCISES.some((x) => x.id === e.exId)) ?? [];
   const items: PlanItem[] = doneRecord ? doneList.map((e) => ({ exId: e.exId, sets: e.setsPlanned, reps: e.reps, rest: 0 })) : day.items;
+  /**
+   * Fixes an exercise of the finished workout that was done but not marked set by set: the missing sets are added
+   * with the given weight and reps (the sets already marked keep theirs).
+   */
+  const completeRecorded = (target: WorkoutRecord["exercises"][number], kg: number | null, reps: number | null) => {
+    const index = doneRecord?.exercises.indexOf(target) ?? -1;
+    if (!doneRecord || index < 0) return;
+    const missing = Math.max(0, target.setsPlanned - target.setsDone);
+    setHistory((records) => records.map((r) => r.id !== doneRecord.id ? r : {
+      ...r,
+      exercises: r.exercises.map((e, j) => {
+        if (j !== index) return e;
+        const setKgs = [...(e.setKgs ?? []).slice(0, e.setsDone), ...Array.from({ length: missing }, () => kg)];
+        const setReps = [...(e.setReps ?? []).slice(0, e.setsDone), ...Array.from({ length: missing }, () => reps)];
+        const top = Math.max(0, ...setKgs.map((v) => v ?? 0));
+        const { skipped: _skipped, ...rest } = e;
+        return { ...rest, setsDone: e.setsPlanned, setKgs, setReps, kg: top || e.kg };
+      }),
+    }));
+    toast.success(`${target.name}: ${missing === 1 ? "1 série marcada" : `${missing} séries marcadas`} no treino de hoje`);
+  };
   const beforeDone = doneRecord ? lastRecordBefore(history.filter((r) => r !== doneRecord), day.name) : undefined;
   // Set tracking belongs to the day being trained; other tabs are view-only while a session runs.
   // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
@@ -781,6 +802,20 @@ function TreinosPage() {
                     onSkip={() => { cancelRestPush(); setSession((s) => s && { ...s, rest: undefined }); }}
                     onDone={() => setSession((s) => s && { ...s, rest: undefined })}
                   />
+                {doneEx && setsDone < it.sets && (
+                  <div className="mt-3 rounded-2xl border border-accent/40 bg-accent/10 p-3">
+                    <p className="text-sm font-bold">Fez todas as séries?</p>
+                    <p className="text-xs text-muted-foreground">
+                      O treino guardou {setsDone} de {it.sets}: só entram as séries marcadas em "Concluir série". Se fez as outras, marque aqui.
+                      {setKg === null ? " Sem carga no campo abaixo, elas ficam sem peso." : ""}
+                    </p>
+                    <Button type="button" onClick={() => completeRecorded(doneEx, setKg !== null && Number.isFinite(setKg) ? setKg : null, targetReps)}
+                      className="mt-2 h-auto min-h-11 w-full whitespace-normal rounded-full py-2">
+                      <Check />Marcar {it.sets - setsDone === 1 ? "a série que falta" : `as ${it.sets - setsDone} séries que faltam`}
+                      {setKg !== null && Number.isFinite(setKg) ? ` · ${formatKg(setKg)}` : ""}{targetReps !== null ? ` × ${targetReps}` : ""}
+                    </Button>
+                  </div>
+                )}
                 <div className="mt-3 border-t border-border pt-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-xs">
                     <span className="inline-flex items-center gap-2 font-bold text-muted-foreground">
