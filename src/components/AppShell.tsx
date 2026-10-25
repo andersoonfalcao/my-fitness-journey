@@ -78,11 +78,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => setCoachOpen(true)} aria-label="Pergunte ao forma" title="Pergunte ao forma"
-              className="rounded-full p-2.5 text-accent hover:text-foreground">
+            {/* Header icons are grey and turn orange only while their screen or panel is open. */}
+            <button type="button" onClick={() => setCoachOpen(true)} aria-label="Pergunte ao forma" title="Pergunte ao forma" aria-expanded={coachOpen}
+              className={`rounded-full p-2.5 hover:text-foreground ${coachOpen ? "text-accent" : "text-muted-foreground"}`}>
               <Sparkles className="h-6 w-6" />
             </button>
-            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
+            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground hover:text-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
               <CalendarDays className="h-6 w-6" />
             </Link>
             <button type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={theme === "dark" ? "Desativar modo escuro" : "Ativar modo escuro"}
