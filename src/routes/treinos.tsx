@@ -127,6 +127,10 @@ function TreinosPage() {
   const viewingDone = lockedToday && active === doneTodayIdx;
   // What was done today in the workout on screen, and the time before it (the comparison baseline).
   const doneRecord = viewingDone ? [...history].reverse().find((r) => r.date === today() && r.dayName === day.name) : undefined;
+  // The workout finished today is shown as it was done: its own exercises, sets and reps, even when the plan
+  // changed afterwards (a swap, a regenerated plan). Exercises no longer in the library are left out.
+  const doneList = doneRecord?.exercises.filter((e) => EXERCISES.some((x) => x.id === e.exId)) ?? [];
+  const items: PlanItem[] = doneRecord ? doneList.map((e) => ({ exId: e.exId, sets: e.setsPlanned, reps: e.reps, rest: 0 })) : day.items;
   const beforeDone = doneRecord ? lastRecordBefore(history.filter((r) => r !== doneRecord), day.name) : undefined;
   // Set tracking belongs to the day being trained; other tabs are view-only while a session runs.
   // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
@@ -535,16 +539,16 @@ function TreinosPage() {
           <div className="text-xs font-bold uppercase tracking-widest text-accent">
             {viewingDone ? "Concluído hoje" : isCurrentClass ? `Aula ${classNumber}` : lockedToday && active === nextIdx ? "Próximo treino" : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
           </div>
-          <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(day.items.map((it) => it.exId))}</h2>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap opacity-75">{day.items.length} exercícios ·</span>
+          <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(items.map((it) => it.exId))}</h2>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap opacity-75">{items.length} exercícios ·</span>
             <button type="button" onClick={() => setMethodOpen(true)} className="-my-2 inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold underline-offset-4 hover:underline">{plan.method}<Info className="h-4 w-4 text-accent" aria-label="Como o forma monta seu treino" /></button></p>
-          {openItem !== null && day.items[openItem] && (
+          {openItem !== null && items[openItem] && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />agora: {byId(day.items[openItem]!.exId).name}
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />agora: {byId(items[openItem]!.exId).name}
             </p>
           )}
         </div>
-        <BodyMap exIds={day.items.map((it) => it.exId)} focus={openItem !== null ? day.items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-card/95 px-2 py-2 text-foreground" />
+        <BodyMap exIds={items.map((it) => it.exId)} focus={openItem !== null ? items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-card/95 px-2 py-2 text-foreground" />
       </section>
 
       {session ? (
@@ -639,14 +643,14 @@ function TreinosPage() {
       )}
 
       <div className="space-y-3">
-        {day.items.map((it, i) => {
+        {items.map((it, i) => {
           const ex = byId(it.exId);
           const history = historyFor(ex.id);
           const latest = history.at(-1);
           const previous = history.at(-2);
           const variation = latest && previous ? latest.kg - previous.kg : null;
           // The workout finished today shows what was done in it, read-only.
-          const doneEx = previousOf(doneRecord, i, ex.id);
+          const doneEx = doneRecord ? doneList[i] : undefined;
           const setsDone = tracksSets ? session?.sets?.[i] ?? 0 : Math.min(doneEx?.setsDone ?? 0, it.sets);
           const kgsToday = tracksSets ? session?.kgs?.[i] ?? [] : doneEx?.setKgs ?? [];
           const prev = previousOf(doneRecord ? beforeDone : lastRecordOf(day.name), i, ex.id);
@@ -686,7 +690,7 @@ function TreinosPage() {
           const holdTime = holdTimes[ex.id] ?? suggestedHold;
           const holding = hold?.item === i ? hold : null;
           const finished = (tracksSets || !!doneEx) && setsDone >= it.sets;
-          const combo = plan.circuit ? null : comboOf(day.items, i);
+          const combo = plan.circuit || doneRecord ? null : comboOf(day.items, i);
           const open = openItem === i;
           const dropsToday = (tracksSets ? session?.drops?.[i] : doneEx?.setDrops) ?? {};
           const exTotal = volume(kgsToday, repsToday, it.reps) + dropVolume(dropsToday);
@@ -730,8 +734,10 @@ function TreinosPage() {
                   <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
                   <div className="flex min-w-0 flex-1 flex-wrap content-start gap-2">
                     <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
-                    <Button type="button" variant="secondary" size="sm" onClick={() => setSwap({ d: active, i })} className="rounded-full"><ArrowLeftRight />Trocar</Button>
-                    {it.extra && (
+                    {!doneRecord && (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => setSwap({ d: active, i })} className="rounded-full"><ArrowLeftRight />Trocar</Button>
+                    )}
+                    {it.extra && !doneRecord && (
                       <Button type="button" variant="secondary" size="sm" onClick={() => removeExtra(i)} className="rounded-full"><Trash2 />Remover</Button>
                     )}
                     <Button asChild variant="secondary" size="sm" className="rounded-full">
@@ -956,11 +962,14 @@ function TreinosPage() {
             </article>
           );
         })}
-        <button type="button" onClick={() => setAdding({ d: active, group: null })}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
-          <Plus className="h-5 w-5" />Adicionar exercício
-        </button>
-        {!plan.circuit && day.items.length > 1 && (
+        {/* The finished workout is a record: adding or combining would change the plan, not what was done. */}
+        {!doneRecord && (
+          <button type="button" onClick={() => setAdding({ d: active, group: null })}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
+            <Plus className="h-5 w-5" />Adicionar exercício
+          </button>
+        )}
+        {!doneRecord && !plan.circuit && day.items.length > 1 && (
           <button type="button" onClick={() => setCombining({ d: active, picked: [] })}
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
             <Link2 className="h-5 w-5" />Combinar exercícios (bi-set)
