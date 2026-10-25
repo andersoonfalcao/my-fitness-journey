@@ -1421,6 +1421,8 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
   const time = formatDuration(left + 999);
   const allDone = done >= total;
   const live = caption === undefined;
+  // During the rest the middle is only the countdown; "Concluir" comes back when it ends or is skipped.
+  const canComplete = !!onComplete && !resting;
   const c = RING_BOX / 2;
   return (
     <div className="mt-3 rounded-3xl bg-muted/50 p-2">
@@ -1439,13 +1441,13 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
           <span className="sr-only">{`${done} de ${total} séries feitas${resting ? `, descanso restante ${time}` : ""}`}</span>
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
-            {resting ? "Descanso" : allDone ? "Concluído" : onComplete ? `Série ${done + 1} de ${total}` : "Séries"}
+            {resting ? "Descanso" : allDone ? "Concluído" : canComplete ? `Série ${done + 1} de ${total}` : "Séries"}
           </span>
-          <span className={`font-display font-extrabold leading-none tabular-nums ${onComplete ? "text-3xl" : "text-4xl"} ${resting ? "text-[#c2581b] dark:text-accent" : ""}`}
+          <span className={`font-display font-extrabold leading-none tabular-nums ${canComplete ? "text-3xl" : "text-4xl"} ${resting ? "text-[#c2581b] dark:text-accent" : ""}`}
             role={resting ? "timer" : undefined} aria-hidden={!resting}>
             {resting ? time : `${done}/${total}`}
           </span>
-          {onComplete && (
+          {canComplete && (
             <>
               <button type="button" onClick={onComplete} aria-label={`Concluir série ${done + 1}${completeHint ? `, ${completeHint}` : ""}`}
                 className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm">
