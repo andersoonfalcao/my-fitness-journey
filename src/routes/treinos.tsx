@@ -791,6 +791,16 @@ function TreinosPage() {
                 <SetsAndRest
                     total={it.sets}
                     done={setsDone}
+                    labels={Array.from({ length: it.sets }, (_, s) => {
+                      if (targetReps === null) return it.reps;
+                      if (s < setsDone) {
+                        const kg = kgsToday[s];
+                        const reps = repsOfSet(repsToday, s, it.reps);
+                        return kg != null ? `${kgNumber(kg)} × ${reps}` : `${reps} reps`;
+                      }
+                      const lastKg = prev?.setKgs?.[s];
+                      return lastKg != null ? `últ. ${kgNumber(lastKg)} × ${repsOfSet(prev?.setReps, s, prev?.reps ?? it.reps)}` : `${targetReps} reps`;
+                    })}
                     caption={tracksSets ? undefined : doneEx ? `${setsDone} de ${it.sets} séries feitas` : `${it.sets} séries de ${it.reps}`}
                     rest={tracksSets && session?.rest?.item === i ? session.rest : undefined}
                     restTotal={settings.restSeconds * 1000}
@@ -938,7 +948,6 @@ function TreinosPage() {
                   )}
                 </div>
                 <div className="mt-3 border-t border-border">
-                  <SetTable sets={it.sets} reps={it.reps} done={setsDone} kgs={kgsToday} repsDone={repsToday} prevKgs={prev?.setKgs} prevReps={prev?.setReps} prevPlanReps={prev?.reps} />
                   {tracksSets && setsDone === 0 && setKg !== null && Number.isFinite(setKg) && <Warmup ex={ex} workKg={setKg} />}
                   {tracksSets && (
                     <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -1299,45 +1308,6 @@ function SessionCompare({ previous, previousTotal, currentTotal, dayName, finish
   );
 }
 
-/** Sets of an exercise: reps and load done today, else the target, next to last time's load. */
-function SetTable({ sets, reps, done, kgs, repsDone, prevKgs, prevReps, prevPlanReps }: {
-  sets: number; reps: string; done: number; kgs: SetValues; repsDone: SetValues; prevKgs: SetValues; prevReps: SetValues; prevPlanReps: string | undefined;
-}) {
-  const timed = repsCount(reps) === null;
-  const kgText = (kg: number | null | undefined) => (kg == null ? "—" : formatKg(kg));
-  return (
-    <table className="mt-3 w-full text-sm">
-      <thead>
-        <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-          <th className="py-1 font-bold">Série</th>
-          <th className="py-1 font-bold">{timed ? "Tempo" : "Reps"}</th>
-          <th className="py-1 font-bold">Carga</th>
-          <th className="py-1 text-right font-bold">Última vez</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {Array.from({ length: sets }, (_, s) => {
-          const isDone = s < done;
-          const prevKg = prevKgs?.[s];
-          const last = prevKg != null ? `${kgText(prevKg)}${timed ? "" : ` × ${repsOfSet(prevReps, s, prevPlanReps ?? reps)}`}` : "—";
-          return (
-            <tr key={s} className={isDone ? "font-semibold" : "text-muted-foreground"}>
-              <td className="py-2">
-                <span className="inline-flex items-center gap-1.5">
-                  {isDone ? <Check className="h-4 w-4 text-[#3f9d6b]" aria-label="feita" /> : <span className="inline-block h-4 w-4" />}{s + 1}
-                </span>
-              </td>
-              <td className="py-2 tabular-nums">{timed ? reps : isDone ? repsOfSet(repsDone, s, reps) : reps}</td>
-              <td className="py-2 tabular-nums">{isDone ? kgText(kgs?.[s]) : "—"}</td>
-              <td className="py-2 text-right tabular-nums">{last}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
 // Browsers only allow sound after a tap, so the context is opened on "Concluir série" and reused when the rest ends.
 let audio: AudioContext | null = null;
 
@@ -1431,58 +1401,76 @@ const OUTER_R = 104;
 const INNER_R = 80;
 const OUTER_C = 2 * Math.PI * OUTER_R;
 const INNER_C = 2 * Math.PI * INNER_R;
+/** Size of the drawing (viewBox) and how far from its centre each set's label sits, past the outer ring. */
+const RING_BOX = 340;
+const LABEL_R = 146;
 
 /**
- * The open exercise during a workout: one circle with two rings. The outer one has a piece per set, green once
- * done; the inner one is the rest, emptying as it runs out.
+ * The open exercise: one circle with two rings and each set's numbers beside its own piece of the outer ring.
+ * The outer ring has a piece per set, green once done; the inner one is the rest, emptying as it runs out.
  */
-function SetsAndRest({ total, done, caption, rest, restTotal, onAdd, onSkip, onDone }: {
+function SetsAndRest({ total, done, labels, caption, rest, restTotal, onAdd, onSkip, onDone }: {
   total: number; done: number; rest: WorkoutSession["rest"]; restTotal: number;
-  /** Replaces "Série N de M" on a workout that is only there to look at. */
+  /** What each set shows beside its piece: weight × reps when done, else the last time (or the target). */
+  labels: string[];
+  /** Set on a workout that is only there to look at (no set is "next"). */
   caption?: string | undefined;
   onAdd: (seconds: number) => void; onSkip: () => void; onDone: () => void;
 }) {
   const left = useRestLeft(rest?.endsAt ?? null, rest?.next ?? "", onDone);
   const resting = !!rest && left > 0;
-  const gap = total > 1 ? 6 : 0;
+  const gap = total > 1 ? 8 : 0;
   const seg = OUTER_C / total - gap;
   const pieces = (n: number) => (n > 0 ? [...Array.from({ length: n }, () => `${seg} ${gap}`), `0 ${OUTER_C}`].join(" ") : `0 ${OUTER_C}`);
   const time = formatDuration(left + 999);
   const allDone = done >= total;
+  const live = caption === undefined;
+  const c = RING_BOX / 2;
   return (
-    <div className="mt-3 flex items-center gap-4 rounded-3xl bg-muted/50 p-3">
-      <div className="relative h-36 w-36 shrink-0" role="img" aria-label={`${done} de ${total} séries feitas${resting ? `, descanso restante ${time}` : ""}`}>
-        <svg viewBox="0 0 236 236" className="h-full w-full -rotate-90" aria-hidden>
-          <circle cx="118" cy="118" r={OUTER_R} fill="none" strokeWidth="16" className="stroke-border" strokeDasharray={pieces(total).replace(` 0 ${OUTER_C}`, "")} />
-          <circle cx="118" cy="118" r={OUTER_R} fill="none" strokeWidth="16" className="stroke-[#3f9d6b] transition-all duration-300" strokeDasharray={pieces(done)} />
+    <div className="mt-3 rounded-3xl bg-muted/50 p-2">
+      <div className="relative mx-auto aspect-square w-full max-w-[340px]">
+        <svg viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+          <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-border" strokeDasharray={pieces(total).replace(` 0 ${OUTER_C}`, "")} />
+          <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-[#3f9d6b] transition-all duration-300" strokeDasharray={pieces(done)} />
           {/* The set up next, only on the workout being done (a workout to look at has no "next"). */}
-          {!allDone && caption === undefined && (
-            <circle cx="118" cy="118" r={OUTER_R} fill="none" strokeWidth="16" className="stroke-accent opacity-60" strokeDasharray={`${seg} ${OUTER_C}`} strokeDashoffset={-done * (seg + gap)} />
+          {!allDone && live && (
+            <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-accent opacity-60" strokeDasharray={`${seg} ${OUTER_C}`} strokeDashoffset={-done * (seg + gap)} />
           )}
-          <circle cx="118" cy="118" r={INNER_R} fill="none" strokeWidth="12" className="stroke-muted" />
-          <circle cx="118" cy="118" r={INNER_R} fill="none" strokeWidth="12" strokeLinecap="round" className="stroke-accent transition-[stroke-dashoffset] duration-300"
+          <circle cx={c} cy={c} r={INNER_R} fill="none" strokeWidth="10" className="stroke-muted" />
+          <circle cx={c} cy={c} r={INNER_R} fill="none" strokeWidth="10" strokeLinecap="round" className="stroke-accent transition-[stroke-dashoffset] duration-300"
             strokeDasharray={INNER_C} strokeDashoffset={resting ? INNER_C * (1 - Math.min(1, left / restTotal)) : INNER_C} />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{resting ? "Descanso" : "Séries"}</span>
-          <span className={`font-display text-[1.7rem] font-extrabold leading-none tabular-nums ${resting ? "text-[#c2581b] dark:text-accent" : ""}`} role={resting ? "timer" : undefined}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center" role="img" aria-label={`${done} de ${total} séries feitas${resting ? `, descanso restante ${time}` : ""}`}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{resting ? "Descanso" : allDone ? "Concluído" : "Séries"}</span>
+          <span className={`font-display text-4xl font-extrabold leading-none tabular-nums ${resting ? "text-[#c2581b] dark:text-accent" : ""}`} role={resting ? "timer" : undefined}>
             {resting ? time : `${done}/${total}`}
           </span>
         </div>
+        <ol aria-label="Séries">
+          {labels.map((value, s) => {
+            const angle = ((s + 0.5) / total) * 2 * Math.PI;
+            const isDone = s < done;
+            const now = live && s === done && !allDone;
+            return (
+              <li key={s} className={`absolute w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-2xl px-1.5 py-1 text-center tabular-nums ${
+                isDone ? "bg-[#3f9d6b]/15" : now ? "border-2 border-accent bg-accent/10" : "bg-card"}`}
+                style={{ left: `${((c + LABEL_R * Math.sin(angle)) / RING_BOX) * 100}%`, top: `${((c - LABEL_R * Math.cos(angle)) / RING_BOX) * 100}%` }}>
+                <span className={`block text-[10px] font-bold uppercase tracking-wide ${isDone ? "text-[#2f7d54] dark:text-[#7fd1a4]" : "text-muted-foreground"}`}>
+                  Série {s + 1}{isDone ? " ✓" : ""}{now && <span className="sr-only"> (agora)</span>}
+                </span>
+                <span className={`block text-[13px] font-extrabold leading-tight ${isDone ? "text-[#2f7d54] dark:text-[#7fd1a4]" : now ? "" : "text-muted-foreground"}`}>{value}</span>
+              </li>
+            );
+          })}
+        </ol>
       </div>
-      <div className="flex min-w-0 flex-col gap-2">
-        <p className="text-sm font-bold">{resting ? `Depois: série ${done + 1} de ${total}` : allDone ? "Exercício concluído" : caption ?? `Série ${done + 1} de ${total}`}</p>
-        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#3f9d6b]" />fora: séries</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-accent" />dentro: descanso</span>
+      {resting && (
+        <div className="mt-1 flex justify-center gap-2 pb-1">
+          <button type="button" onClick={() => onAdd(15)} className="min-h-11 rounded-full border border-input bg-card px-4 text-sm font-bold">+15s</button>
+          <button type="button" onClick={onSkip} className="min-h-11 rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground">Pular descanso</button>
         </div>
-        {resting && (
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => onAdd(15)} className="min-h-11 rounded-full border border-input bg-card px-3 text-sm font-bold">+15s</button>
-            <button type="button" onClick={onSkip} className="min-h-11 rounded-full bg-accent px-4 text-sm font-bold text-accent-foreground">Pular</button>
-          </div>
-        )}
-      </div>
+      )}
+      {caption && <p className="pb-1 text-center text-xs text-muted-foreground">{caption}</p>}
     </div>
   );
 }
