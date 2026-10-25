@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /** Light or dark, chosen per device with the button in the header (kept in this browser only). */
 export type Theme = "light" | "dark";
@@ -26,15 +26,20 @@ function apply(theme: Theme) {
   bar.content = BAR_COLOR[theme];
 }
 
+// The <html> class is the single source: every useTheme (the header button, the switch in Configurações) reads it.
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+const current = (): Theme => (document.documentElement.classList.contains("dark") ? "dark" : "light");
+
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>("light");
-  useEffect(() => {
-    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
-  }, []);
+  const theme = useSyncExternalStore(subscribe, current, (): Theme => "light");
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
     apply(next);
-    setTheme(next);
+    listeners.forEach((listener) => listener());
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {

@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { Download, Loader2, LogOut, RefreshCw, X } from "lucide-react";
+import { Bell, Download, Dumbbell, Info, Link2, Loader2, LogOut, Moon, RefreshCw, UserRound, X, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
 import { today } from "@/lib/store";
 import { useCloseCalendar } from "@/components/AppShell";
 import { HealthPanel } from "@/components/HealthPanel";
 import { InvitesPanel } from "@/components/InvitesPanel";
-import { SettingsPanel } from "@/components/SettingsPanel";
+import { NotificationSettings, ReminderSettings, RestSetting } from "@/components/SettingsPanel";
+import { Switch } from "@/components/ui/switch";
+import { useTheme } from "@/lib/theme";
 import { StravaCard } from "@/components/StravaCard";
 import { logout, useAuth } from "@/lib/auth";
 import { updateApp, useAppVersion } from "@/lib/offline";
@@ -22,6 +24,31 @@ export const Route = createFileRoute("/configuracoes")({
   }),
   component: ConfiguracoesPage,
 });
+
+const GROUPS = [
+  { id: "treino", label: "Treino", icon: Dumbbell },
+  { id: "notificacoes", label: "Notificações", icon: Bell },
+  { id: "aparencia", label: "Aparência", icon: Moon },
+  { id: "conexoes", label: "Conexões", icon: Link2 },
+  { id: "conta", label: "Conta e dados", icon: UserRound },
+  { id: "sobre", label: "Sobre o app", icon: Info },
+] as const;
+
+type GroupId = (typeof GROUPS)[number]["id"];
+
+/** One category of the settings: a small heading (the target of the shortcuts at the top) and its cards. */
+function Group({ id, title, children }: { id: GroupId; title?: string; children: ReactNode }) {
+  const group = GROUPS.find((g) => g.id === id)!;
+  const Icon: LucideIcon = group.icon;
+  return (
+    <section id={id} aria-labelledby={`${id}-titulo`} className="scroll-mt-24 space-y-3">
+      <h2 id={`${id}-titulo`} className="flex items-center gap-2 px-1 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+        <Icon className="h-4 w-4" aria-hidden />{title ?? group.label}
+      </h2>
+      {children}
+    </section>
+  );
+}
 
 function ConfiguracoesPage() {
   const close = useCloseCalendar();
@@ -38,29 +65,67 @@ function ConfiguracoesPage() {
         </button>
       </div>
 
-      <SettingsPanel />
+      <nav aria-label="Categorias" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {GROUPS.filter((g) => g.id !== "sobre").map(({ id, label, icon: Icon }) => (
+          <a key={id} href={`#${id}`} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-semibold">
+            <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />{label}
+          </a>
+        ))}
+      </nav>
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
-        <div>
-          <h2 className="text-xl font-bold">Conta</h2>
-          <p className="text-sm text-muted-foreground">{user?.email}{isAdmin ? " · administrador" : ""}</p>
-        </div>
-        <button onClick={() => { if (confirm("Sair da sua conta neste aparelho?")) void logout(); }}
-          className="inline-flex items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold">
-          <LogOut className="h-4 w-4" />Sair
-        </button>
-      </section>
+      <Group id="treino">
+        <RestSetting />
+      </Group>
 
-      <AppVersion />
+      <Group id="notificacoes" title="Notificações e lembretes">
+        <NotificationSettings />
+        <ReminderSettings />
+      </Group>
 
-      <ExportData />
+      <Group id="aparencia">
+        <ThemeSetting />
+      </Group>
 
-      <StravaCard />
+      <Group id="conexoes">
+        <StravaCard />
+        <HealthPanel />
+      </Group>
 
-      <HealthPanel />
+      <Group id="conta">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold">Conta</h3>
+            <p className="text-sm text-muted-foreground">{user?.email}{isAdmin ? " · administrador" : ""}</p>
+          </div>
+          <button onClick={() => { if (confirm("Sair da sua conta neste aparelho?")) void logout(); }}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold">
+            <LogOut className="h-4 w-4" />Sair
+          </button>
+        </section>
+        <ExportData />
+        {isAdmin && <InvitesPanel />}
+      </Group>
 
-      {isAdmin && <InvitesPanel />}
+      <Group id="sobre">
+        <AppVersion />
+      </Group>
     </div>
+  );
+}
+
+/** Aparência: the same light/dark switch as the moon/sun in the header. */
+function ThemeSetting() {
+  const [theme, toggle] = useTheme();
+  return (
+    <section className="rounded-3xl border border-border bg-card p-6">
+      <label className="flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-xl font-bold">Modo escuro</span>
+          <span className="block text-sm text-muted-foreground">Vale para este aparelho. Também dá para trocar pela lua no topo.</span>
+        </span>
+        <Switch checked={theme === "dark"} onCheckedChange={toggle} />
+      </label>
+    </section>
   );
 }
 
@@ -80,7 +145,7 @@ function AppVersion() {
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
       <div className="min-w-0">
-        <h2 className="text-xl font-bold">Versão do app</h2>
+        <h3 className="text-xl font-bold">Versão do app</h3>
         <p className="text-sm text-muted-foreground">
           Neste aparelho: <span className="font-mono text-foreground">{version ?? "—"}</span>. O app também procura sozinho sempre que é aberto.
         </p>
@@ -129,7 +194,7 @@ function ExportData() {
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
       <div className="min-w-0">
-        <h2 className="text-xl font-bold">Cópia dos seus dados</h2>
+        <h3 className="text-xl font-bold">Cópia dos seus dados</h3>
         <p className="text-sm text-muted-foreground">Um arquivo com tudo o que a conta guarda: perfil, refeições, pesagens, treinos e saúde.</p>
       </div>
       <button type="button" onClick={() => void run()} disabled={busy} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-input px-4 py-2 text-sm font-semibold disabled:opacity-60">
