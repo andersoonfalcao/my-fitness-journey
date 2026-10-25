@@ -62,6 +62,8 @@
 }
 
 :root {
+  /* Native controls, scrollbars and the browser's own dark mode follow the app's theme, not the phone's. */
+  color-scheme: light;
   --radius: 0.875rem;
   --background: oklch(0.975 0.014 85);
   --foreground: oklch(0.26 0.045 160);
@@ -158,6 +160,8 @@
     }
   }
 
+  /* The page colour also behind the content: overscroll, short pages and the edges around the app. */
+  html,
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "forma.theme";
-// Status bar / browser chrome colour for each theme (the card green in light, the page green in dark).
-const BAR_COLOR: Record<Theme, string> = { light: "#124830", dark: "#18241e" };
+// Status bar / browser chrome colour for each theme: the page background, so the top of the screen matches the app.
+const BAR_COLOR: Record<Theme, string> = { light: "#fbf6ec", dark: "#0d1913" };
 
 /**
  * Runs inline in <head> before the page paints, so a dark device never flashes the light theme.
