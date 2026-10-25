@@ -11,7 +11,7 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "regex": "^/[^.]*$",
         "destination": "/_shell.html"
       }
     ],
