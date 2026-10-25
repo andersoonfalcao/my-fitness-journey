@@ -8,7 +8,9 @@ const PRECACHE = __PRECACHE__;
 const SHELL = "/_shell.html";
 const CACHE = `forma-${VERSION}`;
 const RUNTIME = "forma-runtime";
-const STATIC_FILES = ["/manifest.webmanifest", "/favicon-32.png", "/app-icon-180.png", "/app-icon-192.png", "/app-icon-512.png", "/icon-192.png"];
+// The home-screen icon and the manifest are left to the browser (never answered from here): Safari shows a blank
+// letter instead of the icon on "Adicionar à Tela de Início" when they come from the service worker.
+const STATIC_FILES = ["/favicon-32.png", "/icon-192.png"];
 /** A slow connection waits this long for a fresh page before the saved one is used. */
 const NETWORK_TIMEOUT_MS = 3500;
 
