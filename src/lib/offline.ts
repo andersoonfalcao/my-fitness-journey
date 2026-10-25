@@ -42,3 +42,20 @@ export function useAppVersion() {
   }, []);
   return version;
 }
+
+/**
+ * The "Atualizar o app" button in Configurações: looks for a new version now. When there is one, the page reloads
+ * by itself as soon as it takes over (see registerServiceWorker); otherwise the page is reloaded from the network.
+ */
+export async function updateApp(): Promise<"nova" | "atual"> {
+  const registration = typeof navigator !== "undefined" ? await navigator.serviceWorker?.getRegistration() : undefined;
+  if (!registration) {
+    window.location.reload();
+    return "atual";
+  }
+  if (!navigator.onLine) throw new Error("Sem internet. Conecte e tente de novo.");
+  await registration.update();
+  if (registration.installing || registration.waiting) return "nova";
+  window.location.reload();
+  return "atual";
+}

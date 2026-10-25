@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { Download, Loader2, LogOut, X } from "lucide-react";
+import { Download, Loader2, LogOut, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
 import { today } from "@/lib/store";
@@ -11,7 +11,7 @@ import { InvitesPanel } from "@/components/InvitesPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { StravaCard } from "@/components/StravaCard";
 import { logout, useAuth } from "@/lib/auth";
-import { useAppVersion } from "@/lib/offline";
+import { updateApp, useAppVersion } from "@/lib/offline";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
@@ -51,6 +51,8 @@ function ConfiguracoesPage() {
         </button>
       </section>
 
+      <AppVersion />
+
       <ExportData />
 
       <StravaCard />
@@ -58,20 +60,35 @@ function ConfiguracoesPage() {
       <HealthPanel />
 
       {isAdmin && <InvitesPanel />}
-
-      <AppVersion />
     </div>
   );
 }
 
-/** Which build this device runs, to tell whether an update has arrived. */
+/** Which build this device runs, and a button to fetch the newest one right away. */
 function AppVersion() {
   const version = useAppVersion();
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      if ((await updateApp()) === "nova") toast("Baixando a versão nova…", { description: "O app recarrega sozinho em alguns segundos." });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível procurar atualização.");
+      setBusy(false);
+    }
+  };
   return (
-    <p className="text-center text-xs text-muted-foreground">
-      Versão do app: <span className="font-mono">{version ?? "—"}</span>
-      <br />O app procura atualização sempre que é aberto e recarrega sozinho quando chega uma nova.
-    </p>
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+      <div className="min-w-0">
+        <h2 className="text-xl font-bold">Versão do app</h2>
+        <p className="text-sm text-muted-foreground">
+          Neste aparelho: <span className="font-mono text-foreground">{version ?? "—"}</span>. O app também procura sozinho sempre que é aberto.
+        </p>
+      </div>
+      <button type="button" onClick={() => void run()} disabled={busy} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+        <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />Atualizar o app
+      </button>
+    </section>
   );
 }
 
