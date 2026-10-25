@@ -11,6 +11,7 @@ import { InvitesPanel } from "@/components/InvitesPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { StravaCard } from "@/components/StravaCard";
 import { logout, useAuth } from "@/lib/auth";
+import { useAppVersion } from "@/lib/offline";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
@@ -57,7 +58,20 @@ function ConfiguracoesPage() {
       <HealthPanel />
 
       {isAdmin && <InvitesPanel />}
+
+      <AppVersion />
     </div>
+  );
+}
+
+/** Which build this device runs, to tell whether an update has arrived. */
+function AppVersion() {
+  const version = useAppVersion();
+  return (
+    <p className="text-center text-xs text-muted-foreground">
+      Versão do app: <span className="font-mono">{version ?? "—"}</span>
+      <br />O app procura atualização sempre que é aberto e recarrega sozinho quando chega uma nova.
+    </p>
   );
 }
 

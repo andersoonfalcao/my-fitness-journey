@@ -1,9 +1,10 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sun, User } from "lucide-react";
+import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
 import { useTheme } from "@/lib/theme";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
 import { PushNotice } from "@/components/PushNotice";
+import { CoachChat } from "@/components/CoachChat";
 
 /** Leaves the calendar back to the screen it was opened from (or Hoje when opened directly). */
 export function useCloseCalendar() {
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname, hash } = useLocation();
   const closeCalendar = useCloseCalendar();
   const [theme, toggleTheme] = useTheme();
+  const [coachOpen, setCoachOpen] = useState(false);
   // Tapping the calendar (or the gear) again while it is open closes it.
   const toggle = (to: string) => (event: { preventDefault: () => void }) => {
     if (pathname !== to) return;
@@ -76,6 +78,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setCoachOpen(true)} aria-label="Pergunte ao forma" title="Pergunte ao forma"
+              className="rounded-full p-2.5 text-accent hover:text-foreground">
+              <Sparkles className="h-6 w-6" />
+            </button>
             <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
               <CalendarDays className="h-6 w-6" />
             </Link>
@@ -89,6 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
+      <CoachChat open={coachOpen} onOpenChange={setCoachOpen} />
       <main className="mx-auto max-w-5xl px-4 py-6">
         {pathname === "/" && <PushNotice />}
         {children}

@@ -97,6 +97,8 @@ self.addEventListener("fetch", (event) => {
 // Old runtime copies of images from earlier builds pile up; keep the runtime cache to a sane size.
 const RUNTIME_LIMIT = 400;
 self.addEventListener("message", (event) => {
+  // Configurações shows which version this device runs.
+  if (event.data === "version") return event.ports[0]?.postMessage({ version: VERSION });
   if (event.data !== "trim") return;
   event.waitUntil(
     (async () => {
