@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { Bell, Download, Dumbbell, Info, Link2, Loader2, LogOut, Moon, RefreshCw, UserRound, X, type LucideIcon } from "lucide-react";
+import { Bell, ChevronDown, Download, Dumbbell, Info, Link2, Loader2, LogOut, Moon, RefreshCw, UserRound, X, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
 import { today } from "@/lib/store";
@@ -36,16 +36,44 @@ const GROUPS = [
 
 type GroupId = (typeof GROUPS)[number]["id"];
 
-/** One category of the settings: a small heading (the target of the shortcuts at the top) and its cards. */
+// Which categories are open, kept on this device; all start closed so the screen opens short.
+const OPEN_KEY = "forma.config.open";
+const Open = createContext<{ open: Set<GroupId>; toggle: (id: GroupId) => void }>({ open: new Set(), toggle: () => {} });
+
+function loadOpen(): Set<GroupId> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(OPEN_KEY) ?? "[]") as unknown;
+    return new Set(Array.isArray(saved) ? (saved as GroupId[]).filter((id) => GROUPS.some((g) => g.id === id)) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveOpen(open: Set<GroupId>) {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify([...open]));
+  } catch {
+    // Private mode or blocked storage: the choice lasts while the screen is open.
+  }
+}
+
+/** One category of the settings: a heading that opens and closes it (also the target of the shortcuts at the top). */
 function Group({ id, title, children }: { id: GroupId; title?: string; children: ReactNode }) {
+  const { open, toggle } = useContext(Open);
   const group = GROUPS.find((g) => g.id === id)!;
   const Icon: LucideIcon = group.icon;
+  const expanded = open.has(id);
   return (
-    <section id={id} aria-labelledby={`${id}-titulo`} className="scroll-mt-24 space-y-3">
-      <h2 id={`${id}-titulo`} className="flex items-center gap-2 px-1 text-sm font-bold uppercase tracking-widest text-muted-foreground">
-        <Icon className="h-4 w-4" aria-hidden />{title ?? group.label}
+    <section id={id} className="scroll-mt-24 space-y-3">
+      <h2>
+        <button type="button" onClick={() => toggle(id)} aria-expanded={expanded} aria-controls={`${id}-conteudo`}
+          className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 text-left">
+          <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="flex-1 font-display text-lg font-bold">{title ?? group.label}</span>
+          <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
+        </button>
       </h2>
-      {children}
+      {expanded && <div id={`${id}-conteudo`} className="space-y-3">{children}</div>}
     </section>
   );
 }
@@ -53,8 +81,22 @@ function Group({ id, title, children }: { id: GroupId; title?: string; children:
 function ConfiguracoesPage() {
   const close = useCloseCalendar();
   const { user, isAdmin } = useAuth();
+  const [open, setOpen] = useState<Set<GroupId>>(loadOpen);
+  const update = (next: Set<GroupId>) => { setOpen(next); saveOpen(next); };
+  const toggle = (id: GroupId) => {
+    const next = new Set(open);
+    if (!next.delete(id)) next.add(id);
+    update(next);
+  };
+  // A shortcut opens its category and goes to it.
+  const go = (id: GroupId) => {
+    if (!open.has(id)) update(new Set(open).add(id));
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+  const allOpen = open.size === GROUPS.length;
   return (
-    <div className="space-y-8">
+    <Open.Provider value={{ open, toggle }}>
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-bold uppercase tracking-widest text-accent">Configurações</p>
@@ -67,11 +109,17 @@ function ConfiguracoesPage() {
 
       <nav aria-label="Categorias" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {GROUPS.filter((g) => g.id !== "sobre").map(({ id, label, icon: Icon }) => (
-          <a key={id} href={`#${id}`} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-semibold">
+          <button key={id} type="button" onClick={() => go(id)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-semibold">
             <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />{label}
-          </a>
+          </button>
         ))}
       </nav>
+      <div className="flex justify-end">
+        <button type="button" onClick={() => update(allOpen ? new Set() : new Set(GROUPS.map((g) => g.id)))}
+          className="min-h-11 px-1 text-sm font-semibold text-primary underline-offset-4 hover:underline">
+          {allOpen ? "Fechar tudo" : "Abrir tudo"}
+        </button>
+      </div>
 
       <Group id="treino">
         <RestSetting />
@@ -110,6 +158,7 @@ function ConfiguracoesPage() {
         <AppVersion />
       </Group>
     </div>
+    </Open.Provider>
   );
 }
 
