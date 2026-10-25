@@ -923,7 +923,7 @@ function TreinosPage() {
                     />
                   )}
                   {/* "Concluir" for one set is in the middle of the circle; marking all that are left stays here. */}
-                  {tracksSets && setsLeft > 1 && !holding && (
+                  {tracksSets && setsLeft > 1 && !holding && !session?.rest && (
                     <button type="button" onClick={() => onComplete(setsLeft)}
                       className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline">
                       <ListChecks className="h-4 w-4" />{setsDone === 0 ? `Concluir as ${setsLeft} séries de uma vez` : `Concluir as ${setsLeft} restantes de uma vez`}
