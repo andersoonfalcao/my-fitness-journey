@@ -759,12 +759,13 @@ function TreinosPage() {
                   </div>
                 )}
 
-                {/* Also before the workout starts (0 done), so today's workout already shows its sets. */}
-                {tracksSets && (
-                  <SetsAndRest
+                {/* On every card: today's workout (also before it starts), the one finished today (its sets done)
+                    and the ones only to look at (just the number of sets). */}
+                <SetsAndRest
                     total={it.sets}
                     done={setsDone}
-                    rest={session?.rest?.item === i ? session.rest : undefined}
+                    caption={tracksSets ? undefined : doneEx ? `${setsDone} de ${it.sets} séries feitas` : `${it.sets} séries de ${it.reps}`}
+                    rest={tracksSets && session?.rest?.item === i ? session.rest : undefined}
                     restTotal={settings.restSeconds * 1000}
                     onAdd={(seconds) => {
                       const rest = session!.rest!;
@@ -774,7 +775,6 @@ function TreinosPage() {
                     onSkip={() => { cancelRestPush(); setSession((s) => s && { ...s, rest: undefined }); }}
                     onDone={() => setSession((s) => s && { ...s, rest: undefined })}
                   />
-                )}
                 <div className="mt-3 border-t border-border pt-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-xs">
                     <span className="inline-flex items-center gap-2 font-bold text-muted-foreground">
@@ -1392,8 +1392,10 @@ const INNER_C = 2 * Math.PI * INNER_R;
  * The open exercise during a workout: one circle with two rings. The outer one has a piece per set, green once
  * done; the inner one is the rest, emptying as it runs out.
  */
-function SetsAndRest({ total, done, rest, restTotal, onAdd, onSkip, onDone }: {
+function SetsAndRest({ total, done, caption, rest, restTotal, onAdd, onSkip, onDone }: {
   total: number; done: number; rest: WorkoutSession["rest"]; restTotal: number;
+  /** Replaces "Série N de M" on a workout that is only there to look at. */
+  caption?: string | undefined;
   onAdd: (seconds: number) => void; onSkip: () => void; onDone: () => void;
 }) {
   const left = useRestLeft(rest?.endsAt ?? null, rest?.next ?? "", onDone);
@@ -1409,7 +1411,8 @@ function SetsAndRest({ total, done, rest, restTotal, onAdd, onSkip, onDone }: {
         <svg viewBox="0 0 236 236" className="h-full w-full -rotate-90" aria-hidden>
           <circle cx="118" cy="118" r={OUTER_R} fill="none" strokeWidth="16" className="stroke-border" strokeDasharray={pieces(total).replace(` 0 ${OUTER_C}`, "")} />
           <circle cx="118" cy="118" r={OUTER_R} fill="none" strokeWidth="16" className="stroke-[#3f9d6b] transition-all duration-300" strokeDasharray={pieces(done)} />
-          {!allDone && (
+          {/* The set up next, only on the workout being done (a workout to look at has no "next"). */}
+          {!allDone && caption === undefined && (
             <circle cx="118" cy="118" r={OUTER_R} fill="none" strokeWidth="16" className="stroke-accent opacity-60" strokeDasharray={`${seg} ${OUTER_C}`} strokeDashoffset={-done * (seg + gap)} />
           )}
           <circle cx="118" cy="118" r={INNER_R} fill="none" strokeWidth="12" className="stroke-muted" />
@@ -1424,7 +1427,7 @@ function SetsAndRest({ total, done, rest, restTotal, onAdd, onSkip, onDone }: {
         </div>
       </div>
       <div className="flex min-w-0 flex-col gap-2">
-        <p className="text-sm font-bold">{resting ? `Depois: série ${done + 1} de ${total}` : allDone ? "Exercício concluído" : `Série ${done + 1} de ${total}`}</p>
+        <p className="text-sm font-bold">{resting ? `Depois: série ${done + 1} de ${total}` : allDone ? "Exercício concluído" : caption ?? `Série ${done + 1} de ${total}`}</p>
         <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#3f9d6b]" />fora: séries</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-accent" />dentro: descanso</span>
