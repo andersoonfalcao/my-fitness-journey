@@ -57,7 +57,7 @@ function saveOpen(open: Set<GroupId>) {
   }
 }
 
-/** One category of the settings: a heading that opens and closes it (also the target of the shortcuts at the top). */
+/** One category of the settings: a heading that opens and closes it. */
 function Group({ id, title, children }: { id: GroupId; title?: string; children: ReactNode }) {
   const { open, toggle } = useContext(Open);
   const group = GROUPS.find((g) => g.id === id)!;
@@ -88,11 +88,6 @@ function ConfiguracoesPage() {
     if (!next.delete(id)) next.add(id);
     update(next);
   };
-  // A shortcut opens its category and goes to it.
-  const go = (id: GroupId) => {
-    if (!open.has(id)) update(new Set(open).add(id));
-    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  };
   const allOpen = open.size === GROUPS.length;
   return (
     <Open.Provider value={{ open, toggle }}>
@@ -107,13 +102,6 @@ function ConfiguracoesPage() {
         </button>
       </div>
 
-      <nav aria-label="Categorias" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {GROUPS.filter((g) => g.id !== "sobre").map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" onClick={() => go(id)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-semibold">
-            <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />{label}
-          </button>
-        ))}
-      </nav>
       <div className="flex justify-end">
         <button type="button" onClick={() => update(allOpen ? new Set() : new Set(GROUPS.map((g) => g.id)))}
           className="min-h-11 px-1 text-sm font-semibold text-primary underline-offset-4 hover:underline">
