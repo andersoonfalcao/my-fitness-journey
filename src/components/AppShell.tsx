@@ -8,6 +8,8 @@ import { CoachChat } from "@/components/CoachChat";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { refreshApp } from "@/lib/offline";
+import { healthKey, isIos, runHealthShortcut, type HealthMonth } from "@/lib/health";
+import { today, useLocal } from "@/lib/store";
 
 /** Leaves the calendar back to the screen it was opened from (or Hoje when opened directly). */
 export function useCloseCalendar() {
@@ -172,13 +174,19 @@ export function NeedProfile() {
   );
 }
 
-/** Next to the calendar: Strava's new activities and the app's new version, in one tap (the page reloads at the end). */
+/**
+ * Next to the calendar, in one tap: on an iPhone whose Shortcut already sends Health data this month, runs it first
+ * (Mi Band); then Strava's new activities and the app's new version (the page reloads at the end).
+ */
 function RefreshButton() {
   const uid = useAuth().user?.uid;
+  const [health] = useLocal<HealthMonth>(healthKey(today()), {});
+  const usesShortcut = isIos() && Object.keys(health).length > 0;
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
     try {
+      if (usesShortcut) await runHealthShortcut();
       const { strava, update } = await refreshApp(uid);
       const arrived = strava ? `${strava} ${strava === 1 ? "atividade nova" : "atividades novas"} do Strava. ` : "";
       if (update === "nova") toast(`${arrived}Baixando a versão nova…`, { description: "O app recarrega sozinho em alguns segundos." });
@@ -188,7 +196,7 @@ function RefreshButton() {
     }
   };
   return (
-    <button type="button" onClick={() => void run()} disabled={busy} aria-label="Recarregar: versão nova do app e atividades do Strava" title="Recarregar"
+    <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Recarregar: ${usesShortcut ? "dados da Mi Band, " : ""}atividades do Strava e versão nova do app`} title="Recarregar"
       className={`rounded-full p-2.5 hover:text-foreground ${busy ? "text-accent" : "text-muted-foreground"}`}>
       <RefreshCw className={`h-6 w-6 ${busy ? "animate-spin" : ""}`} />
     </button>

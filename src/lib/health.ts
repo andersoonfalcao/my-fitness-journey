@@ -108,3 +108,31 @@ export const healthStatus = () => call<{ hasKey: boolean; createdAt: number | nu
 export const createHealthKey = () => call<{ key: string }>("/health/key", { refreshToken: auth().currentUser?.refreshToken });
 
 export const revokeHealthKey = () => call<{ ok: boolean }>("/health/revoke", {});
+
+/** Name of the iPhone Shortcut, as in the steps of Configurações → Saúde do iPhone. */
+export const HEALTH_SHORTCUT = "forma Saúde";
+export const isIos = () =>
+  typeof navigator !== "undefined" && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
+/**
+ * Opens the Shortcuts app on the "forma Saúde" shortcut and resolves when the person comes back to forma (the
+ * shortcut posts to the Worker meanwhile). Resolves right away if the Shortcuts app didn't open within 3 s.
+ * Must be called straight from the tap, before any await, or iOS may not open it.
+ */
+export function runHealthShortcut(): Promise<void> {
+  return new Promise((resolve) => {
+    let left = false;
+    const fallback = setTimeout(() => { if (!left) done(); }, 3000);
+    const onChange = () => {
+      if (document.visibilityState === "hidden") left = true;
+      else if (left) done();
+    };
+    function done() {
+      clearTimeout(fallback);
+      document.removeEventListener("visibilitychange", onChange);
+      resolve();
+    }
+    document.addEventListener("visibilitychange", onChange);
+    window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(HEALTH_SHORTCUT)}`;
+  });
+}
