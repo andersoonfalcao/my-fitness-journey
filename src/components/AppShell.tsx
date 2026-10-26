@@ -7,7 +7,7 @@ import { PushNotice } from "@/components/PushNotice";
 import { CoachChat } from "@/components/CoachChat";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { refreshApp } from "@/lib/offline";
+import { syncStrava } from "@/lib/strava";
 import { healthKey, isIos, runHealthShortcut, type HealthMonth } from "@/lib/health";
 import { today, useLocal } from "@/lib/store";
 
@@ -175,8 +175,8 @@ export function NeedProfile() {
 }
 
 /**
- * Next to the calendar, in one tap: on an iPhone whose Shortcut already sends Health data this month, runs it first
- * (Mi Band); then Strava's new activities and the app's new version (the page reloads at the end).
+ * Next to the calendar, data only: on an iPhone whose Shortcut already sends Health data this month, runs it first
+ * (Mi Band), then brings Strava's new activities. Screens update live; new versions come by themselves or in Configurações.
  */
 function RefreshButton() {
   const uid = useAuth().user?.uid;
@@ -187,16 +187,19 @@ function RefreshButton() {
     setBusy(true);
     try {
       if (usesShortcut) await runHealthShortcut();
-      const { strava, update } = await refreshApp(uid);
-      const arrived = strava ? `${strava} ${strava === 1 ? "atividade nova" : "atividades novas"} do Strava. ` : "";
-      if (update === "nova") toast(`${arrived}Baixando a versão nova…`, { description: "O app recarrega sozinho em alguns segundos." });
+      if (!navigator.onLine) throw new Error("Sem internet. Conecte e tente de novo.");
+      const strava = uid ? await syncStrava(uid, true) : null;
+      const health = usesShortcut ? "Mi Band enviada. " : "";
+      toast.success(strava === null ? `${health}Strava não conectado.`
+        : `${health}${strava ? `${strava} ${strava === 1 ? "atividade nova" : "atividades novas"} do Strava.` : "Nada novo no Strava."}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível recarregar.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar os dados.");
+    } finally {
       setBusy(false);
     }
   };
   return (
-    <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Recarregar: ${usesShortcut ? "dados da Mi Band, " : ""}atividades do Strava e versão nova do app`} title="Recarregar"
+    <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Atualizar os dados: ${usesShortcut ? "Mi Band e " : ""}Strava`} title="Atualizar os dados"
       className={`rounded-full p-2.5 hover:text-foreground ${busy ? "text-accent" : "text-muted-foreground"}`}>
       <RefreshCw className={`h-6 w-6 ${busy ? "animate-spin" : ""}`} />
     </button>

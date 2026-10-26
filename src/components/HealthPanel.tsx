@@ -101,7 +101,7 @@ export function HealthPanel() {
           <li><b>Obter Conteúdo do URL</b> com o <b>Endereço</b> acima, Método <b>POST</b>, Cabeçalho <b>Authorization</b> = <b>Bearer</b> + espaço + a <b>Chave</b>. Corpo <b>JSON</b>, todos como Texto: <i>stepValues</i> = passosValor, <i>stepStarts</i> = passosInicio, <i>stepEnds</i> = passosFim, <i>stepSources</i> = passosFonte, <i>kcalValues</i> = energiaValor, <i>kcalStarts</i> = energiaInicio, <i>kcalEnds</i> = energiaFim, <i>kcalSources</i> = energiaFonte, <i>distValues</i> = distValor, <i>distStarts</i> = distInicio, <i>distEnds</i> = distFim, <i>distSources</i> = distFonte,<i>heartRates</i> = batimentos, <i>sleepValues</i> = sonoTipo, <i>sleepStarts</i> = sonoInicio, <i>sleepEnds</i> = sonoFim, <i>vo2max</i> = vo2.</li>
           <li>Termine com <b>Mostrar Resultado</b> (o conteúdo do URL). Rode uma vez e permita o acesso ao Saúde: deve aparecer “forma recebeu: …”.</li>
           <li>Em <b>Automação</b> → <b>+</b> → <b>App</b> → <b>Mi Fitness</b> → <b>É Aberto</b> → <b>Executar Imediatamente</b> → atalho <b>forma Saúde</b>. Assim ele roda sempre que a Mi Band sincroniza, com o iPhone desbloqueado.</li>
-          <li>Para mandar na hora, toque no botão de recarregar ao lado do calendário, no topo: ele abre o atalho <b>forma Saúde</b> (com esse nome) e, quando você volta ao forma, traz o Strava e atualiza o app.</li>
+          <li>Para mandar na hora, toque no botão de recarregar ao lado do calendário, no topo: ele abre o atalho <b>forma Saúde</b> (com esse nome) e, quando você volta ao forma, traz o Strava.</li>
         </ol>
       </details>
 
