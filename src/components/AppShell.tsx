@@ -1,10 +1,13 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
+import { CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useEffect, useState, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
 import { PushNotice } from "@/components/PushNotice";
 import { CoachChat } from "@/components/CoachChat";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { refreshApp } from "@/lib/offline";
 
 /** Leaves the calendar back to the screen it was opened from (or Hoje when opened directly). */
 export function useCloseCalendar() {
@@ -83,6 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={`rounded-full p-2.5 hover:text-foreground ${coachOpen ? "text-accent" : "text-muted-foreground"}`}>
               <Sparkles className="h-6 w-6" />
             </button>
+            <RefreshButton />
             <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground hover:text-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
               <CalendarDays className="h-6 w-6" />
             </Link>
@@ -165,5 +169,28 @@ export function NeedProfile() {
         Preencher perfil
       </Link>
     </div>
+  );
+}
+
+/** Next to the calendar: Strava's new activities and the app's new version, in one tap (the page reloads at the end). */
+function RefreshButton() {
+  const uid = useAuth().user?.uid;
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const { strava, update } = await refreshApp(uid);
+      const arrived = strava ? `${strava} ${strava === 1 ? "atividade nova" : "atividades novas"} do Strava. ` : "";
+      if (update === "nova") toast(`${arrived}Baixando a versão nova…`, { description: "O app recarrega sozinho em alguns segundos." });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível recarregar.");
+      setBusy(false);
+    }
+  };
+  return (
+    <button type="button" onClick={() => void run()} disabled={busy} aria-label="Recarregar: versão nova do app e atividades do Strava" title="Recarregar"
+      className={`rounded-full p-2.5 hover:text-foreground ${busy ? "text-accent" : "text-muted-foreground"}`}>
+      <RefreshCw className={`h-6 w-6 ${busy ? "animate-spin" : ""}`} />
+    </button>
   );
 }

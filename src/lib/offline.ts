@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { waitForPendingWrites } from "firebase/firestore";
+import { db } from "./firebase";
+import { syncStrava } from "./strava";
 
 /**
  * Registers the service worker (`dist/client/sw.js`, generated at build time by scripts/build-sw.mjs) so the
@@ -58,4 +61,15 @@ export async function updateApp(): Promise<"nova" | "atual"> {
   if (registration.installing || registration.waiting) return "nova";
   window.location.reload();
   return "atual";
+}
+
+/**
+ * The header's reload button: brings Strava's new activities, waits (a few seconds at most) for them to reach the
+ * account, then looks for a new version and reloads (see updateApp). Returns how many activities arrived.
+ */
+export async function refreshApp(uid: string | undefined): Promise<{ strava: number | null; update: "nova" | "atual" }> {
+  if (!navigator.onLine) throw new Error("Sem internet. Conecte e tente de novo.");
+  const strava = uid ? await syncStrava(uid, true).catch(() => null) : null;
+  await Promise.race([waitForPendingWrites(db()), new Promise((resolve) => setTimeout(resolve, 4000))]);
+  return { strava, update: await updateApp() };
 }
