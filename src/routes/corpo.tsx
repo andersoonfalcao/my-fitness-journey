@@ -6,7 +6,7 @@ import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, ReferenceL
 import { BodyMeasures } from "@/components/BodyMeasures";
 import { HealthTrends } from "@/components/HealthTrends";
 import { FitnessCard } from "@/components/FitnessCard";
-import { fmtKg, KEYS, roundKg, today, useLocal, type BodyEntry, type Profile, type WeightEntry } from "@/lib/store";
+import { fmtKg, KEYS, roundKg, searchDay, today, useLocal, type BodyEntry, type Profile, type WeightEntry } from "@/lib/store";
 import { NeedProfile } from "@/components/AppShell";
 import { WeightPace } from "@/components/WeightInsights";
 import { weightTrend } from "@/lib/insights";
@@ -21,7 +21,11 @@ export const Route = createFileRoute("/corpo")({
     ],
   }),
   // ?aba=evolucao opens the progress (numbers, charts, history); the default tab is for logging.
-  validateSearch: (search: Record<string, unknown>): { aba?: "evolucao" } => (search["aba"] === "evolucao" ? { aba: "evolucao" } : {}),
+  // ?dia=YYYY-MM-DD fills that day in the weigh-in and bioimpedance dates (the Calendário's "preencher").
+  validateSearch: (search: Record<string, unknown>): { aba?: "evolucao"; dia?: string } => {
+    const dia = searchDay(search["dia"]);
+    return { ...(search["aba"] === "evolucao" ? { aba: "evolucao" as const } : {}), ...(dia ? { dia } : {}) };
+  },
   component: CorpoPage,
 });
 
@@ -59,13 +63,13 @@ const FIELDS: { key: Exclude<keyof BodyEntry, "date">; label: string; unit: stri
 ];
 
 function CorpoPage() {
-  const tab = Route.useSearch().aba ?? "registrar";
+  const { aba: tab = "registrar", dia } = Route.useSearch();
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [weights, setWeights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [body, setBody] = useLocal<BodyEntry[]>(KEYS.body, []);
   const [kg, setKg] = useState("");
-  const [date, setDate] = useState(today());
-  const [bioDate, setBioDate] = useState(today());
+  const [date, setDate] = useState(dia ?? today());
+  const [bioDate, setBioDate] = useState(dia ?? today());
   const [bio, setBio] = useState<Record<string, string>>({});
 
   if (!ready) return null;
@@ -298,6 +302,7 @@ function CorpoPage() {
             <span className="text-sm text-muted-foreground">kg</span>
           </span>
           <button onClick={add} className="min-h-11 rounded-full bg-accent px-6 font-bold text-accent-foreground">Salvar</button>
+          {dia && dia !== today() && <Link to="/calendario" search={{ dia }} className="col-span-2 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">Voltar ao calendário</Link>}
         </div>
       </section>
 

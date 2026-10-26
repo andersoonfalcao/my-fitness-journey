@@ -16,6 +16,7 @@ import {
   foodsKey,
   KEYS,
   targets,
+  today,
   useHistory,
   useLocal,
   waterKey,
@@ -31,8 +32,11 @@ import {
 const MEAL_NAMES = [["cafe", "café da manhã"], ["almoco", "almoço"], ["lanche", "lanche"], ["jantar", "jantar"]] as const;
 const num = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
-/** "Close the day": checklist of today's records and an AI review saved to the account (past days live in the Calendário). */
-export function DayClose({ profile, date }: { profile: Profile; date: string }) {
+/**
+ * "Close the day": checklist of the day's records and an AI review saved to the account.
+ * Today's is on Hoje; `embedded` is the Calendário's, for any past day, inside its dialog.
+ */
+export function DayClose({ profile, date, embedded = false }: { profile: Profile; date: string; embedded?: boolean }) {
   const uid = useAuth().user?.uid;
   const [foods] = useLocal<FoodEntry[]>(foodsKey(date), []);
   const [water] = useLocal<WaterLog>(waterKey(date), {});
@@ -61,6 +65,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   const trained = lifted || cardioDone.length > 0;
   const weighed = weights.some((w) => w.date === date);
   const closed = days.find((d) => d.date === date);
+  const isToday = date === today();
 
   const close = async () => {
     if (!uid) return;
@@ -78,12 +83,17 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   };
 
   // Each item opens its section: where to fill it in while missing, where to see it once done.
+  // A past day opens food and weight on that day (?dia=); workouts can't be logged afterwards, so they open the history.
   type Target = { to: "/alimentacao" | "/treinos" | "/corpo"; hash?: string; history?: true; evolution?: true };
+  const searchOf = (target: Target) => {
+    const dia = !isToday && target.to !== "/treinos" && !target.evolution ? { dia: date } : {};
+    return target.history ? { aba: "historico" as const } : target.evolution ? { aba: "evolucao" as const } : dia;
+  };
   const checks: [string, boolean, string, Target][] = [
     // Complete only with all four meals logged, and the water target fully reached.
     ["Refeições", missingMeals.length === 0, meals.length ? `${kcal.toLocaleString("pt-BR")} de ${t.kcal.toLocaleString("pt-BR")} kcal · proteína ${protein}/${t.protein} g${missingMeals.length ? ` · falta: ${missingMeals.join(", ")}` : ""}` : "nada registrado", { to: "/alimentacao", hash: missingMeals.length ? "registrar" : "refeicoes" }],
     ["Água", waterMl >= t.waterMl, `${num(waterMl / 1000)} de ${num(t.waterMl / 1000)} L`, { to: "/alimentacao", hash: "agua" }],
-    ["Treino", trained, lifted ? "concluído" : trained ? `cardio concluído: ${[...new Set(cardioDone)].join(", ")}` : "sem treino concluído hoje", trained ? { to: "/treinos", history: true } : { to: "/treinos" }],
+    ["Treino", trained, lifted ? "concluído" : trained ? `cardio concluído: ${[...new Set(cardioDone)].join(", ")}` : `sem treino concluído ${isToday ? "hoje" : "neste dia"}`, trained || !isToday ? { to: "/treinos", history: true } : { to: "/treinos" }],
     ["Peso", weighed, weighed ? `${fmtKg(weights.find((w) => w.date === date)!.kg)} kg` : "não registrado (opcional)", weighed ? { to: "/corpo", hash: "evolucao", evolution: true } : { to: "/corpo", hash: "pesagem" }],
   ];
   if (routine.length) {
@@ -96,11 +106,13 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
   }
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border bg-card p-6">
+    <section className={embedded ? "space-y-4" : "space-y-4 rounded-3xl border border-border bg-card p-6"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <CalendarCheck className="h-5 w-5 text-accent" />
-          <h2 className="text-2xl font-bold">{closed ? "Dia fechado" : "Fechar o dia"}</h2>
+          {embedded
+            ? <h3 className="text-lg font-bold">{closed ? "Resumo do dia" : "Fechar este dia"}</h3>
+            : <h2 className="text-2xl font-bold">{closed ? "Dia fechado" : "Fechar o dia"}</h2>}
         </div>
         {closed && (
         <div className="flex flex-wrap gap-2">
@@ -119,25 +131,32 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
       <ShareDialog request={share} onClose={() => setShare(null)} />
 
       <ul className="grid gap-2 sm:grid-cols-2">
-        {checks.map(([label, ok, detail, target]) => (
+        {checks.map(([label, ok, detail, target]) => {
+          const fill = !ok && (isToday || target.to !== "/treinos");
+          return (
           <li key={label}>
-            <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} {...(target.history ? { search: { aba: "historico" as const } } : target.evolution ? { search: { aba: "evolucao" as const } } : {})} aria-label={`${label}: ${detail}. ${ok ? "Ver" : "Preencher"}`}
+            <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} search={searchOf(target)} aria-label={`${label}: ${detail}. ${fill ? "Preencher" : "Ver"}`}
               className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted active:bg-muted">
               <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
                 {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
               </span>
               <span className="min-w-0 flex-1 leading-tight"><b className="block">{label}</b><span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span></span>
-              <span className={`shrink-0 text-xs font-semibold ${ok ? "text-muted-foreground" : "text-accent"}`}>{ok ? "ver" : "preencher"}</span>
+              <span className={`shrink-0 text-xs font-semibold ${fill ? "text-accent" : "text-muted-foreground"}`}>{fill ? "preencher" : "ver"}</span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </Link>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {/* Not closed yet: the button comes after what is still missing, as the text says. */}
       {!closed && (
         <>
-          <p className="text-sm text-muted-foreground">Depois do treino e da última refeição, feche o dia para receber a análise da IA. Você pode gerar de novo se registrar algo depois.</p>
+          <p className="text-sm text-muted-foreground">
+            {isToday
+              ? "Depois do treino e da última refeição, feche o dia para receber a análise da IA. Você pode gerar de novo se registrar algo depois."
+              : "Toque no que faltou para preencher neste dia e depois gere a análise da IA. Você pode gerar de novo se registrar algo depois."}
+          </p>
           <Button type="button" onClick={() => void close()} disabled={busy} className="min-h-11 w-full rounded-full">
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? "Analisando o dia…" : "Gerar análise do dia"}
@@ -145,6 +164,7 @@ export function DayClose({ profile, date }: { profile: Profile; date: string }) 
         </>
       )}
       {closed && <DaySummary record={closed} />}
+      {closed && !isToday && <p className="text-xs text-muted-foreground">Registrou algo depois? Toque em “Gerar de novo” para atualizar o resumo.</p>}
 
     </section>
   );

@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Dumbbell, Share2, X } from "lucide-react";
 import { NeedProfile, useCloseCalendar } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DaySummary, dayShare } from "@/components/DayClose";
+import { DayClose } from "@/components/DayClose";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { StravaActivityDialog } from "@/components/StravaActivityDialog";
 import { workoutCard } from "@/lib/share-card";
@@ -14,6 +14,7 @@ import {
   fmtKg,
   foodsKey,
   KEYS,
+  searchDay,
   targets,
   today,
   useHistory,
@@ -38,6 +39,11 @@ export const Route = createFileRoute("/calendario")({
       { name: "description", content: "Os números de cada dia: calorias, água, treinos, Strava e peso." },
     ],
   }),
+  // ?dia=YYYY-MM-DD opens that day, so coming back from filling it in reopens it.
+  validateSearch: (search: Record<string, unknown>): { dia?: string } => {
+    const dia = searchDay(search["dia"]);
+    return dia ? { dia } : {};
+  },
   component: CalendarPage,
 });
 
@@ -58,8 +64,10 @@ function monthGrid(month: string) {
 function CalendarPage() {
   const closeCalendar = useCloseCalendar();
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
-  const [month, setMonth] = useState(today().slice(0, 7));
-  const [selected, setSelected] = useState<string | null>(null);
+  const selected = Route.useSearch().dia ?? null;
+  const navigate = useNavigate();
+  const setSelected = (dia: string | null) => void navigate({ to: "/calendario", search: dia ? { dia } : {}, replace: true });
+  const [month, setMonth] = useState((selected ?? today()).slice(0, 7));
   const first = `${month}-01`;
   const [foods] = useLocal<FoodEntry[]>(foodsKey(first), []);
   const [water] = useLocal<WaterLog>(waterKey(first), {});
@@ -300,16 +308,9 @@ function CalendarPage() {
           </div>
         )}
 
-        {sel.closed ? (
-          <div className="border-t border-border pt-4">
-            <h3 className="mb-3 font-bold">Resumo do dia</h3>
-            <DaySummary record={sel.closed} onShare={() => setShare(dayShare(sel.closed!))} />
-          </div>
-        ) : sel.eaten.length === 0 && sel.workouts.length === 0 && sel.strava.length === 0 && sel.cardio.length === 0 && !sel.waterMl && !sel.weight && !sel.bio && !sel.health ? (
-          <p className="text-sm text-muted-foreground">Nada registrado neste dia.</p>
-        ) : (
-          <p className="text-sm text-muted-foreground">Este dia não foi fechado. {sel.date === now ? "Feche o dia na tela Hoje para receber o resumo da IA." : ""}</p>
-        )}
+        <div className="border-t border-border pt-4">
+          <DayClose profile={profile} date={sel.date} embedded />
+        </div>
         </div>
         </>)}
         </DialogContent>
