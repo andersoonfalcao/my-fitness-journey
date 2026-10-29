@@ -45,6 +45,10 @@ export type Plan = {
   variation?: number | undefined;
   /** Circuit plans go through one set of each exercise in turn and rest at the end of the round. */
   circuit?: boolean | undefined;
+  /** The objective the plan was made for, as the person wrote or chose it in "Novo treino". */
+  goal?: string | undefined;
+  /** Put together by the AI from that objective (the method only sets the prescription of later swaps). */
+  ai?: boolean | undefined;
 };
 
 /** Sets, reps and rest the plan's method gives an exercise added by hand (as an accessory, never a main lift). */

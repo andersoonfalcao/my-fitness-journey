@@ -4,7 +4,7 @@ import { CalendarClock, Check, ChefHat, ChevronDown, Pencil, Search, Sparkles, S
 import { QuickMeals } from "@/components/QuickMeals";
 import { asItem, FAV_MEALS_KEY, frequentFoods, type FavItem, type FavMeal } from "@/lib/quick-foods";
 import { toast } from "sonner";
-import { foodsKey, KEYS, plannedKey, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
+import { foodsKey, KEYS, plannedKey, searchDay, targets, today, uid, useLocal, type FoodEntry, type MealType, type Profile } from "@/lib/store";
 import { searchFoods, type Food } from "@/lib/foods";
 import { estimateFood } from "@/lib/ai-food";
 import { WaterCard } from "@/components/WaterCard";
@@ -30,7 +30,11 @@ export const Route = createFileRoute("/alimentacao")({
     ],
   }),
   // ?aba=historico opens the history (7-day macros and past days); the default tab is for logging the day.
-  validateSearch: (search: Record<string, unknown>): { aba?: "historico" } => (search["aba"] === "historico" ? { aba: "historico" } : {}),
+  // ?dia=YYYY-MM-DD opens the log on that day (the Calendário's "preencher").
+  validateSearch: (search: Record<string, unknown>): { aba?: "historico"; dia?: string } => {
+    const dia = searchDay(search["dia"]);
+    return { ...(search["aba"] === "historico" ? { aba: "historico" as const } : {}), ...(dia ? { dia } : {}) };
+  },
   component: FoodPage,
 });
 
@@ -51,10 +55,10 @@ const monthBefore = (date: string) => {
 };
 
 function FoodPage() {
-  const tab = Route.useSearch().aba ?? "hoje";
+  const { aba: tab = "hoje", dia } = Route.useSearch();
   const navigate = useNavigate();
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(dia ?? today());
   const [foods, setFoods] = useLocal<FoodEntry[]>(foodsKey(date), []);
   const [prevMonthFoods] = useLocal<FoodEntry[]>(foodsKey(monthBefore(date)), []);
   const [, setFavs] = useLocal<FavMeal[]>(FAV_MEALS_KEY, []);
@@ -192,7 +196,10 @@ function FoodPage() {
           </p>
         )}
         {date !== today() && (
-          <button type="button" onClick={() => setDate(today())} className="mt-4 text-sm font-semibold underline underline-offset-4">Voltar para hoje</button>
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold">
+            {date === dia && <Link to="/calendario" search={{ dia }} className="underline underline-offset-4">Voltar ao calendário</Link>}
+            <button type="button" onClick={() => setDate(today())} className="underline underline-offset-4">Voltar para hoje</button>
+          </div>
         )}
       </section>
 

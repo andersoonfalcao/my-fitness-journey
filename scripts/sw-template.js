@@ -8,7 +8,9 @@ const PRECACHE = __PRECACHE__;
 const SHELL = "/_shell.html";
 const CACHE = `forma-${VERSION}`;
 const RUNTIME = "forma-runtime";
-const STATIC_FILES = ["/manifest.webmanifest", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"];
+// The home-screen icon and the manifest are left to the browser (never answered from here): Safari shows a blank
+// letter instead of the icon on "Adicionar à Tela de Início" when they come from the service worker.
+const STATIC_FILES = ["/favicon-32.png", "/icon-192.png"];
 /** A slow connection waits this long for a fresh page before the saved one is used. */
 const NETWORK_TIMEOUT_MS = 3500;
 
@@ -88,7 +90,8 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (request.mode === "navigate" && url.origin === self.location.origin) event.respondWith(page(request));
+  // Static .html pages (the icon test) are not the app: never answered or saved as its page.
+  if (request.mode === "navigate" && url.origin === self.location.origin && !url.pathname.endsWith(".html")) event.respondWith(page(request));
   else if (url.origin === self.location.origin && url.pathname.startsWith("/assets/")) event.respondWith(asset(request));
   else if (url.origin === self.location.origin && STATIC_FILES.includes(url.pathname)) event.respondWith(refreshing(request));
   else if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") event.respondWith(refreshing(request));
@@ -97,6 +100,8 @@ self.addEventListener("fetch", (event) => {
 // Old runtime copies of images from earlier builds pile up; keep the runtime cache to a sane size.
 const RUNTIME_LIMIT = 400;
 self.addEventListener("message", (event) => {
+  // Configurações shows which version this device runs.
+  if (event.data === "version") return event.ports[0]?.postMessage({ version: VERSION });
   if (event.data !== "trim") return;
   event.waitUntil(
     (async () => {

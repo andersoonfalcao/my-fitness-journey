@@ -1,9 +1,15 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Moon, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
+import { CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
 import { useTheme } from "@/lib/theme";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
 import { PushNotice } from "@/components/PushNotice";
+import { CoachChat } from "@/components/CoachChat";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { syncStrava } from "@/lib/strava";
+import { healthKey, isIos, runHealthShortcut, type HealthMonth } from "@/lib/health";
+import { today, useLocal } from "@/lib/store";
 
 /** Leaves the calendar back to the screen it was opened from (or Hoje when opened directly). */
 export function useCloseCalendar() {
@@ -35,6 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname, hash } = useLocation();
   const closeCalendar = useCloseCalendar();
   const [theme, toggleTheme] = useTheme();
+  const [coachOpen, setCoachOpen] = useState(false);
   // Tapping the calendar (or the gear) again while it is open closes it.
   const toggle = (to: string) => (event: { preventDefault: () => void }) => {
     if (pathname !== to) return;
@@ -43,7 +50,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
   const toggleCalendar = toggle("/calendario");
   const toggleSettings = toggle("/configuracoes");
-  const toggleAsk = toggle("/pergunte");
   useEffect(() => {
     if (!hash) return;
     let tries = 0;
@@ -77,10 +83,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-1">
-            <Link to="/pergunte" onClick={toggleAsk} aria-label={pathname === "/pergunte" ? "Fechar o Pergunte ao forma" : "Pergunte ao forma"} title="Pergunte ao forma" className="rounded-full p-2.5 text-muted-foreground hover:text-foreground" activeProps={{ className: "!text-accent" }}>
+            {/* Header icons are grey and turn orange only while their screen or panel is open. */}
+            <button type="button" onClick={() => setCoachOpen(true)} aria-label="Pergunte ao forma" title="Pergunte ao forma" aria-expanded={coachOpen}
+              className={`rounded-full p-2.5 hover:text-foreground ${coachOpen ? "text-accent" : "text-muted-foreground"}`}>
               <Sparkles className="h-6 w-6" />
-            </Link>
-            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
+            </button>
+            <RefreshButton />
+            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground hover:text-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
               <CalendarDays className="h-6 w-6" />
             </Link>
             <button type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={theme === "dark" ? "Desativar modo escuro" : "Ativar modo escuro"}
@@ -93,6 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
+      <CoachChat open={coachOpen} onOpenChange={setCoachOpen} />
       <main className="mx-auto max-w-5xl px-4 py-6">
         {pathname === "/" && <PushNotice />}
         {children}
@@ -161,5 +171,37 @@ export function NeedProfile() {
         Preencher perfil
       </Link>
     </div>
+  );
+}
+
+/**
+ * Next to the calendar, data only: on an iPhone whose Shortcut already sends Health data this month, runs it first
+ * (Mi Band), then brings Strava's new activities. Screens update live; new versions come by themselves or in Configurações.
+ */
+function RefreshButton() {
+  const uid = useAuth().user?.uid;
+  const [health] = useLocal<HealthMonth>(healthKey(today()), {});
+  const usesShortcut = isIos() && Object.keys(health).length > 0;
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      if (usesShortcut) await runHealthShortcut();
+      if (!navigator.onLine) throw new Error("Sem internet. Conecte e tente de novo.");
+      const strava = uid ? await syncStrava(uid, true) : null;
+      const health = usesShortcut ? "Mi Band enviada. " : "";
+      toast.success(strava === null ? `${health}Strava não conectado.`
+        : `${health}${strava ? `${strava} ${strava === 1 ? "atividade nova" : "atividades novas"} do Strava.` : "Nada novo no Strava."}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar os dados.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Atualizar os dados: ${usesShortcut ? "Mi Band e " : ""}Strava`} title="Atualizar os dados"
+      className={`rounded-full p-2.5 hover:text-foreground ${busy ? "text-accent" : "text-muted-foreground"}`}>
+      <RefreshCw className={`h-6 w-6 ${busy ? "animate-spin" : ""}`} />
+    </button>
   );
 }

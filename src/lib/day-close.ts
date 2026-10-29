@@ -1,6 +1,6 @@
 import { BEST_MODELS, generateJson, Schema } from "./ai";
 import { foodsKey, readCloudOnce, waterKey } from "./cloud-store";
-import { FEEL_LABEL, mealSlot, targets, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutFeel, type WorkoutRecord } from "./store";
+import { FEEL_LABEL, mealSlot, targets, today, type DayRecord, type FoodEntry, type Profile, type WaterLog, type WeightEntry, type WorkoutFeel, type WorkoutRecord } from "./store";
 import { lastRecordBefore, recordTotal } from "./workout-stats";
 import { byId, GROUP_LABEL } from "./exercises";
 import { sportLabel, stravaActivityDetail, stravaKey, type StravaActivity, type StravaDetail } from "./strava";
@@ -77,7 +77,10 @@ function monthsBetween(start: string, end: string) {
 type Inputs = { uid: string; date: string; profile: Profile; weights: WeightEntry[]; history: WorkoutRecord[] };
 
 /** Exact numbers of the day and since the start of tracking (computed here, never by the AI). */
-export async function dayNumbers({ uid, date, profile, weights, history }: Inputs): Promise<Omit<DayRecord, "ai" | "closedAt">> {
+export async function dayNumbers({ uid, date, profile, weights: allWeights, history: allHistory }: Inputs): Promise<Omit<DayRecord, "ai" | "closedAt">> {
+  // A past day (closed from the Calendário) sees only what had happened up to it.
+  const weights = allWeights.filter((w) => w.date <= date);
+  const history = allHistory.filter((r) => r.date <= date);
   const t = targets(profile, date);
   const sortedWeights = [...weights].sort((a, b) => a.date.localeCompare(b.date));
   const start = [sortedWeights[0]?.date, history[0]?.date].filter((d): d is string => !!d).sort()[0] ?? date;
@@ -196,7 +199,8 @@ export async function dayNumbers({ uid, date, profile, weights, history }: Input
 /** Builds the day's record: numbers from the app, review from Gemini. */
 export async function closeDay(inputs: Inputs): Promise<DayRecord> {
   const numbers = await dayNumbers(inputs);
-  const { profile, uid, date, weights } = inputs;
+  const { profile, uid, date } = inputs;
+  const weights = inputs.weights.filter((w) => w.date <= date);
   const before = addDays(date, -15);
   const [foodsNow, foodsBefore, healthNow, healthBefore] = await Promise.all([
     readCloudOnce<FoodEntry[]>(uid, foodsKey(date), []), readCloudOnce<FoodEntry[]>(uid, foodsKey(before), []),
@@ -216,6 +220,8 @@ export async function closeDay(inputs: Inputs): Promise<DayRecord> {
   // Weight training on Strava is today's workout as the band recorded it: one session, with Strava's effort and calories.
   const gym = numbers.day.workout ? numbers.day.strava?.find((a) => a.sport === sportLabel("WeightTraining")) : undefined;
   const prompt = JSON.stringify({
+    // Closed later from the Calendário: "hoje" is that day and "amanhã" the day after it.
+    ...(date < today() ? { diaAnalisado: `${date} (dia passado; trate "hoje" como esse dia)` } : {}),
     aluno: { nome: profile.name, objetivo: FOCUS_LABEL[profile.focus], nivel: profile.level, treinosPorSemana: profile.days },
     unidades: "calorias em kcal, macros em g, água em ml, peso em kg, volume de treino = soma de peso × repetições em kg",
     suplementos: "hoje.supplements lista os suplementos da rotina diária (daily = true), com taken = tomado ou não, e os avulsos do dia; comente quando faltar algum da rotina",

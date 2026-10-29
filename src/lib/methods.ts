@@ -291,3 +291,21 @@ export function generatePlan(p: Profile, opts: { method?: MethodId | undefined; 
 
   return { createdAt: new Date().toISOString(), method: m.name, methodId, variation, circuit: m.circuit, summary, days };
 }
+
+/** Methods that suit each goal, best first: the variations "Novo treino" offers for it. */
+const METHODS_FOR: Record<Focus, MethodId[]> = {
+  perder: ["full-body", "superior-inferior", "circuito", "ppl"],
+  massa: ["ppl", "superior-inferior", "divisao", "full-body"],
+  forca: ["forca-5x5", "superior-inferior", "full-body"],
+  condicionamento: ["circuito", "full-body", "superior-inferior"],
+};
+
+/**
+ * Plan variations for a goal: the recommended method first, then the other methods that suit the goal and fit the
+ * week's days (up to four). `variation` draws other exercises for all of them. Nothing is saved here.
+ */
+export function planOptions(p: Profile, variation = 0): Plan[] {
+  const rec = recommendMethod(p).id;
+  const ids = [...new Set([rec, ...METHODS_FOR[p.focus]])].filter((id) => methodFits(METHODS[id], p.days)).slice(0, 4);
+  return ids.map((method) => generatePlan(p, { method, variation }));
+}

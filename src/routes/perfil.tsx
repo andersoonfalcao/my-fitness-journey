@@ -79,15 +79,23 @@ function PerfilPage() {
     setEditing(false);
   };
 
+  // Fields the workout plan depends on; changing any of them proposes a new plan instead of replacing the current one.
+  const trainingChanged = !!saved && (["focus", "level", "days", "minutes", "method"] as const).some((k) => p[k] !== saved[k]);
+
   const save = () => {
     // Picking another activity level means the person wants the estimate again, not the measured energy.
     setProfile(saved && p.activity !== saved.activity ? { ...p, calibratedTdee: undefined } : p);
-    setPlan(generatePlan(p, { variation: plan?.variation }));
-    setCycleStart(doneLog.length);
     setWeights((w) => (w.length ? w : [{ date: today(), kg: p.weight }]));
     setEditing(false);
-    toast.success("Perfil salvo e plano de treino gerado!");
-    nav({ to: "/treinos" });
+    if (!plan) {
+      setPlan(generatePlan(p));
+      setCycleStart(doneLog.length);
+      toast.success("Perfil salvo e plano de treino gerado!");
+      nav({ to: "/treinos" });
+    } else if (trainingChanged) {
+      toast.success("Perfil salvo. Seu treino atual continua; veja as variações para o novo objetivo.");
+      setRegen(true);
+    } else toast.success("Perfil salvo");
   };
 
   // Weights take two decimals (78,45 kg); the other numbers are whole.
@@ -240,7 +248,7 @@ function PerfilPage() {
       {showForm && (
         <div className="flex flex-col gap-3 sm:flex-row">
           <button onClick={save} className="w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-accent-foreground">
-            Salvar e gerar meu plano de treino
+            {!plan ? "Salvar e gerar meu plano de treino" : trainingChanged ? "Salvar e ver opções de treino" : "Salvar"}
           </button>
           {saved && (
             <button type="button" onClick={view} className="rounded-full border border-input px-8 py-4 font-semibold sm:shrink-0">
@@ -255,6 +263,7 @@ function PerfilPage() {
             <Dumbbell className="h-4 w-4 shrink-0 text-accent" aria-hidden />Plano atual
           </div>
           <div className="mt-2 font-display text-2xl font-bold leading-tight">{plan.method}</div>
+          {plan.goal && <p className="mt-1 text-sm">Objetivo: {plan.goal}</p>}
           <div className="mt-1 text-sm text-muted-foreground">
             {plan.days.length} treino{plan.days.length === 1 ? "" : "s"} na sequência · gerado em {new Date(plan.createdAt).toLocaleDateString("pt-BR")} · {doneLog.length} treino{doneLog.length === 1 ? "" : "s"} concluído{doneLog.length === 1 ? "" : "s"} até agora
           </div>
@@ -265,9 +274,9 @@ function PerfilPage() {
           </details>
           <button type="button" onClick={() => setRegen(true)}
             className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 font-bold text-primary-foreground">
-            <RefreshCw className="h-4 w-4" />Regerar treino
+            <RefreshCw className="h-4 w-4" />Novo treino
           </button>
-          <p className="mt-2 text-center text-xs text-muted-foreground">Troque os exercícios ou mude o método. Seu histórico não muda.</p>
+          <p className="mt-2 text-center text-xs text-muted-foreground">Escolha ou descreva um novo objetivo e compare variações. O treino atual só muda quando você aprovar.</p>
         </section>
       )}
       <RegenerateDialog open={regen} onOpenChange={setRegen} onDone={() => nav({ to: "/treinos" })} />

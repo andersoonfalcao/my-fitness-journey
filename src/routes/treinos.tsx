@@ -115,7 +115,8 @@ function TreinosPage() {
   const sameMonth = weekStart(today()).slice(0, 7) === today().slice(0, 7);
   const cardioDays = cardioByDate(sameMonth ? stravaNow : [...stravaMonth, ...stravaNow], sameMonth ? cardioNow : [...cardioMonth, ...cardioNow]);
   // A plan made before calves, traps and forearms entered the split can take them in without being generated again.
-  const completed = withSmallMuscles(profile, plan);
+  // An AI plan follows the objective the person wrote, so it is left as approved.
+  const completed = plan.ai ? plan : withSmallMuscles(profile, plan);
   const nextIdx = nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length);
   const sessionIdx = session ? plan.days.findIndex((d) => d.name === session.dayName) : -1;
   // One gym workout a day: once it is finished, today keeps showing it as done and the next of the sequence waits
@@ -129,6 +130,31 @@ function TreinosPage() {
   const viewingDone = lockedToday && active === doneTodayIdx;
   // What was done today in the workout on screen, and the time before it (the comparison baseline).
   const doneRecord = viewingDone ? [...history].reverse().find((r) => r.date === today() && r.dayName === day.name) : undefined;
+  // The workout finished today is shown as it was done: its own exercises, sets and reps, even when the plan
+  // changed afterwards (a swap, a regenerated plan). Exercises no longer in the library are left out.
+  const doneList = doneRecord?.exercises.filter((e) => EXERCISES.some((x) => x.id === e.exId)) ?? [];
+  const items: PlanItem[] = doneRecord ? doneList.map((e) => ({ exId: e.exId, sets: e.setsPlanned, reps: e.reps, rest: 0 })) : day.items;
+  /**
+   * Fixes an exercise of the finished workout that was done but not marked set by set: the missing sets are added
+   * with the given weight and reps (the sets already marked keep theirs).
+   */
+  const completeRecorded = (target: WorkoutRecord["exercises"][number], kg: number | null, reps: number | null) => {
+    const index = doneRecord?.exercises.indexOf(target) ?? -1;
+    if (!doneRecord || index < 0) return;
+    const missing = Math.max(0, target.setsPlanned - target.setsDone);
+    setHistory((records) => records.map((r) => r.id !== doneRecord.id ? r : {
+      ...r,
+      exercises: r.exercises.map((e, j) => {
+        if (j !== index) return e;
+        const setKgs = [...(e.setKgs ?? []).slice(0, e.setsDone), ...Array.from({ length: missing }, () => kg)];
+        const setReps = [...(e.setReps ?? []).slice(0, e.setsDone), ...Array.from({ length: missing }, () => reps)];
+        const top = Math.max(0, ...setKgs.map((v) => v ?? 0));
+        const { skipped: _skipped, ...rest } = e;
+        return { ...rest, setsDone: e.setsPlanned, setKgs, setReps, kg: top || e.kg };
+      }),
+    }));
+    toast.success(`${target.name}: ${missing === 1 ? "1 série marcada" : `${missing} séries marcadas`} no treino de hoje`);
+  };
   const beforeDone = doneRecord ? lastRecordBefore(history.filter((r) => r !== doneRecord), day.name) : undefined;
   // Set tracking belongs to the day being trained; other tabs are view-only while a session runs.
   // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
@@ -543,16 +569,16 @@ function TreinosPage() {
           <div className="text-xs font-bold uppercase tracking-widest text-accent">
             {viewingDone ? "Concluído hoje" : isCurrentClass ? `Aula ${classNumber}` : lockedToday && active === nextIdx ? "Próximo treino" : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
           </div>
-          <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(day.items.map((it) => it.exId))}</h2>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap opacity-75">{day.items.length} exercícios ·</span>
+          <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(items.map((it) => it.exId))}</h2>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap opacity-75">{items.length} exercícios ·</span>
             <button type="button" onClick={() => setMethodOpen(true)} className="-my-2 inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold underline-offset-4 hover:underline">{plan.method}<Info className="h-4 w-4 text-accent" aria-label="Como o forma monta seu treino" /></button></p>
-          {openItem !== null && day.items[openItem] && (
+          {openItem !== null && items[openItem] && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />agora: {byId(day.items[openItem]!.exId).name}
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />agora: {byId(items[openItem]!.exId).name}
             </p>
           )}
         </div>
-        <BodyMap exIds={day.items.map((it) => it.exId)} focus={openItem !== null ? day.items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-card/95 px-2 py-2 text-foreground" />
+        <BodyMap exIds={items.map((it) => it.exId)} focus={openItem !== null ? items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-card/95 px-2 py-2 text-foreground" />
       </section>
 
       {session ? (
@@ -647,14 +673,14 @@ function TreinosPage() {
       )}
 
       <div className="space-y-3">
-        {day.items.map((it, i) => {
+        {items.map((it, i) => {
           const ex = byId(it.exId);
           const history = historyFor(ex.id);
           const latest = history.at(-1);
           const previous = history.at(-2);
           const variation = latest && previous ? latest.kg - previous.kg : null;
           // The workout finished today shows what was done in it, read-only.
-          const doneEx = previousOf(doneRecord, i, ex.id);
+          const doneEx = doneRecord ? doneList[i] : undefined;
           const setsDone = tracksSets ? session?.sets?.[i] ?? 0 : Math.min(doneEx?.setsDone ?? 0, it.sets);
           const kgsToday = tracksSets ? session?.kgs?.[i] ?? [] : doneEx?.setKgs ?? [];
           const prev = previousOf(doneRecord ? beforeDone : lastRecordOf(day.name), i, ex.id);
@@ -694,7 +720,7 @@ function TreinosPage() {
           const holdTime = holdTimes[ex.id] ?? suggestedHold;
           const holding = hold?.item === i ? hold : null;
           const finished = (tracksSets || !!doneEx) && setsDone >= it.sets;
-          const combo = plan.circuit ? null : comboOf(day.items, i);
+          const combo = plan.circuit || doneRecord ? null : comboOf(day.items, i);
           const open = openItem === i;
           const dropsToday = (tracksSets ? session?.drops?.[i] : doneEx?.setDrops) ?? {};
           const exTotal = volume(kgsToday, repsToday, it.reps) + dropVolume(dropsToday);
@@ -726,6 +752,8 @@ function TreinosPage() {
                 </span>
                 {finished ? (
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#3f9d6b] text-white"><Check className="h-5 w-5" aria-label="Exercício concluído" /></span>
+                ) : tracksSets && session ? (
+                  <SetsRing total={it.sets} done={setsDone} />
                 ) : (
                   <ChevronRight className={`h-6 w-6 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} aria-hidden />
                 )}
@@ -736,8 +764,10 @@ function TreinosPage() {
                   <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
                   <div className="flex min-w-0 flex-1 flex-wrap content-start gap-2">
                     <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
-                    <Button type="button" variant="secondary" size="sm" onClick={() => setSwap({ d: active, i })} className="rounded-full"><ArrowLeftRight />Trocar</Button>
-                    {it.extra && (
+                    {!doneRecord && (
+                      <Button type="button" variant="secondary" size="sm" onClick={() => setSwap({ d: active, i })} className="rounded-full"><ArrowLeftRight />Trocar</Button>
+                    )}
+                    {it.extra && !doneRecord && (
                       <Button type="button" variant="secondary" size="sm" onClick={() => removeExtra(i)} className="rounded-full"><Trash2 />Remover</Button>
                     )}
                     <Button asChild variant="secondary" size="sm" className="rounded-full">
@@ -765,62 +795,49 @@ function TreinosPage() {
                   </div>
                 )}
 
-                <SetTable sets={it.sets} reps={it.reps} done={setsDone} kgs={kgsToday} repsDone={repsToday} prevKgs={prev?.setKgs} prevReps={prev?.setReps} prevPlanReps={prev?.reps} />
-                {tracksSets && setsDone === 0 && setKg !== null && Number.isFinite(setKg) && <Warmup ex={ex} workKg={setKg} />}
-                {tracksSets && (
-                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <div className="flex gap-1" role="img" aria-label={`${setsDone} de ${it.sets} séries feitas`}>
-                      {Array.from({ length: it.sets }, (_, s) => (
-                        <span key={s} className={`h-2.5 w-5 rounded-full ${s < setsDone ? "bg-[#3f9d6b]" : "bg-muted"}`} />
-                      ))}
-                    </div>
-                    {setsDone < it.sets ? (
-                      <span className="text-sm font-semibold text-muted-foreground">Série {setsDone + 1} de {it.sets}</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-sm font-bold text-[#3f9d6b]"><CheckCheck className="h-4 w-4" />Exercício concluído</span>
-                    )}
-                    {setsDone > 0 && (
-                      <button type="button" onClick={() => undoSet(i)} className="px-1 py-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
-                    )}
-                    {session && setsDone > 0 && targetReps !== null && dropForm?.item !== i && (
-                      <button type="button" onClick={() => setDropForm({ item: i, kg: lastSetKg ? kgInput(dropKg(lastSetKg)) : "", reps: "" })}
-                        className="inline-flex min-h-11 items-center gap-1 px-1 text-sm font-semibold text-accent underline-offset-4 hover:underline"><Plus className="h-4 w-4" />Drop na série {setsDone}</button>
-                    )}
+                {/* On every card: today's workout (also before it starts), the one finished today (its sets done)
+                    and the ones only to look at (just the number of sets). */}
+                <SetsAndRest
+                    total={it.sets}
+                    done={setsDone}
+                    onComplete={tracksSets && setsLeft > 0 && !holding ? () => onComplete(1) : undefined}
+                    completeHint={[setKg !== null && Number.isFinite(setKg) ? formatKg(setKg) : null, targetReps !== null && setReps !== undefined && Number.isFinite(setReps) ? `${setReps} reps` : null].filter(Boolean).join(" × ")}
+                    labels={Array.from({ length: it.sets }, (_, s) => {
+                      if (targetReps === null) return it.reps;
+                      if (s < setsDone) {
+                        const kg = kgsToday[s];
+                        const reps = repsOfSet(repsToday, s, it.reps);
+                        return kg != null ? `${kgNumber(kg)} × ${reps}` : `${reps} reps`;
+                      }
+                      const lastKg = prev?.setKgs?.[s];
+                      return lastKg != null ? `últ. ${kgNumber(lastKg)} × ${repsOfSet(prev?.setReps, s, prev?.reps ?? it.reps)}` : `${targetReps} reps`;
+                    })}
+                    caption={tracksSets ? undefined : doneEx ? `${setsDone} de ${it.sets} séries feitas` : `${it.sets} séries de ${it.reps}`}
+                    rest={tracksSets && session?.rest?.item === i ? session.rest : undefined}
+                    restTotal={settings.restSeconds * 1000}
+                    voice={settings.voice}
+                    onVoice={(on) => { if (on) unlockVoice(); updateSettings({ voice: on }); toast(on ? "Voz ligada: fala o fim do descanso e a próxima série." : "Voz desligada."); }}
+                    onAdd={(seconds) => {
+                      const rest = session!.rest!;
+                      scheduleRestPush(rest.endsAt + seconds * 1000, rest.next);
+                      setSession((s) => s?.rest ? { ...s, rest: { ...s.rest, endsAt: s.rest.endsAt + seconds * 1000 } } : s);
+                    }}
+                    onSkip={() => { cancelRestPush(); setSession((s) => s && { ...s, rest: undefined }); }}
+                    onDone={() => setSession((s) => s && { ...s, rest: undefined })}
+                  />
+                {doneEx && setsDone < it.sets && (
+                  <div className="mt-3 rounded-2xl border border-accent/40 bg-accent/10 p-3">
+                    <p className="text-sm font-bold">Fez todas as séries?</p>
+                    <p className="text-xs text-muted-foreground">
+                      O treino guardou {setsDone} de {it.sets}: só entram as séries marcadas em "Concluir série". Se fez as outras, marque aqui.
+                      {setKg === null ? " Sem carga no campo abaixo, elas ficam sem peso." : ""}
+                    </p>
+                    <Button type="button" onClick={() => completeRecorded(doneEx, setKg !== null && Number.isFinite(setKg) ? setKg : null, targetReps)}
+                      className="mt-2 h-auto min-h-11 w-full whitespace-normal rounded-full py-2">
+                      <Check />Marcar {it.sets - setsDone === 1 ? "a série que falta" : `as ${it.sets - setsDone} séries que faltam`}
+                      {setKg !== null && Number.isFinite(setKg) ? ` · ${formatKg(setKg)}` : ""}{targetReps !== null ? ` × ${targetReps}` : ""}
+                    </Button>
                   </div>
-                )}
-                {tracksSets && dropForm?.item === i && (
-                  <div className="mt-2 rounded-2xl border border-accent/40 bg-accent/10 p-3">
-                    <p className="text-sm font-bold">Drop na série {setsDone}</p>
-                    <p className="text-xs text-muted-foreground">Baixou o peso logo depois da série e continuou: anote o peso e quantas repetições saíram.</p>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div className="relative">
-                        <Input aria-label="Peso do drop em kg" inputMode="decimal" placeholder="kg" value={dropForm.kg} onFocus={(event) => event.target.select()}
-                          onChange={(event) => setDropForm((f) => f && { ...f, kg: event.target.value })} className="pr-9" />
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
-                      </div>
-                      <div className="relative">
-                        <Input aria-label="Repetições do drop" inputMode="numeric" placeholder="Ex: 8" value={dropForm.reps} autoFocus
-                          onChange={(event) => setDropForm((f) => f && { ...f, reps: event.target.value })} onKeyDown={(event) => event.key === "Enter" && saveDrop()} className="pr-11" />
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">reps</span>
-                      </div>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <Button type="button" variant="secondary" onClick={() => setDropForm(null)} className="min-h-11 rounded-full">Cancelar</Button>
-                      <Button type="button" onClick={saveDrop} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90"><Check />Salvar drop</Button>
-                    </div>
-                  </div>
-                )}
-                {Object.keys(dropsToday).length > 0 && (
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {Object.entries(dropsToday).sort(([a], [b]) => Number(a) - Number(b)).map(([setIdx, list]) => (
-                      <li key={setIdx} className="flex items-center justify-between gap-2 rounded-2xl bg-accent/10 px-3 py-1.5">
-                        <span className="min-w-0"><b>Drop · série {Number(setIdx) + 1}:</b> {list.map((d) => `${d.kg !== null ? kgNumber(d.kg) : "—"} kg × ${d.reps}`).join(" · ")}</span>
-                        {tracksSets && session && (
-                          <button type="button" onClick={() => undoDrop(i, Number(setIdx))} className="-my-1.5 min-h-11 shrink-0 px-1 text-xs font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
                 )}
                 <div className="mt-3 border-t border-border pt-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-1 text-xs">
@@ -903,9 +920,6 @@ function TreinosPage() {
                       </div>
                     );
                   })()}
-                  {tracksSets && setsLeft > 0 && targetReps !== null && !holding && (
-                    <RirPicker value={rirInputs[ex.id] ?? null} onChange={(v) => setRirInputs((all) => ({ ...all, [ex.id]: v }))} />
-                  )}
                   {tracksSets && setsLeft > 0 && holdTime != null && suggestedHold != null && session?.rest?.item !== i && (
                     <HoldTimer
                       key={setsDone}
@@ -919,19 +933,12 @@ function TreinosPage() {
                       onFinish={() => { setHold(null); onComplete(1); }}
                     />
                   )}
-                  {tracksSets && setsLeft > 0 && !holding && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button type="button" onClick={() => onComplete(1)} className="h-auto min-h-9 flex-1 basis-40 whitespace-normal rounded-full py-2">
-                        <Check />Concluir série {setsDone + 1}
-                        {setKg !== null && Number.isFinite(setKg) ? ` · ${formatKg(setKg)}` : ""}
-                        {targetReps !== null && setReps !== undefined && Number.isFinite(setReps) ? ` × ${setReps}` : ""}
-                      </Button>
-                      {setsLeft > 1 && (
-                        <Button type="button" variant="secondary" onClick={() => onComplete(setsLeft)} className="h-auto min-h-9 flex-1 basis-40 whitespace-normal rounded-full py-2">
-                          <ListChecks />{setsDone === 0 ? `Concluir as ${setsLeft} séries` : `Concluir as ${setsLeft} restantes`}
-                        </Button>
-                      )}
-                    </div>
+                  {/* "Concluir" for one set is in the middle of the circle; marking all that are left stays here. */}
+                  {tracksSets && setsLeft > 1 && !holding && !session?.rest && (
+                    <button type="button" onClick={() => onComplete(setsLeft)}
+                      className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline">
+                      <ListChecks className="h-4 w-4" />{setsDone === 0 ? `Concluir as ${setsLeft} séries de uma vez` : `Concluir as ${setsLeft} restantes de uma vez`}
+                    </button>
                   )}
                   {canLeave && !holding && (
                     <button type="button" onClick={() => leaveForLater(i)}
@@ -943,33 +950,73 @@ function TreinosPage() {
                     <p className="mt-2 text-xs text-muted-foreground">Este exercício ficou para o fim. Quando os outros acabarem, ele abre sozinho; se não der para fazer, conclua o treino e ele fica registrado como pulado.</p>
                   )}
                 </div>
-                {tracksSets && session?.rest?.item === i && (
-                  <RestCountdown
-                    key={session.rest.endsAt}
-                    endsAt={session.rest.endsAt}
-                    next={session.rest.next}
-                    say={session.rest.say}
-                    voice={settings.voice}
-                    onVoice={(on) => { if (on) unlockVoice(); updateSettings({ voice: on }); toast(on ? "Voz ligada: fala o fim do descanso e a próxima série." : "Voz desligada."); }}
-                    onAdd={(seconds) => {
-                      const rest = session.rest!;
-                      scheduleRestPush(rest.endsAt + seconds * 1000, rest.next);
-                      setSession((s) => s?.rest ? { ...s, rest: { ...s.rest, endsAt: s.rest.endsAt + seconds * 1000 } } : s);
-                    }}
-                    onSkip={() => { cancelRestPush(); setSession((s) => s && { ...s, rest: undefined }); }}
-                    onDone={() => setSession((s) => s && { ...s, rest: undefined })}
-                  />
-                )}
+                <div className="mt-3 border-t border-border">
+                  {tracksSets && setsDone === 0 && setKg !== null && Number.isFinite(setKg) && <Warmup ex={ex} workKg={setKg} />}
+                  {tracksSets && (
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                      {!session && <SetDots total={it.sets} done={setsDone} />}
+                      {setsDone < it.sets ? (
+                        <span className="text-sm font-semibold text-muted-foreground">Série {setsDone + 1} de {it.sets}</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-sm font-bold text-[#3f9d6b]"><CheckCheck className="h-4 w-4" />Exercício concluído</span>
+                      )}
+                      {setsDone > 0 && (
+                        <button type="button" onClick={() => undoSet(i)} className="px-1 py-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
+                      )}
+                      {session && setsDone > 0 && targetReps !== null && dropForm?.item !== i && (
+                        <button type="button" onClick={() => setDropForm({ item: i, kg: lastSetKg ? kgInput(dropKg(lastSetKg)) : "", reps: "" })}
+                          className="inline-flex min-h-11 items-center gap-1 px-1 text-sm font-semibold text-accent underline-offset-4 hover:underline"><Plus className="h-4 w-4" />Drop na série {setsDone}</button>
+                      )}
+                    </div>
+                  )}
+                  {tracksSets && dropForm?.item === i && (
+                    <div className="mt-2 rounded-2xl border border-accent/40 bg-accent/10 p-3">
+                      <p className="text-sm font-bold">Drop na série {setsDone}</p>
+                      <p className="text-xs text-muted-foreground">Baixou o peso logo depois da série e continuou: anote o peso e quantas repetições saíram.</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div className="relative">
+                          <Input aria-label="Peso do drop em kg" inputMode="decimal" placeholder="kg" value={dropForm.kg} onFocus={(event) => event.target.select()}
+                            onChange={(event) => setDropForm((f) => f && { ...f, kg: event.target.value })} className="pr-9" />
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+                        </div>
+                        <div className="relative">
+                          <Input aria-label="Repetições do drop" inputMode="numeric" placeholder="Ex: 8" value={dropForm.reps} autoFocus
+                            onChange={(event) => setDropForm((f) => f && { ...f, reps: event.target.value })} onKeyDown={(event) => event.key === "Enter" && saveDrop()} className="pr-11" />
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">reps</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Button type="button" variant="secondary" onClick={() => setDropForm(null)} className="min-h-11 rounded-full">Cancelar</Button>
+                        <Button type="button" onClick={saveDrop} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90"><Check />Salvar drop</Button>
+                      </div>
+                    </div>
+                  )}
+                  {Object.keys(dropsToday).length > 0 && (
+                    <ul className="mt-2 space-y-1 text-sm">
+                      {Object.entries(dropsToday).sort(([a], [b]) => Number(a) - Number(b)).map(([setIdx, list]) => (
+                        <li key={setIdx} className="flex items-center justify-between gap-2 rounded-2xl bg-accent/10 px-3 py-1.5">
+                          <span className="min-w-0"><b>Drop · série {Number(setIdx) + 1}:</b> {list.map((d) => `${d.kg !== null ? kgNumber(d.kg) : "—"} kg × ${d.reps}`).join(" · ")}</span>
+                          {tracksSets && session && (
+                            <button type="button" onClick={() => undoDrop(i, Number(setIdx))} className="-my-1.5 min-h-11 shrink-0 px-1 text-xs font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
               )}
             </article>
           );
         })}
-        <button type="button" onClick={() => setAdding({ d: active, group: null })}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
-          <Plus className="h-5 w-5" />Adicionar exercício
-        </button>
-        {!plan.circuit && day.items.length > 1 && (
+        {/* The finished workout is a record: adding or combining would change the plan, not what was done. */}
+        {!doneRecord && (
+          <button type="button" onClick={() => setAdding({ d: active, group: null })}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
+            <Plus className="h-5 w-5" />Adicionar exercício
+          </button>
+        )}
+        {!doneRecord && !plan.circuit && day.items.length > 1 && (
           <button type="button" onClick={() => setCombining({ d: active, picked: [] })}
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:border-accent hover:text-foreground">
             <Link2 className="h-5 w-5" />Combinar exercícios (bi-set)
@@ -1264,45 +1311,6 @@ function SessionCompare({ previous, previousTotal, currentTotal, dayName, finish
   );
 }
 
-/** Sets of an exercise: reps and load done today, else the target, next to last time's load. */
-function SetTable({ sets, reps, done, kgs, repsDone, prevKgs, prevReps, prevPlanReps }: {
-  sets: number; reps: string; done: number; kgs: SetValues; repsDone: SetValues; prevKgs: SetValues; prevReps: SetValues; prevPlanReps: string | undefined;
-}) {
-  const timed = repsCount(reps) === null;
-  const kgText = (kg: number | null | undefined) => (kg == null ? "—" : formatKg(kg));
-  return (
-    <table className="mt-3 w-full text-sm">
-      <thead>
-        <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-          <th className="py-1 font-bold">Série</th>
-          <th className="py-1 font-bold">{timed ? "Tempo" : "Reps"}</th>
-          <th className="py-1 font-bold">Carga</th>
-          <th className="py-1 text-right font-bold">Última vez</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {Array.from({ length: sets }, (_, s) => {
-          const isDone = s < done;
-          const prevKg = prevKgs?.[s];
-          const last = prevKg != null ? `${kgText(prevKg)}${timed ? "" : ` × ${repsOfSet(prevReps, s, prevPlanReps ?? reps)}`}` : "—";
-          return (
-            <tr key={s} className={isDone ? "font-semibold" : "text-muted-foreground"}>
-              <td className="py-2">
-                <span className="inline-flex items-center gap-1.5">
-                  {isDone ? <Check className="h-4 w-4 text-[#3f9d6b]" aria-label="feita" /> : <span className="inline-block h-4 w-4" />}{s + 1}
-                </span>
-              </td>
-              <td className="py-2 tabular-nums">{timed ? reps : isDone ? repsOfSet(repsDone, s, reps) : reps}</td>
-              <td className="py-2 tabular-nums">{isDone ? kgText(kgs?.[s]) : "—"}</td>
-              <td className="py-2 text-right tabular-nums">{last}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
 // Browsers only allow sound after a tap, so the context is opened on "Concluir série" and reused when the rest ends.
 let audio: AudioContext | null = null;
 
@@ -1341,14 +1349,13 @@ function tones() {
   }
 }
 
-function RestCountdown({ endsAt, next, say, voice, onVoice, onAdd, onSkip, onDone }: {
-  endsAt: number; next: string; say?: string | undefined; voice: boolean; onVoice: (on: boolean) => void;
-  onAdd: (seconds: number) => void; onSkip: () => void; onDone: () => void;
-}) {
+/** Rest left, in ms, ticking while a rest runs; when it reaches zero it alerts (and speaks, with the voice on) and calls `onDone`. */
+function useRestLeft(endsAt: number | null, next: string, onDone: () => void, voice = false, say?: string) {
   const [now, setNow] = useState(() => Date.now());
-  const left = Math.max(0, endsAt - now);
+  const left = endsAt === null ? 0 : Math.max(0, endsAt - now);
   // Long enough rests get a heads-up at 10 s; it only fires when the count crosses that mark on screen.
-  const [startLeft] = useState(() => endsAt - Date.now());
+  const [startLeft, setStartLeft] = useState(() => (endsAt === null ? 0 : endsAt - Date.now()));
+  useEffect(() => { if (endsAt !== null) setStartLeft(endsAt - Date.now()); }, [endsAt]);
   const warn = left > 0 && left <= 10_000 && startLeft > 20_000;
   useEffect(() => {
     if (warn && voice) speak("Faltam 10 segundos.");
@@ -1356,15 +1363,18 @@ function RestCountdown({ endsAt, next, say, voice, onVoice, onAdd, onSkip, onDon
   }, [warn]);
 
   useEffect(() => {
+    if (endsAt === null) return;
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
-  }, []);
+  }, [endsAt]);
 
   // The server push is never called off here: the phone may be locked a moment before the rest ends, after any
   // check the page could make. With the app on screen, the service worker clears that push itself (sw-template.js).
 
+  const over = endsAt !== null && left <= 0;
   useEffect(() => {
-    if (left > 0) return;
+    if (!over) return;
     navigator.vibrate?.([300, 150, 300]);
     beep();
     // After the beep, so the two don't talk over each other.
@@ -1374,25 +1384,144 @@ function RestCountdown({ endsAt, next, say, voice, onVoice, onAdd, onSkip, onDon
     toast("Descanso acabou! Hora da próxima série", { description: next });
     onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [left > 0]);
+  }, [over]);
 
+  return left;
+}
+
+/** The sets of an exercise as numbered circles: done, the one up next, still to do. */
+function SetDots({ total, done, dark }: { total: number; done: number; dark?: boolean }) {
   return (
-    <div className="mt-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-accent">Descanso</div>
-          <div className="font-display text-3xl font-extrabold leading-none tabular-nums text-accent" role="timer" aria-label="Descanso restante">{formatDuration(left + 999)}</div>
+    <div className="flex flex-wrap gap-1.5" role="img" aria-label={`${done} de ${total} séries feitas`}>
+      {Array.from({ length: total }, (_, s) => (
+        <span key={s} className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${
+          s < done ? "bg-[#3f9d6b] text-white"
+            : s === done ? "border-[3px] border-accent"
+              : dark ? "border-2 border-primary-foreground/40 opacity-85" : "border-2 border-dashed border-border text-muted-foreground"}`}>
+          {s < done ? <Check className="h-4 w-4" strokeWidth={3} /> : s + 1}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Small ring split in one piece per set, filled as the sets are done (the exercise list during a workout). */
+function SetsRing({ total, done }: { total: number; done: number }) {
+  const r = 15;
+  const c = 2 * Math.PI * r;
+  const gap = total > 1 ? 2.5 : 0;
+  const seg = c / total - gap;
+  const fill = done > 0 ? [...Array.from({ length: done }, () => `${seg} ${gap}`), `0 ${c}`].join(" ") : `0 ${c}`;
+  return (
+    <span className="relative grid h-10 w-10 shrink-0 place-items-center" role="img" aria-label={`${done} de ${total} séries feitas`}>
+      <svg viewBox="0 0 40 40" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+        <circle cx="20" cy="20" r={r} fill="none" strokeWidth="4.5" className="stroke-muted" strokeDasharray={`${seg} ${gap}`} />
+        <circle cx="20" cy="20" r={r} fill="none" strokeWidth="4.5" className="stroke-[#3f9d6b]" strokeDasharray={fill} />
+      </svg>
+      <span className="text-[11px] font-bold tabular-nums">{done}/{total}</span>
+    </span>
+  );
+}
+
+const OUTER_R = 104;
+const INNER_R = 80;
+const OUTER_C = 2 * Math.PI * OUTER_R;
+const INNER_C = 2 * Math.PI * INNER_R;
+/** Size of the drawing (viewBox) and how far from its centre each set's label sits, past the outer ring. */
+const RING_BOX = 340;
+const LABEL_R = 146;
+
+/**
+ * The open exercise: one circle with two rings and each set's numbers beside its own piece of the outer ring.
+ * The outer ring has a piece per set, green once done; the inner one is the rest, emptying as it runs out.
+ */
+function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, rest, restTotal, voice, onVoice, onAdd, onSkip, onDone }: {
+  total: number; done: number; rest: WorkoutSession["rest"]; restTotal: number;
+  /** Marks the next set (with the weight and reps typed below the circle); missing when there is nothing to mark. */
+  onComplete?: (() => void) | undefined;
+  /** Weight × reps the next set will be saved with, shown under the button. */
+  completeHint?: string | undefined;
+  /** What each set shows beside its piece: weight × reps when done, else the last time (or the target). */
+  labels: string[];
+  /** Set on a workout that is only there to look at (no set is "next"). */
+  caption?: string | undefined;
+  /** Voice during the rest (end of rest, next set): the toggle sits beside +15s. */
+  voice: boolean; onVoice: (on: boolean) => void;
+  onAdd: (seconds: number) => void; onSkip: () => void; onDone: () => void;
+}) {
+  const left = useRestLeft(rest?.endsAt ?? null, rest?.next ?? "", onDone, voice, rest?.say);
+  const resting = !!rest && left > 0;
+  const gap = total > 1 ? 8 : 0;
+  const seg = OUTER_C / total - gap;
+  const pieces = (n: number) => (n > 0 ? [...Array.from({ length: n }, () => `${seg} ${gap}`), `0 ${OUTER_C}`].join(" ") : `0 ${OUTER_C}`);
+  const time = formatDuration(left + 999);
+  const allDone = done >= total;
+  const live = caption === undefined;
+  // During the rest the middle is only the countdown; "Concluir" comes back when it ends or is skipped.
+  const canComplete = !!onComplete && !resting;
+  const c = RING_BOX / 2;
+  return (
+    <div className="mt-3 rounded-3xl bg-muted/50 p-2">
+      <div className="relative mx-auto aspect-square w-full max-w-[340px]">
+        <svg viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+          <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-border" strokeDasharray={pieces(total).replace(` 0 ${OUTER_C}`, "")} />
+          <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-[#3f9d6b] transition-all duration-300" strokeDasharray={pieces(done)} />
+          {/* The set up next, only on the workout being done (a workout to look at has no "next"). */}
+          {!allDone && live && (
+            <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-accent opacity-60" strokeDasharray={`${seg} ${OUTER_C}`} strokeDashoffset={-done * (seg + gap)} />
+          )}
+          <circle cx={c} cy={c} r={INNER_R} fill="none" strokeWidth="10" className="stroke-muted" />
+          <circle cx={c} cy={c} r={INNER_R} fill="none" strokeWidth="10" strokeLinecap="round" className="stroke-accent transition-[stroke-dashoffset] duration-300"
+            strokeDasharray={INNER_C} strokeDashoffset={resting ? INNER_C * (1 - Math.min(1, left / restTotal)) : INNER_C} />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+          <span className="sr-only">{`${done} de ${total} séries feitas${resting ? `, descanso restante ${time}` : ""}`}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
+            {resting ? "Descanso" : allDone ? "Concluído" : canComplete ? `Série ${done + 1} de ${total}` : "Séries"}
+          </span>
+          <span className={`font-display font-extrabold leading-none tabular-nums ${canComplete ? "text-3xl" : "text-4xl"} ${resting ? "text-[#c2581b] dark:text-accent" : ""}`}
+            role={resting ? "timer" : undefined} aria-hidden={!resting}>
+            {resting ? time : `${done}/${total}`}
+          </span>
+          {canComplete && (
+            <>
+              <button type="button" onClick={onComplete} aria-label={`Concluir série ${done + 1}${completeHint ? `, ${completeHint}` : ""}`}
+                className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm">
+                <Check className="h-4 w-4" />Concluir
+              </button>
+              {completeHint && <span className="text-[11px] font-semibold text-muted-foreground tabular-nums" aria-hidden>{completeHint}</span>}
+            </>
+          )}
         </div>
-        <div className="flex gap-2">
+        <ol aria-label="Séries">
+          {labels.map((value, s) => {
+            const angle = ((s + 0.5) / total) * 2 * Math.PI;
+            const isDone = s < done;
+            const now = live && s === done && !allDone;
+            return (
+              <li key={s} className={`absolute w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-2xl px-1.5 py-1 text-center tabular-nums ${
+                isDone ? "bg-[#3f9d6b]/15" : now ? "border-2 border-accent bg-accent/10" : "bg-card"}`}
+                style={{ left: `${((c + LABEL_R * Math.sin(angle)) / RING_BOX) * 100}%`, top: `${((c - LABEL_R * Math.cos(angle)) / RING_BOX) * 100}%` }}>
+                <span className={`block text-[10px] font-bold uppercase tracking-wide ${isDone ? "text-[#2f7d54] dark:text-[#7fd1a4]" : "text-muted-foreground"}`}>
+                  Série {s + 1}{isDone ? " ✓" : ""}{now && <span className="sr-only"> (agora)</span>}
+                </span>
+                <span className={`block text-[13px] font-extrabold leading-tight ${isDone ? "text-[#2f7d54] dark:text-[#7fd1a4]" : now ? "" : "text-muted-foreground"}`}>{value}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      {resting && (
+        <div className="mt-1 flex justify-center gap-2 pb-1">
           <button type="button" onClick={() => onVoice(!voice)} aria-pressed={voice} aria-label={voice ? "Desligar a voz" : "Ligar a voz"}
-            className={`relative grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/30 before:absolute before:-inset-1 before:content-[""] ${voice ? "bg-primary-foreground/15" : "opacity-60"}`}>
+            className={`grid h-11 w-11 place-items-center rounded-full border border-input bg-card ${voice ? "" : "text-muted-foreground"}`}>
             {voice ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
-          <button type="button" onClick={() => onAdd(15)} className="rounded-full border border-primary-foreground/30 px-3 py-1.5 text-sm font-semibold">+15s</button>
-          <button type="button" onClick={onSkip} className="rounded-full bg-accent px-3 py-1.5 text-sm font-bold text-accent-foreground">Pular</button>
+          <button type="button" onClick={() => onAdd(15)} className="min-h-11 rounded-full border border-input bg-card px-4 text-sm font-bold">+15s</button>
+          <button type="button" onClick={onSkip} className="min-h-11 rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground">Pular descanso</button>
         </div>
-      </div>
-      <div className="mt-2 text-xs opacity-75">Próxima: {next}</div>
+      )}
+      {caption && <p className="pb-1 text-center text-xs text-muted-foreground">{caption}</p>}
     </div>
   );
 }
@@ -1861,25 +1990,6 @@ function PlatesLine({ ex, kg }: { ex: Exercise; kg: number }) {
       Cada lado: <b className="tabular-nums text-foreground">{plates.map(kgNumber).join(" + ")} kg</b> · barra de {bar} kg
       {left > 0 && <> · sobram {kgNumber(left * 2)} kg que as anilhas não fecham</>}
     </p>
-  );
-}
-
-const RIR_OPTIONS = [0, 1, 2, 3] as const;
-
-/** Optional: how many more reps the set had in it. It helps the "subir carga" advice; tapping again clears it. */
-function RirPicker({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
-  return (
-    <div className="mt-3">
-      <p className="text-xs font-bold text-muted-foreground">Quantas repetições ainda sobravam? <span className="font-normal">(opcional)</span></p>
-      <div className="mt-1.5 grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Repetições que sobravam">
-        {RIR_OPTIONS.map((n) => (
-          <button key={n} type="button" role="radio" aria-checked={value === n} onClick={() => onChange(value === n ? null : n)}
-            className={`min-h-11 rounded-full border text-sm font-bold ${value === n ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card"}`}>
-            {n === 0 ? "0 · limite" : n === 3 ? "3+" : n}
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }
 

@@ -330,6 +330,8 @@ export const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+/** A `?dia=` from the URL (YYYY-MM-DD, not after today), used to open a screen on a past day from the Calendário. */
+export const searchDay = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= today() ? v : undefined);
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
