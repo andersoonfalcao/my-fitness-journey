@@ -113,7 +113,8 @@ function TreinosPage() {
   const sameMonth = weekStart(today()).slice(0, 7) === today().slice(0, 7);
   const cardioDays = cardioByDate(sameMonth ? stravaNow : [...stravaMonth, ...stravaNow], sameMonth ? cardioNow : [...cardioMonth, ...cardioNow]);
   // A plan made before calves, traps and forearms entered the split can take them in without being generated again.
-  const completed = withSmallMuscles(profile, plan);
+  // An AI plan follows the objective the person wrote, so it is left as approved.
+  const completed = plan.ai ? plan : withSmallMuscles(profile, plan);
   const nextIdx = nextWorkoutIndex(doneLog.length, cycleStart, plan.days.length);
   const sessionIdx = session ? plan.days.findIndex((d) => d.name === session.dayName) : -1;
   // One gym workout a day: once it is finished, today keeps showing it as done and the next of the sequence waits
