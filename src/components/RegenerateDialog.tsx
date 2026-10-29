@@ -8,7 +8,7 @@ import { suggestPlans } from "@/lib/ai-plan";
 import { byId } from "@/lib/exercises";
 import { planOptions, recommendMethod } from "@/lib/methods";
 import { type Plan } from "@/lib/plan";
-import { KEYS, useLocal, type Focus, type Profile, type WorkoutSession } from "@/lib/store";
+import { KEYS, useLocal, type Focus, type Level, type Profile, type WorkoutSession } from "@/lib/store";
 
 const GOALS: { v: Focus; t: string }[] = [
   { v: "perder", t: "Perder gordura" },
@@ -17,7 +17,14 @@ const GOALS: { v: Focus; t: string }[] = [
   { v: "condicionamento", t: "Condicionamento" },
 ];
 
-const LEVEL: Record<Profile["level"], string> = { iniciante: "iniciante", intermediario: "intermediário", avancado: "avançado" };
+const LEVELS: { v: Level; t: string }[] = [
+  { v: "iniciante", t: "Iniciante" },
+  { v: "intermediario", t: "Intermediário" },
+  { v: "avancado", t: "Avançado" },
+];
+
+/** What the new plan is built for; approving saves it to the profile, since the week and the workouts follow it. */
+type Routine = Pick<Profile, "days" | "level" | "minutes">;
 
 type Options = { source: "ai" | "catalog"; analysis?: string; plans: Plan[] };
 
@@ -33,6 +40,7 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
   const [, setCycleStart] = useLocal<number>(KEYS.cycle, 0);
   const [session] = useLocal<WorkoutSession | null>(KEYS.session, null);
   const [focus, setFocus] = useState<Focus>(profile?.focus ?? "perder");
+  const [routine, setRoutine] = useState<Routine>({ days: profile?.days ?? 4, level: profile?.level ?? "intermediario", minutes: profile?.minutes ?? 60 });
   const [text, setText] = useState("");
   const [options, setOptions] = useState<Options | null>(null);
   const [picked, setPicked] = useState(0);
@@ -42,6 +50,7 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
   useEffect(() => {
     if (open) {
       setFocus(profile?.focus ?? "perder");
+      if (profile) setRoutine({ days: profile.days, level: profile.level, minutes: profile.minutes });
       setOptions(null);
       setVariation(plan?.variation ?? 0);
     }
@@ -49,17 +58,19 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
   }, [open]);
 
   if (!profile) return null;
+  const draft: Profile = { ...profile, ...routine };
+  const chip = (on: boolean) => `rounded-full border px-3 py-2 text-sm font-semibold ${on ? "border-primary bg-primary text-primary-foreground" : "border-input"}`;
 
   const showCatalog = (v: number) => {
     setVariation(v);
-    setOptions({ source: "catalog", plans: planOptions({ ...profile, focus }, v) });
+    setOptions({ source: "catalog", plans: planOptions({ ...draft, focus }, v) });
     setPicked(0);
   };
 
   const askAi = async () => {
     setBusy(true);
     try {
-      const { analysis, plans } = await suggestPlans(text, profile, plan);
+      const { analysis, plans } = await suggestPlans(text, draft, plan);
       setOptions({ source: "ai", analysis, plans });
       setPicked(0);
     } catch (error) {
@@ -75,7 +86,7 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
     const goal = options.source === "ai" ? chosen.goal : GOALS.find((g) => g.v === focus)!.t;
     setPlan({ ...chosen, createdAt: new Date().toISOString(), goal });
     // A plan from the catalog keeps its method in the profile, so editing the profile later generates the same kind.
-    if (options.source === "catalog") setProfile({ ...profile, method: chosen.methodId === recommendMethod(profile).id ? undefined : chosen.methodId });
+    setProfile(options.source === "catalog" ? { ...draft, method: chosen.methodId === recommendMethod(draft).id ? undefined : chosen.methodId } : draft);
     setCycleStart(doneLog.length);
     toast.success("Novo treino aprovado");
     onOpenChange(false);
@@ -96,11 +107,40 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
 
         {!options ? (
           <div className="space-y-5">
-            <section className="space-y-2">
+            <section className="space-y-3">
+              <span className="block font-semibold">Sua rotina</span>
+              <div>
+                <span className="text-sm text-muted-foreground">Dias por semana</span>
+                <div className="mt-1 flex gap-2">
+                  {[2, 3, 4, 5, 6].map((d) => (
+                    <button key={d} type="button" onClick={() => setRoutine((r) => ({ ...r, days: d }))} aria-pressed={routine.days === d} disabled={busy}
+                      className={`h-11 w-11 rounded-full border font-display text-lg font-bold ${routine.days === d ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{d}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Nível</span>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {LEVELS.map((l) => (
+                    <button key={l.v} type="button" onClick={() => setRoutine((r) => ({ ...r, level: l.v }))} aria-pressed={routine.level === l.v} disabled={busy} className={chip(routine.level === l.v)}>{l.t}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Tempo por treino</span>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {[...new Set([45, 60, 75, routine.minutes])].sort((a, b) => a - b).map((m) => (
+                    <button key={m} type="button" onClick={() => setRoutine((r) => ({ ...r, minutes: m }))} aria-pressed={routine.minutes === m} disabled={busy} className={chip(routine.minutes === m)}>{m} min</button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-2 border-t border-border pt-4">
               <label htmlFor="goal-text" className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4 text-accent" aria-hidden />Descreva o objetivo para a IA</label>
               <Textarea id="goal-text" value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={1000} disabled={busy}
                 placeholder="Ex.: quero ganhar glúteos e pernas mantendo a parte de cima, treino em academia, tenho dor no joelho direito ao agachar fundo." />
-              <p className="text-xs text-muted-foreground">A IA lê o objetivo com o seu perfil ({profile.days}x por semana, {profile.minutes} min, nível {LEVEL[profile.level]}) e monta três variações com exercícios da biblioteca.</p>
+              <p className="text-xs text-muted-foreground">A IA lê o objetivo com a rotina acima e o seu perfil e monta três variações com exercícios da biblioteca.</p>
               <Button type="button" onClick={askAi} disabled={busy || text.trim().length < 5} className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
                 {busy ? <><Loader2 className="animate-spin" />A IA está montando o treino…</> : <><Sparkles />Montar com a IA</>}
               </Button>
@@ -111,7 +151,7 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
               <div className="grid grid-cols-2 gap-2">
                 {GOALS.map((g) => (
                   <button key={g.v} type="button" onClick={() => setFocus(g.v)} aria-pressed={focus === g.v} disabled={busy}
-                    className={`rounded-full border px-3 py-2 text-sm font-semibold ${focus === g.v ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>{g.t}</button>
+                    className={chip(focus === g.v)}>{g.t}</button>
                 ))}
               </div>
               <Button type="button" variant="secondary" onClick={() => showCatalog(variation)} disabled={busy} className="w-full rounded-full">Ver variações</Button>
@@ -133,7 +173,7 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
             {session ? (
               <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">Há um treino em andamento. Conclua ou cancele antes de trocar o plano.</p>
             ) : (
-              <p className="text-xs text-muted-foreground">Ao aprovar, a sequência recomeça do primeiro treino do novo plano e as trocas feitas à mão no plano atual se perdem. O histórico e as cargas continuam.</p>
+              <p className="text-xs text-muted-foreground">Ao aprovar, dias por semana, nível e tempo por treino passam a ser os do seu perfil, e a sequência recomeça do primeiro treino do novo plano e as trocas feitas à mão no plano atual se perdem. O histórico e as cargas continuam.</p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="secondary" onClick={() => setOptions(null)} disabled={busy} className="rounded-full"><ArrowLeft />Objetivo</Button>
