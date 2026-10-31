@@ -263,7 +263,13 @@ function PerfilPage() {
             <Dumbbell className="h-4 w-4 shrink-0 text-accent" aria-hidden />Plano atual
           </div>
           <div className="mt-2 font-display text-2xl font-bold leading-tight">{plan.method}</div>
-          {plan.goal && <p className="mt-1 text-sm">Objetivo: {plan.goal}</p>}
+          {/* The objective written for the AI has no length limit: long ones open on a tap. */}
+          {plan.goal && (plan.goal.length <= 160 ? <p className="mt-1 text-sm">Objetivo: {plan.goal}</p> : (
+            <details className="mt-1 text-sm">
+              <summary className="cursor-pointer">Objetivo: {plan.goal.slice(0, 140).trimEnd()}…</summary>
+              <p className="mt-1 whitespace-pre-line text-muted-foreground">{plan.goal}</p>
+            </details>
+          ))}
           <div className="mt-1 text-sm text-muted-foreground">
             {plan.days.length} treino{plan.days.length === 1 ? "" : "s"} na sequência · gerado em {new Date(plan.createdAt).toLocaleDateString("pt-BR")} · {doneLog.length} treino{doneLog.length === 1 ? "" : "s"} concluído{doneLog.length === 1 ? "" : "s"} até agora
           </div>
