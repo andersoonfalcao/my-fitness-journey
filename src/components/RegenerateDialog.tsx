@@ -138,7 +138,7 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
 
             <section className="space-y-2 border-t border-border pt-4">
               <label htmlFor="goal-text" className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4 text-accent" aria-hidden />Descreva o objetivo para a IA</label>
-              <Textarea id="goal-text" value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={1000} disabled={busy}
+              <Textarea id="goal-text" value={text} onChange={(e) => setText(e.target.value)} rows={4} disabled={busy} className="field-sizing-content max-h-[50vh] min-h-28"
                 placeholder="Ex.: quero ganhar glúteos e pernas mantendo a parte de cima, treino em academia, tenho dor no joelho direito ao agachar fundo." />
               <p className="text-xs text-muted-foreground">A IA lê o objetivo com a rotina acima e o seu perfil e monta três variações com exercícios da biblioteca.</p>
               <Button type="button" onClick={askAi} disabled={busy || text.trim().length < 5} className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
