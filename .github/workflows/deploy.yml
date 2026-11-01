@@ -1,0 +1,28 @@
+# Publishes the app on Firebase Hosting whenever main changes (or by hand from the Actions tab).
+# Needs the repository secret FIREBASE_SERVICE_ACCOUNT: the JSON key of the project's service account
+# (Firebase console → Configurações do projeto → Contas de serviço → Gerar nova chave privada).
+name: Publicar no Firebase
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: apptreino-f3677
+          channelId: live
