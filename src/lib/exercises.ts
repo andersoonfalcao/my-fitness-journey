@@ -814,6 +814,258 @@ const EXTRAS: Extra[] = [
     id: "elevacao-pernas-banco", name: "Elevação de pernas no banco", group: "core", equipment: "Banco", compound: false, pattern: "flexionar-tronco", media: "abdominal-polia",
     steps: ["Deite no banco segurando a borda atrás da cabeça.", "Suba as pernas estendidas até ficarem verticais.", "Desça devagar sem encostar."],
     posture: ["Lombar colada no banco.", "Joelhos levemente dobrados se precisar.", "Sem embalo."],
+  },  // Membros superiores ampliados em 2026-11-01 (academia completa).
+  // Peito
+  {
+    id: "supino-inclinado-smith", name: "Supino inclinado no Smith", group: "peito", equipment: "Máquina Smith e banco", compound: true, pattern: "empurrar-horizontal", media: "supino-reto",
+    steps: ["Ajuste o banco a 30°–45° com a barra alinhada à parte de cima do peito.", "Destrave a barra com as mãos um pouco além da largura dos ombros.", "Desça controlando até perto do peito.", "Empurre de volta até estender os braços."],
+    posture: ["Escápulas juntas e para baixo.", "Cotovelos a ~45° do corpo.", "Trave a barra nos ganchos ao terminar."],
+  },
+  {
+    id: "supino-inclinado-maquina", name: "Supino inclinado na máquina", group: "peito", equipment: "Máquina", compound: true, pattern: "empurrar-horizontal", media: "supino-inclinado",
+    steps: ["Ajuste o banco para as alças ficarem na altura da parte de cima do peito.", "Empurre as alças para frente e para cima até quase estender os braços.", "Volte devagar até sentir alongar o peito."],
+    posture: ["Costas e cabeça apoiadas no encosto.", "Ombros baixos, longe das orelhas.", "Não trave os cotovelos no fim."],
+  },
+  {
+    id: "supino-declinado-halteres", name: "Supino declinado com halteres", group: "peito", equipment: "Halteres e banco declinado", compound: true, pattern: "empurrar-horizontal", media: "supino-inclinado",
+    steps: ["Prenda as pernas no banco declinado com um halter em cada mão sobre o peito.", "Desça os halteres até a linha da parte de baixo do peito.", "Empurre de volta aproximando os halteres no topo."],
+    posture: ["Escápulas encaixadas no banco.", "Cotovelos a ~45° do corpo.", "Para sair, sente primeiro com os halteres no colo."],
+  },
+  {
+    id: "supino-pegada-neutra", name: "Supino com halteres pegada neutra", group: "peito", equipment: "Halteres e banco", compound: true, pattern: "empurrar-horizontal", media: "supino-inclinado",
+    steps: ["Deite no banco reto com as palmas das mãos viradas uma para a outra.", "Empurre os halteres para cima mantendo as palmas assim.", "Desça devagar com os cotovelos perto do corpo."],
+    posture: ["Cotovelos junto ao tronco: costuma poupar os ombros.", "Pés firmes no chão.", "Punhos retos."],
+  },
+  {
+    id: "crossover-baixo", name: "Crossover de baixo para cima", group: "peito", equipment: "Polia baixa", compound: false, pattern: "aduzir-ombro", media: "peck-deck",
+    steps: ["Entre as polias baixas, segure uma alça em cada mão.", "Com os cotovelos levemente flexionados, leve as mãos para cima e para frente até se encontrarem na altura do peito.", "Volte devagar até sentir alongar o peito."],
+    posture: ["Peito aberto e tronco firme.", "Cotovelos sempre na mesma flexão.", "Foca a parte de cima do peito."],
+  },
+  {
+    id: "crucifixo-inclinado-cabo", name: "Crucifixo inclinado na polia", group: "peito", equipment: "Polia baixa e banco", compound: false, pattern: "aduzir-ombro", media: "peck-deck",
+    steps: ["Coloque um banco inclinado entre as polias baixas e deite segurando as alças.", "Com os cotovelos levemente flexionados, junte as mãos acima do peito.", "Abra os braços devagar até a altura do banco."],
+    posture: ["Escápulas juntas no banco.", "Não desça além do alongamento confortável.", "O cabo mantém tensão o tempo todo."],
+  },
+  {
+    id: "supino-cabo", name: "Supino em pé na polia", group: "peito", equipment: "Polia média", compound: true, pattern: "empurrar-horizontal", media: "supino-reto",
+    steps: ["De costas para as polias, alças na altura do peito, um pé à frente.", "Empurre as alças para frente até estender os braços.", "Volte devagar até as mãos ficarem ao lado do peito."],
+    posture: ["Abdômen firme, tronco levemente inclinado à frente.", "Não deixe as costas arquearem.", "Mãos se aproximam no fim do movimento."],
+  },
+  {
+    id: "crucifixo-declinado", name: "Crucifixo declinado com halteres", group: "peito", equipment: "Halteres e banco declinado", compound: false, pattern: "aduzir-ombro", media: "peck-deck",
+    steps: ["Prenda as pernas no banco declinado com os halteres acima do peito.", "Com os cotovelos levemente flexionados, abra os braços para os lados.", "Volte juntando os halteres acima do peito."],
+    posture: ["Cotovelos sempre na mesma flexão.", "Desça até sentir alongar, sem forçar o ombro.", "Use pouca carga."],
+  },
+  // Costas
+  {
+    id: "puxada-fechada", name: "Puxada fechada pronada", group: "costas", equipment: "Polia alta", compound: true, pattern: "puxar-vertical", media: "puxada",
+    steps: ["Segure a barra com as mãos na largura dos ombros, palmas para frente.", "Puxe a barra até a parte de cima do peito.", "Suba devagar até estender os braços."],
+    posture: ["Peito para cima, leve inclinação para trás.", "Leve os cotovelos para baixo e para trás.", "Sem balançar o tronco."],
+  },
+  {
+    id: "puxada-unilateral", name: "Puxada unilateral na polia", group: "costas", equipment: "Polia alta com alça", compound: true, pattern: "puxar-vertical", media: "puxada",
+    steps: ["Sente na puxada segurando a alça com uma mão.", "Puxe a alça até o lado do peito levando o cotovelo para baixo.", "Suba devagar até alongar a lateral das costas. Troque de lado."],
+    posture: ["Tronco parado, sem girar.", "Ombro baixo no fim da puxada.", "Comece pelo lado mais fraco."],
+  },
+  {
+    id: "pulldown-corda", name: "Pulldown com corda", group: "costas", equipment: "Polia alta com corda", compound: false, pattern: "puxar-vertical", media: "puxada",
+    steps: ["De frente para a polia alta, segure a corda com os braços estendidos.", "Incline o tronco um pouco à frente.", "Leve a corda até as coxas sem dobrar os cotovelos.", "Volte devagar até a altura dos olhos."],
+    posture: ["Braços quase retos o tempo todo.", "Abdômen firme, costas retas.", "Abra a corda no fim do movimento."],
+  },
+  {
+    id: "remada-alta-maquina", name: "Remada alta na máquina (high row)", group: "costas", equipment: "Máquina", compound: true, pattern: "puxar-vertical", media: "remada-baixa",
+    steps: ["Sente com o peito no apoio e segure as alças acima da cabeça.", "Puxe as alças para baixo e para trás em direção ao quadril.", "Volte devagar até alongar as costas."],
+    posture: ["Peito colado no apoio.", "Cotovelos descem perto do corpo.", "Junte as escápulas no fim."],
+  },
+  {
+    id: "remada-cavalinho-apoiada", name: "Remada cavalinho com apoio no peito", group: "costas", equipment: "Máquina de remada T com apoio", compound: true, pattern: "puxar-horizontal", media: "remada-curvada",
+    steps: ["Deite de bruços no apoio e segure as alças.", "Puxe as alças até o peito levando os cotovelos para trás.", "Desça devagar até estender os braços."],
+    posture: ["Peito colado no apoio: a lombar descansa.", "Junte as escápulas no topo.", "Sem tirar o peito do apoio para roubar."],
+  },
+  {
+    id: "remada-apoiada-halteres", name: "Remada com halteres no banco inclinado", group: "costas", equipment: "Halteres e banco", compound: true, pattern: "puxar-horizontal", media: "remada-curvada",
+    steps: ["Deite de bruços num banco a ~30° com um halter em cada mão.", "Puxe os halteres em direção ao quadril.", "Desça devagar até estender os braços."],
+    posture: ["Peito apoiado o tempo todo.", "Cotovelos perto do corpo.", "Junte as escápulas no topo."],
+  },
+  {
+    id: "remada-landmine", name: "Remada unilateral na barra landmine", group: "costas", equipment: "Barra no landmine", compound: true, pattern: "puxar-horizontal", media: "remada-curvada",
+    steps: ["Com a ponta da barra presa no canto ou no landmine, fique ao lado dela com o tronco inclinado.", "Segure a barra perto das anilhas com uma mão.", "Puxe até o lado do quadril e desça devagar. Troque de lado."],
+    posture: ["Coluna neutra, joelhos levemente dobrados.", "Mão livre apoiada na coxa.", "Sem girar o tronco para puxar."],
+  },
+  {
+    id: "remada-curvada-supinada", name: "Remada curvada supinada", group: "costas", equipment: "Barra", compound: true, pattern: "puxar-horizontal", media: "remada-curvada",
+    steps: ["Segure a barra com as palmas para cima, na largura dos ombros.", "Incline o tronco a ~45° com os joelhos levemente dobrados.", "Puxe a barra até a parte de baixo do abdômen.", "Desça devagar."],
+    posture: ["Coluna neutra do início ao fim.", "Cotovelos perto do corpo.", "Trabalha mais a parte de baixo das costas e o bíceps."],
+  },
+  {
+    id: "remada-unilateral-cabo", name: "Remada unilateral sentado no cabo", group: "costas", equipment: "Polia baixa com alça", compound: true, pattern: "puxar-horizontal", media: "remada-baixa",
+    steps: ["Sente na remada baixa segurando a alça com uma mão.", "Puxe a alça até o lado do abdômen levando o cotovelo para trás.", "Volte devagar estendendo o braço. Troque de lado."],
+    posture: ["Tronco ereto, sem girar.", "Ombro para trás e para baixo no fim.", "Joelhos levemente dobrados."],
+  },
+  {
+    id: "remada-smith", name: "Remada curvada no Smith", group: "costas", equipment: "Máquina Smith", compound: true, pattern: "puxar-horizontal", media: "remada-curvada",
+    steps: ["Com a barra do Smith na altura dos joelhos, segure pronado na largura dos ombros.", "Incline o tronco a ~45° com os joelhos levemente dobrados.", "Puxe a barra até o abdômen e desça devagar."],
+    posture: ["Coluna neutra.", "A barra guiada deixa focar só nas costas.", "Junte as escápulas no topo."],
+  },
+  // Ombros
+  {
+    id: "desenvolvimento-barra-sentado", name: "Desenvolvimento sentado com barra", group: "ombros", equipment: "Barra e banco", compound: true, pattern: "empurrar-vertical", media: "desenvolvimento",
+    steps: ["Sente num banco com encosto e a barra na altura da parte de cima do peito.", "Empurre a barra para cima passando rente ao rosto.", "Desça até a altura do queixo."],
+    posture: ["Costas apoiadas, abdômen firme.", "Não arqueie a lombar.", "Cotovelos levemente à frente da barra."],
+  },
+  {
+    id: "desenvolvimento-unilateral", name: "Desenvolvimento unilateral com halter", group: "ombros", equipment: "Halter", compound: true, pattern: "empurrar-vertical", media: "desenvolvimento",
+    steps: ["Em pé, segure um halter na altura do ombro.", "Empurre para cima até estender o braço.", "Desça devagar até o ombro. Troque de lado."],
+    posture: ["Tronco reto, sem inclinar para o lado.", "Abdômen e glúteos contraídos.", "Mão livre na cintura."],
+  },
+  {
+    id: "elevacao-lateral-inclinada", name: "Elevação lateral unilateral no banco inclinado", group: "ombros", equipment: "Halter e banco", compound: false, pattern: "abduzir-ombro", media: "elevacao-lateral",
+    steps: ["Deite de lado num banco inclinado com o halter na mão de cima.", "Eleve o braço pela lateral até ficar acima do ombro.", "Desça devagar. Troque de lado."],
+    posture: ["Cotovelo levemente flexionado.", "Movimento lento: a carga é pequena.", "Tronco firme no banco."],
+  },
+  {
+    id: "elevacao-frontal-cabo", name: "Elevação frontal na polia", group: "ombros", equipment: "Polia baixa", compound: false, pattern: "abduzir-ombro", media: "elevacao-lateral",
+    steps: ["De costas para a polia baixa, segure a alça entre as pernas.", "Eleve o braço estendido à frente até a altura dos olhos.", "Desça devagar. Troque de lado."],
+    posture: ["Tronco parado, sem jogar o corpo.", "Cotovelo levemente flexionado.", "Ombro baixo."],
+  },
+  {
+    id: "crucifixo-inverso-sentado", name: "Crucifixo inverso sentado com halteres", group: "ombros", equipment: "Halteres e banco", compound: false, pattern: "abrir-ombro-posterior", media: "face-pull",
+    steps: ["Sente na ponta do banco e incline o tronco sobre as coxas, halteres atrás das pernas.", "Abra os braços para os lados até a altura dos ombros.", "Desça devagar."],
+    posture: ["Peito perto das coxas.", "Cotovelos levemente flexionados.", "Use pouca carga e esprema as escápulas."],
+  },
+  {
+    id: "remada-posterior-corda", name: "Remada para posterior de ombro na corda", group: "ombros", equipment: "Polia média com corda", compound: true, pattern: "abrir-ombro-posterior", media: "face-pull",
+    steps: ["De frente para a polia na altura do peito, segure a corda com as palmas para baixo.", "Puxe a corda em direção ao pescoço abrindo os cotovelos para os lados.", "Volte devagar."],
+    posture: ["Cotovelos na altura dos ombros.", "Tronco parado.", "Sinta o trabalho atrás do ombro, não nas costas."],
+  },
+  {
+    id: "rotacao-externa-cabo", name: "Rotação externa na polia", group: "ombros", equipment: "Polia média", compound: false, pattern: "abrir-ombro-posterior", media: "face-pull",
+    steps: ["De lado para a polia na altura do cotovelo, segure a alça com a mão mais distante.", "Com o cotovelo colado no corpo e dobrado a 90°, gire o antebraço para fora.", "Volte devagar. Troque de lado."],
+    posture: ["Cotovelo não sai da lateral do corpo.", "Carga leve: trabalha os músculos que estabilizam o ombro.", "Movimento lento."],
+  },
+  {
+    id: "elevacao-escapular", name: "Elevação em Y em pé (scaption)", group: "ombros", equipment: "Halteres", compound: false, pattern: "abduzir-ombro", media: "elevacao-lateral",
+    steps: ["Em pé, halteres ao lado do corpo com os polegares para cima.", "Eleve os braços estendidos à frente e um pouco abertos, em V, até a altura dos ombros.", "Desça devagar."],
+    posture: ["Braços a ~30° à frente da linha do corpo.", "Ombros baixos.", "Bom para ombros sensíveis à elevação lateral."],
+  },
+  {
+    id: "landmine-press", name: "Desenvolvimento unilateral na landmine", group: "ombros", equipment: "Barra no landmine", compound: true, pattern: "empurrar-vertical", media: "desenvolvimento",
+    steps: ["Com a ponta da barra presa no landmine, segure a outra ponta na altura do ombro.", "Empurre a barra para cima e para frente até estender o braço.", "Desça devagar. Troque de lado."],
+    posture: ["Pés afastados, um à frente do outro.", "Abdômen firme, sem arquear.", "O arco do movimento costuma poupar o ombro."],
+  },
+  // Bíceps
+  {
+    id: "rosca-barra-w", name: "Rosca direta com barra W", group: "biceps", equipment: "Barra W", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["Em pé, segure a barra W na parte angulada, palmas para cima.", "Dobre os cotovelos subindo a barra até a altura do peito.", "Desça devagar até estender os braços."],
+    posture: ["Cotovelos parados ao lado do corpo.", "Sem jogar o tronco para trás.", "A pegada angulada alivia os punhos."],
+  },
+  {
+    id: "rosca-martelo-corda", name: "Rosca martelo na corda", group: "biceps", equipment: "Polia baixa com corda", compound: false, pattern: "flexionar-cotovelo", media: "rosca-martelo",
+    steps: ["De frente para a polia baixa, segure a corda com as palmas viradas uma para a outra.", "Dobre os cotovelos subindo a corda até o peito.", "Desça devagar."],
+    posture: ["Cotovelos colados no corpo.", "Punhos retos.", "Trabalha bíceps e antebraço juntos."],
+  },
+  {
+    id: "rosca-scott-maquina", name: "Rosca Scott na máquina", group: "biceps", equipment: "Máquina", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["Sente com a parte de trás dos braços no apoio e segure as alças.", "Dobre os cotovelos subindo as alças.", "Desça devagar até quase estender os braços."],
+    posture: ["Braços colados no apoio.", "Não estenda os cotovelos com tranco no fim.", "Ombros baixos."],
+  },
+  {
+    id: "rosca-scott-halter", name: "Rosca Scott unilateral com halter", group: "biceps", equipment: "Halter e banco Scott", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["Apoie a parte de trás do braço no banco Scott com o halter na mão.", "Dobre o cotovelo subindo o halter.", "Desça devagar até quase estender. Troque de lado."],
+    posture: ["Braço sempre colado no apoio.", "Desça controlando: a parte de baixo é a mais pesada.", "Punho reto."],
+  },
+  {
+    id: "rosca-polia-alta", name: "Rosca na polia alta", group: "biceps", equipment: "Polias altas", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["Entre as polias altas, segure uma alça em cada mão com os braços abertos na altura dos ombros.", "Dobre os cotovelos trazendo as mãos em direção às orelhas.", "Volte devagar estendendo os braços."],
+    posture: ["Braços parados na altura dos ombros.", "Só os antebraços se movem.", "Contraia o bíceps no fim."],
+  },
+  {
+    id: "rosca-cruzada", name: "Rosca martelo cruzada", group: "biceps", equipment: "Halteres", compound: false, pattern: "flexionar-cotovelo", media: "rosca-martelo",
+    steps: ["Em pé, halteres ao lado do corpo com as palmas viradas para dentro.", "Suba um halter em direção ao ombro oposto, cruzando à frente do peito.", "Desça devagar e alterne os braços."],
+    posture: ["Cotovelo perto do corpo.", "Sem girar o tronco.", "Punho reto."],
+  },
+  {
+    id: "rosca-arrastada", name: "Rosca arrastada (drag curl)", group: "biceps", equipment: "Barra", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["Segure a barra com as palmas para cima, na largura dos ombros.", "Suba a barra rente ao corpo levando os cotovelos para trás.", "Desça devagar pelo mesmo caminho."],
+    posture: ["A barra raspa no corpo do início ao fim.", "Cotovelos vão para trás, não para frente.", "Use menos carga que na rosca direta."],
+  },
+  {
+    id: "rosca-unilateral-cabo", name: "Rosca unilateral na polia baixa", group: "biceps", equipment: "Polia baixa com alça", compound: false, pattern: "flexionar-cotovelo", media: "rosca-direta",
+    steps: ["De frente para a polia baixa, segure a alça com uma mão.", "Dobre o cotovelo subindo a alça até o ombro.", "Desça devagar. Troque de lado."],
+    posture: ["Cotovelo parado ao lado do corpo.", "Tronco ereto.", "O cabo mantém tensão até em cima."],
+  },
+  // Tríceps
+  {
+    id: "triceps-barra-v", name: "Tríceps na polia com barra V", group: "triceps", equipment: "Polia alta com barra V", compound: false, pattern: "estender-cotovelo", media: "triceps-corda",
+    steps: ["De frente para a polia alta, segure a barra V com as palmas para baixo.", "Com os cotovelos colados no corpo, empurre a barra até estender os braços.", "Volte devagar até os antebraços passarem da horizontal."],
+    posture: ["Cotovelos parados.", "Tronco levemente inclinado à frente.", "Sem usar o peso do corpo."],
+  },
+  {
+    id: "triceps-supinado", name: "Tríceps na polia pegada supinada", group: "triceps", equipment: "Polia alta com barra", compound: false, pattern: "estender-cotovelo", media: "triceps-corda",
+    steps: ["Segure a barra da polia alta com as palmas para cima.", "Com os cotovelos colados no corpo, estenda os braços para baixo.", "Volte devagar."],
+    posture: ["Cotovelos parados ao lado do corpo.", "Punhos retos.", "Use menos carga que na pegada pronada."],
+  },
+  {
+    id: "triceps-unilateral-cabo", name: "Tríceps unilateral na polia", group: "triceps", equipment: "Polia alta com alça", compound: false, pattern: "estender-cotovelo", media: "triceps-corda",
+    steps: ["De frente para a polia alta, segure a alça com uma mão.", "Com o cotovelo colado no corpo, estenda o braço para baixo.", "Volte devagar. Troque de lado."],
+    posture: ["Cotovelo parado.", "Tronco estável, sem girar.", "Ajuda a igualar os dois lados."],
+  },
+  {
+    id: "triceps-maquina", name: "Tríceps na máquina", group: "triceps", equipment: "Máquina", compound: false, pattern: "estender-cotovelo", media: "triceps-corda",
+    steps: ["Sente e apoie a parte de trás dos braços no apoio.", "Estenda os cotovelos empurrando as alças.", "Volte devagar."],
+    posture: ["Braços colados no apoio.", "Costas no encosto.", "Não deixe o peso bater no fim."],
+  },
+  {
+    id: "mergulho-maquina", name: "Mergulho na máquina", group: "triceps", equipment: "Máquina", compound: true, pattern: "estender-cotovelo", media: "triceps-frances",
+    steps: ["Sente na máquina e segure as alças ao lado do corpo.", "Empurre as alças para baixo até estender os braços.", "Suba devagar até os cotovelos dobrarem a ~90°."],
+    posture: ["Tronco ereto e cotovelos perto do corpo.", "Ombros baixos.", "Alternativa ao mergulho nas paralelas com carga ajustável."],
+  },
+  {
+    id: "triceps-testa-halteres", name: "Tríceps testa com halteres", group: "triceps", equipment: "Halteres e banco", compound: false, pattern: "estender-cotovelo", media: "triceps-frances",
+    steps: ["Deite no banco com um halter em cada mão, braços estendidos acima do peito e palmas viradas uma para a outra.", "Dobre os cotovelos descendo os halteres ao lado da cabeça.", "Estenda os braços de volta."],
+    posture: ["Cotovelos apontados para o teto, sem abrir.", "Só os antebraços se movem.", "Desça devagar."],
+  },
+  {
+    id: "triceps-frances-barra", name: "Tríceps francês em pé com barra", group: "triceps", equipment: "Barra ou barra W", compound: false, pattern: "estender-cotovelo", media: "triceps-frances",
+    steps: ["Em pé, segure a barra acima da cabeça com as mãos próximas.", "Dobre os cotovelos descendo a barra atrás da cabeça.", "Estenda os braços de volta."],
+    posture: ["Cotovelos apontados para cima e perto da cabeça.", "Abdômen firme, sem arquear a lombar.", "Desça só até onde o ombro permitir."],
+  },
+  {
+    id: "supino-fechado-smith", name: "Supino fechado no Smith", group: "triceps", equipment: "Máquina Smith e banco", compound: true, pattern: "estender-cotovelo", media: "supino-reto",
+    steps: ["Deite no banco sob o Smith e segure a barra com as mãos na largura dos ombros.", "Destrave e desça a barra até a parte de baixo do peito.", "Empurre de volta estendendo os braços."],
+    posture: ["Cotovelos perto do corpo.", "Punhos retos.", "Trave a barra nos ganchos ao terminar."],
+  },
+  // Trapézio
+  {
+    id: "encolhimento-cabo", name: "Encolhimento na polia", group: "trapezio", equipment: "Polia baixa com barra", compound: false, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["De frente para a polia baixa, segure a barra com os braços estendidos.", "Suba os ombros em direção às orelhas.", "Segure 1 segundo e desça devagar."],
+    posture: ["Braços retos: o movimento é só dos ombros.", "Sem girar os ombros.", "Pescoço neutro."],
+  },
+  {
+    id: "encolhimento-smith", name: "Encolhimento no Smith por trás", group: "trapezio", equipment: "Máquina Smith", compound: false, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["De costas para a barra do Smith, segure-a atrás do corpo com os braços estendidos.", "Suba os ombros em direção às orelhas.", "Segure 1 segundo e desça devagar."],
+    posture: ["Peito aberto, ombros levemente para trás.", "Braços retos.", "Movimento curto e controlado."],
+  },
+  {
+    id: "remada-alta-halteres", name: "Remada alta com halteres", group: "trapezio", equipment: "Halteres", compound: true, pattern: "encolher-ombros", media: "remada-curvada",
+    steps: ["Em pé, halteres à frente das coxas com as palmas para você.", "Suba os halteres rente ao corpo levando os cotovelos para cima e para os lados.", "Pare na altura do peito e desça devagar."],
+    posture: ["Cotovelos sempre acima das mãos.", "Não suba além da altura dos ombros.", "Os halteres deixam cada braço seguir seu caminho."],
+  },
+  // Antebraço
+  {
+    id: "rosca-punho-halteres", name: "Rosca de punho sentado com halteres", group: "antebraco", equipment: "Halteres e banco", compound: false, pattern: "punho", media: "rosca-direta",
+    steps: ["Sente com os antebraços apoiados nas coxas, palmas para cima e punhos para fora dos joelhos.", "Dobre os punhos subindo os halteres.", "Desça devagar até alongar."],
+    posture: ["Antebraços parados nas coxas.", "Movimento só do punho.", "Carga leve e muitas repetições."],
+  },
+  {
+    id: "rosca-punho-cabo", name: "Rosca de punho na polia", group: "antebraco", equipment: "Polia baixa com barra", compound: false, pattern: "punho", media: "rosca-direta",
+    steps: ["Sente de frente para a polia baixa com os antebraços nas coxas, palmas para cima.", "Dobre os punhos subindo a barra.", "Desça devagar até alongar."],
+    posture: ["Antebraços apoiados.", "Movimento só do punho.", "O cabo mantém tensão em todo o movimento."],
+  },
+  {
+    id: "rosca-inversa-halteres", name: "Rosca inversa com halteres", group: "antebraco", equipment: "Halteres", compound: false, pattern: "punho", media: "rosca-direta",
+    steps: ["Em pé, segure os halteres com as palmas para trás.", "Dobre os cotovelos subindo os halteres até os ombros.", "Desça devagar."],
+    posture: ["Cotovelos parados ao lado do corpo.", "Punhos retos, sem dobrar para baixo.", "Trabalha a parte de cima do antebraço."],
   },
 ];
 
