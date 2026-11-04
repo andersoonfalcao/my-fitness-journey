@@ -126,7 +126,21 @@ export type Profile = {
   maintain?: { goalWeight: number } | undefined;
   /** Calories moved to Saturday and Sunday (each), taken evenly from Monday–Friday; the weekly total stays the same. */
   weekendExtra?: number | undefined;
+  /**
+   * Body composition from a bioimpedance the person chose to use for the daily goals: the basal energy and the
+   * protein follow the lean mass instead of the whole body weight (see `targets`).
+   */
+  composition?: { date: string; leanKg: number; fatPct: number } | undefined;
 };
+
+/** Lean mass and body fat of a bioimpedance reading (lean mass derived from weight and fat % when missing); null without enough data. */
+export function compositionFrom(entry: BodyEntry, fallbackWeight: number): Profile["composition"] | null {
+  const weight = entry.weightKg ?? fallbackWeight;
+  const fatPct = entry.fatPct ?? (entry.leanKg ? (1 - entry.leanKg / weight) * 100 : undefined);
+  const leanKg = entry.leanKg ?? (entry.fatPct !== undefined ? weight * (1 - entry.fatPct / 100) : undefined);
+  if (!leanKg || fatPct === undefined || leanKg <= 20 || leanKg >= weight || fatPct <= 2 || fatPct >= 70) return null;
+  return { date: entry.date, leanKg: Math.round(leanKg * 10) / 10, fatPct: Math.round(fatPct * 10) / 10 };
+}
 
 /** "suplementos" holds supplements taken (src/lib/supplements.ts); it is not counted as a meal. */
 export type MealType = "cafe" | "almoco" | "lanche" | "jantar" | "suplementos";
@@ -357,7 +371,10 @@ const KCAL_PER_KG_DAY = 7700 / 7;
  * and the ISSN protein position stand (1.4–2.0 g/kg for exercising people, more in a deficit).
  */
 export function targets(p: Profile, date?: string) {
-  const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "m" ? 5 : -161);
+  // With a bioimpedance in use, the basal energy follows the lean mass (Katch-McArdle), which the body weight alone
+  // overestimates with more fat and underestimates with more muscle; otherwise Mifflin-St Jeor.
+  const lean = p.composition?.leanKg;
+  const bmr = lean ? 370 + 21.6 * lean : 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "m" ? 5 : -161);
   // Once the person accepts the energy measured from their own logs, it replaces the activity estimate.
   const tdee = p.calibratedTdee?.kcal ?? bmr * p.activity;
   const losing = p.goalWeight < p.weight - 0.5;
@@ -391,8 +408,11 @@ export function targets(p: Profile, date?: string) {
   const shift = date ? weekdayShift(p, date) : 0;
 
   // In a deficit, protein follows the goal weight so overweight profiles aren't overestimated.
-  const proteinWeight = p.focus === "perder" || losing ? Math.min(p.weight, p.goalWeight) : p.weight;
-  const proteinPerKg = p.focus === "perder" ? 2.2 : p.focus === "massa" ? 2 : p.focus === "forca" ? 1.8 : 1.6;
+  // With the lean mass known, protein follows it (Helms et al. 2014: 2.3–3.1 g/kg of lean mass in a deficit).
+  const proteinWeight = lean ?? (p.focus === "perder" || losing ? Math.min(p.weight, p.goalWeight) : p.weight);
+  const proteinPerKg = lean
+    ? p.focus === "perder" || losing ? 2.6 : p.focus === "massa" ? 2.4 : p.focus === "forca" ? 2.2 : 2
+    : p.focus === "perder" ? 2.2 : p.focus === "massa" ? 2 : p.focus === "forca" ? 1.8 : 1.6;
   const protein = Math.round(proteinWeight * proteinPerKg);
   const fat = Math.round(Math.max((kcal * 0.25) / 9, p.weight * 0.6));
   const carbs = Math.max(0, Math.round((kcal + shift - protein * 4 - fat * 9) / 4));
@@ -401,9 +421,10 @@ export function targets(p: Profile, date?: string) {
   const waterMl = Math.round(Math.min(4000, Math.max(1500, p.weight * 35)) / 50) * 50;
 
   const notes = [
+    ...(p.composition ? [`metabolismo basal pela massa magra da bioimpedância de ${new Date(`${p.composition.date}T12:00:00`).toLocaleDateString("pt-BR")} (${p.composition.leanKg.toLocaleString("pt-BR")} kg, Katch-McArdle)`] : []),
     ...(p.calibratedTdee ? [`gasto calibrado pelos seus registros em ${new Date(`${p.calibratedTdee.date}T12:00:00`).toLocaleDateString("pt-BR")}`] : []),
     energyNote,
-    `proteína ${proteinPerKg.toLocaleString("pt-BR")} g/kg${proteinWeight !== p.weight ? " do peso-meta" : ""}`,
+    `proteína ${proteinPerKg.toLocaleString("pt-BR")} g/kg${lean ? " de massa magra" : proteinWeight !== p.weight ? " do peso-meta" : ""}`,
     "gordura ~25% das calorias",
     "carboidratos completam o restante",
     "água ~35 ml/kg",
