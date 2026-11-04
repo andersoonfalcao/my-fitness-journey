@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BodyMeasures } from "@/components/BodyMeasures";
 import { BodyAnalysisCard } from "@/components/BodyAnalysisCard";
+import { CompositionTargets } from "@/components/CompositionTargets";
 import { analyzeBioimpedance, readBioimpedance } from "@/lib/ai-body";
 import { HealthTrends } from "@/components/HealthTrends";
 import { FitnessCard } from "@/components/FitnessCard";
@@ -66,7 +67,7 @@ const FIELDS: { key: Exclude<keyof BodyEntry, "date" | "analysis">; label: strin
 
 function CorpoPage() {
   const { aba: tab = "registrar", dia } = Route.useSearch();
-  const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
+  const [profile, setProfile, ready] = useLocal<Profile | null>(KEYS.profile, null);
   const [weights, setWeights] = useLocal<WeightEntry[]>(KEYS.weights, []);
   const [body, setBody] = useLocal<BodyEntry[]>(KEYS.body, []);
   const [kg, setKg] = useState("");
@@ -118,6 +119,14 @@ function CorpoPage() {
     setExtras([]);
   };
 
+  /** Bases the daily goals on a reading (or back on the weight alone); the analysis is redone with the new goals. */
+  const applyComposition = (entry: BodyEntry, next: Profile) => {
+    setProfile(next);
+    if (next.weight !== profile.weight) setWeights((w) => (w.some((x) => x.date === entry.date) ? w : [...w, { date: entry.date, kg: next.weight }]));
+    toast.success(next.composition ? "Objetivos diários recalculados com a bioimpedância" : "Objetivos diários voltaram ao cálculo pelo peso");
+    if (entry.analysis) void analyse(entry, entry.analysis.extras ?? [], next);
+  };
+
   /** Reads a photo or PDF of the report into the fields; the person checks them and saves. */
   const readFile = async (file: File | undefined) => {
     if (!file) return;
@@ -138,10 +147,10 @@ function CorpoPage() {
   };
 
   /** Asks the AI for targets and what to do, and keeps the answer with the reading. */
-  const analyse = async (entry: BodyEntry, notes: string[] = entry.analysis?.extras ?? []) => {
+  const analyse = async (entry: BodyEntry, notes: string[] = entry.analysis?.extras ?? [], p: Profile = profile) => {
     setAnalysing(entry.date);
     try {
-      const analysis = await analyzeBioimpedance(entry, body, profile, notes);
+      const analysis = await analyzeBioimpedance(entry, body, p, notes);
       setBody((list) => list.map((b) => (b.date === entry.date ? { ...b, analysis } : b)));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível analisar a medição.");
@@ -287,6 +296,7 @@ function CorpoPage() {
           </div>
         )}
 
+        {latest && <CompositionTargets entry={latest} profile={profile} onApply={(next) => applyComposition(latest, next)} />}
         {latest && <BodyAnalysisCard analysis={latest.analysis} busy={analysing === latest.date} onRedo={() => void analyse(latest)} />}
 
         {readings.filter((r) => r.fatPct !== undefined || r.muscleKg !== undefined).length > 1 && (
@@ -386,6 +396,7 @@ function CorpoPage() {
           return saved ? (
             <div className="mt-4 space-y-2">
               <div className="text-sm font-bold">Medição de {new Date(savedDate + "T12:00").toLocaleDateString("pt-BR")}</div>
+              <CompositionTargets entry={saved} profile={profile} onApply={(next) => applyComposition(saved, next)} />
               {analysing === savedDate && !saved.analysis ? (
                 <p className="flex items-center gap-2 rounded-2xl bg-accent/10 p-4 text-sm"><Loader2 className="h-4 w-4 animate-spin" />A IA está analisando os números e montando as metas…</p>
               ) : (
