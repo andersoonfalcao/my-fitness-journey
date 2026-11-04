@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { FileUp, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BodyMeasures } from "@/components/BodyMeasures";
+import { BodyAnalysisCard } from "@/components/BodyAnalysisCard";
+import { analyzeBioimpedance, readBioimpedance } from "@/lib/ai-body";
 import { HealthTrends } from "@/components/HealthTrends";
 import { FitnessCard } from "@/components/FitnessCard";
 import { fmtKg, KEYS, roundKg, searchDay, today, useLocal, type BodyEntry, type Profile, type WeightEntry } from "@/lib/store";
@@ -50,7 +52,7 @@ const BMI_RANGES = [
 ];
 
 /** Bioimpedance fields: key, label, unit, whether a lower value is the better direction (null = neutral). */
-const FIELDS: { key: Exclude<keyof BodyEntry, "date">; label: string; unit: string; lowerIsBetter: boolean | null; placeholder: string }[] = [
+const FIELDS: { key: Exclude<keyof BodyEntry, "date" | "analysis">; label: string; unit: string; lowerIsBetter: boolean | null; placeholder: string }[] = [
   { key: "weightKg", label: "Peso", unit: "kg", lowerIsBetter: null, placeholder: "78,45" },
   { key: "fatPct", label: "Gordura corporal", unit: "%", lowerIsBetter: true, placeholder: "22,5" },
   { key: "muscleKg", label: "Massa muscular", unit: "kg", lowerIsBetter: false, placeholder: "34,1" },
@@ -71,6 +73,13 @@ function CorpoPage() {
   const [date, setDate] = useState(dia ?? today());
   const [bioDate, setBioDate] = useState(dia ?? today());
   const [bio, setBio] = useState<Record<string, string>>({});
+  // Other numbers of the report the AI read, kept for the analysis; reading = the report is being read.
+  const [extras, setExtras] = useState<string[]>([]);
+  const [reading, setReading] = useState(false);
+  // Date of the reading being analysed, and of the one saved last (its analysis shows under the form).
+  const [analysing, setAnalysing] = useState<string | null>(null);
+  const [savedDate, setSavedDate] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   if (!ready) return null;
   if (!profile) return <NeedProfile />;
@@ -103,7 +112,42 @@ function CorpoPage() {
     // The scale's weight also feeds the weight chart.
     if (entry.weightKg) setWeights((w) => [...w.filter((x) => x.date !== bioDate), { date: bioDate, kg: roundKg(entry.weightKg!) }]);
     setBio({});
+    setSavedDate(bioDate);
     toast.success("Bioimpedância registrada");
+    void analyse(entry, extras);
+    setExtras([]);
+  };
+
+  /** Reads a photo or PDF of the report into the fields; the person checks them and saves. */
+  const readFile = async (file: File | undefined) => {
+    if (!file) return;
+    setReading(true);
+    try {
+      const report = await readBioimpedance(file);
+      // Plain decimal comma, no thousands dot: "1.750" would read back as 1,75.
+      setBio(Object.fromEntries(Object.entries(report.values).map(([k, v]) => [k, String(v).replace(".", ",")])));
+      if (report.date && report.date <= today()) setBioDate(report.date);
+      setExtras(report.extras);
+      toast.success("Números lidos. Confira os campos e toque em Salvar medição.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível ler o arquivo.");
+    } finally {
+      setReading(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
+  /** Asks the AI for targets and what to do, and keeps the answer with the reading. */
+  const analyse = async (entry: BodyEntry, notes: string[] = entry.analysis?.extras ?? []) => {
+    setAnalysing(entry.date);
+    try {
+      const analysis = await analyzeBioimpedance(entry, body, profile, notes);
+      setBody((list) => list.map((b) => (b.date === entry.date ? { ...b, analysis } : b)));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível analisar a medição.");
+    } finally {
+      setAnalysing(null);
+    }
   };
 
   const heightM = profile.height / 100;
@@ -243,6 +287,8 @@ function CorpoPage() {
           </div>
         )}
 
+        {latest && <BodyAnalysisCard analysis={latest.analysis} busy={analysing === latest.date} onRedo={() => void analyse(latest)} />}
+
         {readings.filter((r) => r.fatPct !== undefined || r.muscleKg !== undefined).length > 1 && (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -309,9 +355,15 @@ function CorpoPage() {
       <section id="bioimpedancia" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
         <h2 className="text-xl font-bold">Bioimpedância</h2>
         <p className="text-sm text-muted-foreground">
-          Copie os números da balança ou do laudo. Preencha só o que ela mostrar.
+          Envie a foto ou o PDF do laudo para a IA preencher os números, ou copie da balança. Preencha só o que ela mostrar.
           {latest && <> Última medição em {new Date(latest.date + "T12:00").toLocaleDateString("pt-BR")}.</>}
         </p>
+        <input ref={fileInput} type="file" accept="image/*,application/pdf" className="sr-only" aria-label="Foto ou PDF da bioimpedância" onChange={(e) => void readFile(e.target.files?.[0])} />
+        <button type="button" onClick={() => fileInput.current?.click()} disabled={reading}
+          className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-accent px-5 font-bold text-accent disabled:opacity-60 sm:w-auto">
+          {reading ? <><Loader2 className="h-4 w-4 animate-spin" />Lendo o laudo…</> : <><FileUp className="h-4 w-4" />Ler foto ou arquivo com a IA</>}
+        </button>
+        {extras.length > 0 && <p className="mt-2 text-xs text-muted-foreground">Também li: {extras.join("; ")}. Entra na análise ao salvar.</p>}
         <label className="mt-3 block text-sm font-semibold">
           Data
           <input type="date" value={bioDate} onChange={(e) => setBioDate(e.target.value)} className="mt-1 block w-full rounded-xl border border-input bg-card px-3 py-2.5 font-normal sm:w-auto" />
@@ -328,7 +380,20 @@ function CorpoPage() {
             </label>
           ))}
         </div>
-        <button onClick={addBio} className="mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground">Salvar medição</button>
+        <button onClick={addBio} disabled={reading} className="mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground disabled:opacity-60">Salvar medição</button>
+        {savedDate && (() => {
+          const saved = body.find((b) => b.date === savedDate);
+          return saved ? (
+            <div className="mt-4 space-y-2">
+              <div className="text-sm font-bold">Medição de {new Date(savedDate + "T12:00").toLocaleDateString("pt-BR")}</div>
+              {analysing === savedDate && !saved.analysis ? (
+                <p className="flex items-center gap-2 rounded-2xl bg-accent/10 p-4 text-sm"><Loader2 className="h-4 w-4 animate-spin" />A IA está analisando os números e montando as metas…</p>
+              ) : (
+                <BodyAnalysisCard analysis={saved.analysis} busy={analysing === savedDate} onRedo={() => void analyse(saved)} />
+              )}
+            </div>
+          ) : null;
+        })()}
       </section>
 
       <BodyMeasures profile={profile} part="registrar" />

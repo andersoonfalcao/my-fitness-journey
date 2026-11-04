@@ -168,6 +168,18 @@ export type BodyEntry = {
   boneKg?: number | undefined;
   bmrKcal?: number | undefined;
   metabolicAge?: number | undefined;
+  /** The AI's reading of these numbers: where each stands, the target and what to do (src/lib/ai-body.ts). */
+  analysis?: BodyAnalysis | undefined;
+};
+export type BodyAnalysis = {
+  createdAt: string;
+  summary: string;
+  items: { metric: string; status: "bom" | "atencao" | "melhorar"; current: string; target: string; how: string }[];
+  actions: string[];
+  timeline: string;
+  measuring: string;
+  /** Other numbers of the report that have no field (subcutaneous fat, segments…). */
+  extras?: string[] | undefined;
 };
 /** Tape measurements in cm, all optional (each person measures a different set). */
 export type MeasureEntry = {

@@ -97,7 +97,8 @@ export async function coachData({ uid, date, profile, weights, history, plan }: 
     .map((a) => ({ data: a.date, atividade: a.id < 0 ? a.name : sportLabel(a.sport), minutos: Math.round(a.movingS / 60), km: Math.round(a.distanceM / 100) / 10 || null, kcal: a.kcal ?? null, fcMedia: a.avgHr ?? null }));
   const todayFoods = foods.filter((f) => f.date === date);
   const eaten = todayFoods.reduce((s, f) => ({ kcal: s.kcal + f.kcal, p: s.p + f.p, c: s.c + f.c, f: s.f + f.f }), { kcal: 0, p: 0, c: 0, f: 0 });
-  const sortedBody = [...body].sort((a, b) => a.date.localeCompare(b.date));
+  // The saved AI analysis goes in as its summary only, so the prompt stays short.
+  const sortedBody = [...body].sort((a, b) => a.date.localeCompare(b.date)).map(({ analysis, ...b }) => (analysis?.summary ? { ...b, analise: analysis.summary } : b));
   const sortedMeasures = [...measures].sort((a, b) => a.date.localeCompare(b.date));
 
   const week = (start: string) => weekStats(start, date, { foods, water, weights, history, strava, health, targets: { kcal: t.kcal, waterMl: t.waterMl } });
