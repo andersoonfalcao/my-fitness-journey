@@ -7,12 +7,16 @@ import type { MealType } from "./store";
 export const MENU_MEALS = ["cafe", "almoco", "lanche", "jantar"] as const satisfies readonly MealType[];
 export type MenuMeal = (typeof MENU_MEALS)[number];
 
-export type MenuDayTarget = { date: string; kcal: number; protein: number; carbs: number; fat: number };
+/** Targets of the meals asked for that day (not the whole day when some meals are left out or already planned). */
+export type MenuDayTarget = { date: string; meals: readonly MenuMeal[]; kcal: number; protein: number; carbs: number; fat: number };
+
+/** Usual share of the day's calories in each meal, used to split a day's target among the meals asked for. */
+export const MEAL_SHARE: Record<MenuMeal, number> = { cafe: 0.25, almoco: 0.35, lanche: 0.15, jantar: 0.25 };
 export type MenuDay = { date: string; meals: { meal: MenuMeal; items: FavItem[] }[] };
 
 const SYSTEM = `Você é um nutricionista brasileiro montando o cardápio dos próximos dias de um aluno num app de dieta.
-Para cada dia recebido em "dias", monte as 4 refeições: cafe (café da manhã), almoco, lanche e jantar.
-A soma das calorias do dia deve ficar a no máximo 5% da meta (kcal). A proteína do dia precisa chegar a pelo menos 90% da meta (protein), distribuída nas refeições (não concentre numa só): se os habituais não bastarem, aumente as fontes de proteína ou acrescente frango, carne magra, peixe, ovos, iogurte natural ou queijo branco.
+Para cada dia recebido em "dias", monte SOMENTE as refeições listadas em "refeicoes" (cafe = café da manhã, almoco, lanche, jantar); não devolva as outras.
+As metas do dia (kcal, protein, carbs, fat) já são só dessas refeições. A soma das calorias delas deve ficar a no máximo 5% de kcal. A proteína precisa chegar a pelo menos 90% de protein, distribuída nas refeições (não concentre numa só): se os habituais não bastarem, aumente as fontes de proteína ou acrescente frango, carne magra, peixe, ovos, iogurte natural ou queijo branco.
 Use de preferência os alimentos de "habituais", que são os que o aluno mais registra, com a porção de costume como referência; para eles, calcule os valores pelas colunas por 100 g recebidas. Pode completar com alimentos comuns no Brasil (tabela TACO), em preparos simples (cozido, grelhado, assado).
 "favoritas" são refeições que o aluno já salvou: pode repetir algumas como estão.
 Os dias precisam ser diferentes entre si: repetir o café da manhã e o lanche é normal, mas o almoço e o jantar não podem ser iguais em dias seguidos; troque a proteína, o acompanhamento ou o preparo. Prefira itens separados (arroz, feijão, frango) a pratos inteiros, para o aluno poder ajustar cada um. Não inclua suplementos.
@@ -44,7 +48,7 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) ? Math.max(0, Number(v))
  */
 export async function buildWeekMenu(days: MenuDayTarget[], usual: { food: Food; grams: number }[], favorites: FavMeal[]): Promise<MenuDay[]> {
   const prompt = JSON.stringify({
-    dias: days.map((d) => ({ date: d.date, diaDaSemana: new Date(`${d.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long" }), kcal: d.kcal, protein: d.protein, carbs: d.carbs, fat: d.fat })),
+    dias: days.map((d) => ({ date: d.date, diaDaSemana: new Date(`${d.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long" }), refeicoes: d.meals, kcal: d.kcal, protein: d.protein, carbs: d.carbs, fat: d.fat })),
     habituais: usual.map(({ food, grams }) => ({ nome: food.name, porcaoDeCostumeG: grams, kcalPor100g: food.kcal, proteinaPor100g: food.p, carboPor100g: food.c, gorduraPor100g: food.f })),
     favoritas: favorites.slice(0, 10).map((f) => ({ nome: f.name, refeicao: f.meal, itens: f.items.map((i) => `${i.name} ${i.grams} g`) })),
   });
@@ -57,7 +61,7 @@ export async function buildWeekMenu(days: MenuDayTarget[], usual: { food: Food; 
     const meals = Array.isArray(raw?.["meals"]) ? (raw["meals"] as Record<string, unknown>[]) : [];
     return {
       date: target.date,
-      meals: MENU_MEALS.map((meal) => ({
+      meals: MENU_MEALS.filter((meal) => target.meals.includes(meal)).map((meal) => ({
         meal,
         items: (meals.find((m) => m["meal"] === meal)?.["items"] as Record<string, unknown>[] | undefined ?? []).flatMap((i): FavItem[] => {
           const name = String(i["name"] ?? "").trim();

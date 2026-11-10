@@ -223,8 +223,24 @@ function FoodPage() {
             </button>
           ))}
         </div>
-        {planning && <p className="-mt-2 mb-3 text-xs text-muted-foreground">O que você adicionar fica planejado (em cinza) e não conta até você tocar em “Comi”. Dá para planejar até 7 dias à frente pelo “Outro dia”.</p>}
+        {planning && <p className="-mt-2 mb-3 text-xs text-muted-foreground">O que você adicionar fica planejado (em cinza) e não conta até você tocar em “Comi”.</p>}
         {planning && <WeekMenu profile={profile} entries={[...prevMonthFoods.filter((f) => f.date < date), ...foods.filter((f) => f.date <= date)]} />}
+        {planning && (
+          // The day the food is planned for: today up to a week ahead (the same day the page shows).
+          <div className="mb-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Ou adicione você mesmo</p>
+            <p id="plan-day" className="mb-1.5 text-sm font-bold">Para qual dia</p>
+            <div role="group" aria-labelledby="plan-day" className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 8 }, (_, k) => addDays(today(), k)).map((d) => (
+                <button key={d} type="button" aria-pressed={date === d} onClick={() => setDate(d)}
+                  className={`min-h-11 rounded-full border px-3 text-sm font-semibold capitalize ${date === d ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>
+                  {d === today() ? "Hoje" : d === addDays(today(), 1) ? "Amanhã" : new Date(`${d}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {planning && <p className="mb-1.5 text-sm font-bold">Em qual refeição</p>}
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {MEALS.map((m) => (
             <button key={m.v} onClick={() => setMeal(m.v)}
