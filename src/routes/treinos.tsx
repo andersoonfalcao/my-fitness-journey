@@ -409,17 +409,30 @@ function TreinosPage() {
     setPlan({ ...plan, days: plan.days.map((day, di) => (di === d ? { ...day, items: tidyCombos(items) } : day)) });
   };
 
-  /** Joins the ticked exercises in one block, side by side from where the first of them was. */
+  /** Joins the ticked exercises in one block, in the order they were ticked, from where the first of them (in the day) was. */
   const combine = () => {
     if (!combining || combining.picked.length < 2) return;
     const items = plan.days[combining.d]!.items;
-    const picked = [...combining.picked].sort((a, b) => a - b);
+    const picked = combining.picked;
+    const start = Math.min(...picked);
     const id = uid();
     const others = items.map((_, j) => j).filter((j) => !picked.includes(j));
-    const order = [...others.filter((j) => j < picked[0]!), ...picked, ...others.filter((j) => j > picked[0]!)];
+    const order = [...others.filter((j) => j < start), ...picked, ...others.filter((j) => j > start)];
     saveDayItems(combining.d, order.map((j) => (picked.includes(j) ? { ...items[j]!, combo: id } : items[j]!)), order);
     toast.success(`${comboName(picked.length)} criado`, { description: "Faça um depois do outro, sem descanso. O descanso vem no fim da rodada." });
     setCombining(null);
+  };
+
+  /** Changes the order inside a block: exercise `i` trades places with the member before it (or after, when it is the first). */
+  const reorderCombo = (i: number) => {
+    const block = comboOf(day.items, i);
+    if (!block) return;
+    const k = block.position - 1;
+    const other = block.members[k > 0 ? k - 1 : k + 1]!;
+    const order = day.items.map((_, j) => (j === i ? other : j === other ? i : j));
+    saveDayItems(active, order.map((j) => day.items[j]!), order);
+    setOpenItem(order.indexOf(i));
+    toast.success(k > 0 ? `${byId(day.items[i]!.exId).name} vem antes agora` : `${byId(day.items[i]!.exId).name} vem depois agora`);
   };
 
   const splitCombo = (comboId: string) => {
@@ -791,6 +804,9 @@ function TreinosPage() {
                     <p className="min-w-0 flex-1 text-xs text-muted-foreground">
                       <b className="text-foreground">{combo.label}</b> com {combo.members.filter((j) => j !== i).map((j) => byId(day.items[j]!.exId).name).join(" e ")}: um depois do outro, sem descanso.
                     </p>
+                    <button type="button" onClick={() => reorderCombo(i)} className="-my-2 min-h-11 shrink-0 px-1 text-xs font-semibold text-primary underline-offset-4 hover:underline">
+                      {combo.members.length === 2 ? "Inverter ordem" : combo.position > 1 ? "Fazer antes" : "Fazer depois"}
+                    </button>
                     <button type="button" onClick={() => splitCombo(combo.id)} className="-my-2 min-h-11 shrink-0 px-1 text-xs font-semibold text-primary underline-offset-4 hover:underline">Separar</button>
                   </div>
                 )}
@@ -1151,14 +1167,15 @@ function TreinosPage() {
             return (
               <>
                 <DialogHeader><DialogTitle className="font-display text-xl">Combinar exercícios</DialogTitle></DialogHeader>
-                <p className="text-sm text-muted-foreground">Marque dois ou mais. Eles são feitos um depois do outro, sem descanso, e o descanso vem só no fim da rodada.</p>
+                <p className="text-sm text-muted-foreground">Marque dois ou mais, na ordem em que quer fazer. Eles são feitos um depois do outro, sem descanso, e o descanso vem só no fim da rodada.</p>
                 <div className="space-y-2">
                   {planDay.items.map((it, j) => {
                     const a = byId(it.exId);
-                    const on = combining.picked.includes(j);
+                    const rank = combining.picked.indexOf(j) + 1;
+                    const on = rank > 0;
                     const current = comboOf(planDay.items, j);
                     return (
-                      <button key={j} type="button" role="checkbox" aria-checked={on} onClick={() => toggle(j)}
+                      <button key={j} type="button" role="checkbox" aria-checked={on} aria-label={on ? `${a.name}, ${rank}º do bloco` : a.name} onClick={() => toggle(j)}
                         className={`flex w-full items-center gap-3 rounded-2xl border-2 p-2 text-left ${on ? "border-accent bg-accent/10" : "border-border"}`}>
                         <img src={photosFor(a.id)?.[1] ?? a.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
                         <span className="min-w-0 flex-1">
@@ -1168,7 +1185,7 @@ function TreinosPage() {
                           </span>
                         </span>
                         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 ${on ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}>
-                          {on && <Check className="h-4 w-4" />}
+                          {on && <b className="font-display text-sm">{rank}</b>}
                         </span>
                       </button>
                     );
