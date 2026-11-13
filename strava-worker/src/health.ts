@@ -166,15 +166,31 @@ export function totalOf(values: unknown[], starts: unknown[], ends: unknown[], s
   return { total, sources: band ? [band] : [...seen], perSource };
 }
 
+/**
+ * The personal key in an Authorization header, forgiving what the Shortcuts app does to it: "Bearer" with no space
+ * or in another case, quotes, line breaks from copying, and "--" turned into a dash by smart punctuation.
+ */
+export function keyFromHeader(header: string) {
+  return header
+    .replace(/^\s*["'“”‘’]?\s*bearer\s*:?/i, "")
+    .replace(/[“”‘’"'\s]/g, "")
+    .replace(/—/g, "--").replace(/–/g, "-");
+}
+
 const text = (body: string, status: number) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 const fmt = (n: number, digits = 0) => n.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 
 /** POST /health/ingest from the Shortcut, with "Authorization: Bearer <personal key>". Answers in plain text, shown on the iPhone. */
 export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Response> {
   if (request.method !== "POST") return text("Use POST.", 405);
-  const key = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
-  const record = key ? await env.TOKENS.get<KeyRecord>(`hkey:${await sha(key)}`, "json") : null;
-  if (!record) return text("Chave inválida. Gere uma nova em Configurações → Saúde do iPhone e cole no atalho.", 401);
+  const header = request.headers.get("Authorization");
+  if (!header?.trim()) return text("O atalho não mandou a chave. Em “Obter Conteúdo do URL”, adicione o cabeçalho Authorization com o valor copiado em Configurações → Saúde do iPhone.", 401);
+  const key = keyFromHeader(header);
+  if (!/^[A-Za-z0-9_-]{32}$/.test(key)) {
+    return text(`A chave chegou alterada (${key.length} de 32 caracteres). Gere uma nova em Configurações → Saúde do iPhone, toque em Copiar no “Valor do cabeçalho” e cole inteiro no cabeçalho Authorization do atalho, sem digitar nada.`, 401);
+  }
+  const record = await env.TOKENS.get<KeyRecord>(`hkey:${await sha(key)}`, "json");
+  if (!record) return text(`Chave não reconhecida (termina em …${key.slice(-4)}). Só a última chave gerada vale: confira se é ela que está no atalho, ou gere uma nova em Configurações → Saúde do iPhone e cole no atalho.`, 401);
   const raw = await request.text();
   if (raw.length > 2_000_000) return text("Dados grandes demais.", 413);
   let body: Record<string, unknown>;
