@@ -61,6 +61,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [pathname, hash]);
 
+  // iPhone: after the keyboard closes, Safari can leave the page shifted by the keyboard's height and the
+  // fixed tab bar floats above the bottom of the screen. Re-applying the scroll once the keyboard is gone
+  // makes it lay the fixed elements out again.
+  useEffect(() => {
+    const realign = () => {
+      const el = document.activeElement;
+      if (el instanceof HTMLElement && el.matches("input, textarea, select, [contenteditable='true']")) return;
+      window.scrollTo(window.scrollX, window.scrollY);
+    };
+    const onFocusOut = () => setTimeout(realign, 100);
+    const vv = window.visualViewport;
+    document.addEventListener("focusout", onFocusOut);
+    vv?.addEventListener("resize", realign);
+    return () => {
+      document.removeEventListener("focusout", onFocusOut);
+      vv?.removeEventListener("resize", realign);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen pb-24 md:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">

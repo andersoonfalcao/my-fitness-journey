@@ -166,6 +166,8 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-body);
+    /* No rubber band past the ends: on the iPhone it dragged the fixed tab bar up with the page. */
+    overscroll-behavior-y: none;
   }
   h1, h2, h3, .font-display {
     font-family: var(--font-display);
