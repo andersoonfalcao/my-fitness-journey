@@ -1,4 +1,4 @@
-import { Link, useLocation, useRouter } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useEffect, useState, type ReactNode } from "react";
@@ -60,6 +60,36 @@ export function AppShell({ children }: { children: ReactNode }) {
     }, 100);
     return () => clearInterval(id);
   }, [pathname, hash]);
+
+  // Tapping the "rest is over" notice with the app open (sw.js): the workout opens on the exercise being done.
+  const navigate = useNavigate();
+  useEffect(() => {
+    const worker = typeof navigator !== "undefined" ? navigator.serviceWorker : undefined;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "descanso") void navigate({ to: "/treinos", search: {}, hash: "exercicio-atual" });
+    };
+    worker?.addEventListener("message", onMessage);
+    return () => worker?.removeEventListener("message", onMessage);
+  }, [navigate]);
+
+  // iPhone: after the keyboard closes, Safari can leave the page shifted by the keyboard's height and the
+  // fixed tab bar floats above the bottom of the screen. Re-applying the scroll once the keyboard is gone
+  // makes it lay the fixed elements out again.
+  useEffect(() => {
+    const realign = () => {
+      const el = document.activeElement;
+      if (el instanceof HTMLElement && el.matches("input, textarea, select, [contenteditable='true']")) return;
+      window.scrollTo(window.scrollX, window.scrollY);
+    };
+    const onFocusOut = () => setTimeout(realign, 100);
+    const vv = window.visualViewport;
+    document.addEventListener("focusout", onFocusOut);
+    vv?.addEventListener("resize", realign);
+    return () => {
+      document.removeEventListener("focusout", onFocusOut);
+      vv?.removeEventListener("resize", realign);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen pb-24 md:pb-0">
