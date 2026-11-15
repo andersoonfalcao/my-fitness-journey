@@ -1,4 +1,4 @@
-import { Link, useLocation, useRouter } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useEffect, useState, type ReactNode } from "react";
@@ -60,6 +60,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     }, 100);
     return () => clearInterval(id);
   }, [pathname, hash]);
+
+  // Tapping the "rest is over" notice with the app open (sw.js): the workout opens on the exercise being done.
+  const navigate = useNavigate();
+  useEffect(() => {
+    const worker = typeof navigator !== "undefined" ? navigator.serviceWorker : undefined;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "descanso") void navigate({ to: "/treinos", search: {}, hash: "exercicio-atual" });
+    };
+    worker?.addEventListener("message", onMessage);
+    return () => worker?.removeEventListener("message", onMessage);
+  }, [navigate]);
 
   // iPhone: after the keyboard closes, Safari can leave the page shifted by the keyboard's height and the
   // fixed tab bar floats above the bottom of the screen. Re-applying the scroll once the keyboard is gone

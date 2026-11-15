@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -48,11 +48,11 @@ export const Route = createFileRoute("/treinos")({
 function TreinosPage() {
   const tab = Route.useSearch().aba ?? "treino";
   const [profile, , ready] = useLocal<Profile | null>(KEYS.profile, null);
-  const [plan, setPlan] = useLocal<Plan | null>(KEYS.plan, null);
+  const [plan, setPlan, planReady] = useLocal<Plan | null>(KEYS.plan, null);
   const [doneLog, setDone] = useLocal<string[]>(KEYS.done, []);
   const [cycleStart, setCycleStart] = useLocal<number>(KEYS.cycle, 0);
   const [loads, setLoads] = useLocal<LoadEntry[]>(KEYS.loads, []);
-  const [session, setSession] = useLocal<WorkoutSession | null>(KEYS.session, null);
+  const [session, setSession, sessionReady] = useLocal<WorkoutSession | null>(KEYS.session, null);
   const [history, setHistory] = useHistory();
   const [share, setShare] = useState<ShareRequest | null>(null);
   const [loadInputs, setLoadInputs] = useState<Record<string, string>>({});
@@ -99,6 +99,24 @@ function TreinosPage() {
   useEffect(() => {
     if (plan && normalizePlan(plan) !== plan) setPlan(normalizePlan(plan));
   }, [plan, setPlan]);
+
+  // /treinos#exercicio-atual (tapping the "rest is over" notice): opens the exercise being done and scrolls to it —
+  // the one the rest counts down on, else the open one if it still has sets, else the next in line.
+  const { hash } = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (hash !== "exercicio-atual" || !ready || !planReady || !sessionReady) return;
+    void navigate({ to: "/treinos", search: {}, hash: "", replace: true });
+    const d = session && plan ? plan.days.findIndex((x) => x.name === session.dayName) : -1;
+    if (!session || !plan || d < 0) return;
+    const dayItems = plan.days[d]!.items;
+    const pending = dayItems.map((_, j) => j).filter((j) => (session.sets?.[j] ?? 0) < dayItems[j]!.sets);
+    const current = session.rest?.item ?? (openItem !== null && pending.includes(openItem) ? openItem : nextInLine(pending, session.later, -1));
+    if (current === undefined) return;
+    setDayIdx(null);
+    setOpenItem(current);
+    setTimeout(() => document.getElementById(`exercicio-${current}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  }, [hash, ready, planReady, sessionReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!ready) return null;
   if (!profile) return <NeedProfile />;

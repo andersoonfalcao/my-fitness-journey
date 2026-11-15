@@ -151,6 +151,15 @@ self.addEventListener("notificationclick", (event) => {
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const open = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      // End of a rest: back to the workout on the exercise being done. An open app is told to go there itself
+      // (no reload, and iOS does not always let a worker move a page); a closed one opens on that exercise.
+      if (event.notification.tag === "forma-descanso") {
+        if (open) {
+          await open.focus().catch(() => undefined);
+          open.postMessage({ type: "descanso" });
+        } else await self.clients.openWindow("/treinos#exercicio-atual");
+        return;
+      }
       if (open) {
         await open.focus();
         if (new URL(open.url).pathname !== url) await open.navigate(url).catch(() => undefined);
