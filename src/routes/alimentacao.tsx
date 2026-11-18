@@ -1,9 +1,11 @@
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/meter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScreenSkeleton } from "@/components/ui/skeleton";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { CalendarClock, Check, Utensils, ChefHat, ChevronDown, Pencil, Search, Sparkles, Star, Trash2, Loader2, ScanBarcode } from "lucide-react";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { CalendarClock, Camera, Check, Plus, Utensils, ChefHat, ChevronDown, Pencil, Search, Sparkles, Star, Trash2, Loader2, ScanBarcode } from "lucide-react";
 import { QuickMeals } from "@/components/QuickMeals";
 import { asItem, FAV_MEALS_KEY, frequentFoods, type FavItem, type FavMeal } from "@/lib/quick-foods";
 import { toast } from "sonner";
@@ -47,6 +49,28 @@ const MEALS: { v: MealType; t: string }[] = [
   { v: "lanche", t: "Lanche" },
   { v: "jantar", t: "Jantar" },
 ];
+const MEAL_ICON: Record<MealType, string> = { cafe: "☕", almoco: "🍛", lanche: "🍎", jantar: "🍽️", suplementos: "💊" };
+
+/** Where the day's calories came from: protein, carbs and fat as slices of a ring (4, 4 and 9 kcal per gram). */
+function MacroDonut({ p, c, f }: { p: number; c: number; f: number }) {
+  const parts = [[p * 4, "var(--data-protein)", "Proteína"], [c * 4, "var(--data-carbs)", "Carboidratos"], [f * 9, "var(--data-fat)", "Gorduras"]] as const;
+  const total = parts.reduce((s, [k]) => s + k, 0);
+  const r = 15.9155; // circumference 100
+  let at = 0;
+  return (
+    <svg viewBox="0 0 42 42" className="h-28 w-28 shrink-0 -rotate-90" role="img"
+      aria-label={total ? parts.map(([k, , name]) => `${name} ${Math.round((k / total) * 100)}%`).join(", ") : "Nada registrado"}>
+      <circle cx="21" cy="21" r={r} fill="none" stroke="var(--muted)" strokeWidth="6" />
+      {total > 0 && parts.map(([k, color, name]) => {
+        const len = (k / total) * 100;
+        const el = <circle key={name} cx="21" cy="21" r={r} fill="none" stroke={color} strokeWidth="6" strokeDasharray={`${Math.max(0, len - 1)} ${100 - Math.max(0, len - 1)}`} strokeDashoffset={-at} className="transition-all duration-500" />;
+        at += len;
+        return el;
+      })}
+    </svg>
+  );
+}
+
 const r1 = (n: number) => Math.round(n * 10) / 10;
 /** One decimal with a comma, as the rest of the app writes numbers. */
 const num1 = (n: number) => r1(n).toLocaleString("pt-BR");
@@ -76,6 +100,15 @@ function FoodPage() {
   const [planned, setPlanned] = useLocal<FoodEntry[]>(plannedKey(date), []);
   const [planning, setPlanning] = useState(false);
   const [editing, setEditing] = useState<{ entry: FoodEntry; planned: boolean } | null>(null);
+  // Adding food happens in a sheet over the day: opened by a meal's "+", the bar at the bottom or a #registrar link.
+  const [adding, setAdding] = useState(false);
+  const { hash } = useLocation();
+  useEffect(() => { if (hash === "registrar") setAdding(true); }, [hash]);
+  const openAdd = (m?: MealType, how?: "busca" | "ia") => {
+    if (m) setMeal(m);
+    if (how) setMode(how);
+    setAdding(true);
+  };
 
   if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
@@ -181,8 +214,15 @@ function FoodPage() {
               className="w-[8.5rem] bg-transparent text-foreground" />
           </label>
         </div>
-        <div className="type-number mt-2 text-5xl leading-none">{Math.round(sum.kcal).toLocaleString("pt-BR")}<span className="text-lg font-semibold text-muted-foreground"> / {t.kcal.toLocaleString("pt-BR")} kcal</span></div>
-        <ProgressBar className="mt-3" size="lg" value={sum.kcal} max={t.kcal} color={sum.kcal > t.kcal ? "var(--warning)" : "var(--accent-base)"} label="Calorias do dia" />
+        <div className="mt-3 flex items-center gap-5">
+          <MacroDonut p={sum.p} c={sum.c} f={sum.f} />
+          <div className="min-w-0 flex-1">
+            <div className="type-number text-4xl leading-none">{Math.round(sum.kcal).toLocaleString("pt-BR")}</div>
+            <div className="text-sm text-muted-foreground">de {t.kcal.toLocaleString("pt-BR")} kcal</div>
+            <ProgressBar className="mt-3" size="md" value={sum.kcal} max={t.kcal} color={sum.kcal > t.kcal ? "var(--warning)" : "var(--accent-base)"} label="Calorias do dia" />
+            <div className="mt-1.5 text-xs font-medium text-muted-foreground">{sum.kcal <= t.kcal ? `faltam ${Math.round(t.kcal - sum.kcal).toLocaleString("pt-BR")} kcal` : `${Math.round(sum.kcal - t.kcal).toLocaleString("pt-BR")} kcal acima`}</div>
+          </div>
+        </div>
         <div className="mt-5 grid gap-4">
           <MacroBar name="Proteína" value={sum.p} max={t.protein} color="var(--data-protein)" />
           <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--data-carbs)" />
@@ -207,6 +247,75 @@ function FoodPage() {
         )}
       </section>
 
+      <div id="refeicoes" className="grid scroll-mt-24 gap-3 md:grid-cols-2">
+        {[...MEALS, { v: "suplementos" as const, t: "Suplementos" }].map((m) => {
+          const items = day.filter((f) => f.meal === m.v);
+          const plan = plannedDay.filter((f) => f.meal === m.v);
+          if (m.v === "suplementos" && items.length === 0) return null;
+          const kcal = items.reduce((a, f) => a + f.kcal, 0);
+          return (
+            <section key={m.v} className={`min-w-0 rounded-3xl p-4 ${items.length === 0 && plan.length === 0 ? "border border-dashed border-line-strong" : "surface-card"}`}>
+              <div className="flex items-center gap-3">
+                <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-xl ${items.length ? "bg-brand-soft" : "bg-muted"}`} aria-hidden>{MEAL_ICON[m.v]}</span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold leading-tight">{m.t}</h3>
+                  <p className="truncate text-xs text-muted-foreground">{items.length ? items.map((f) => f.name).join(", ") : plan.length ? `${plan.length} planejado(s)` : m.v === "suplementos" ? "" : "Nada ainda"}</p>
+                </div>
+                {items.length > 0 && <span className="type-number text-lg">{kcal}<span className="text-xs font-medium text-muted-foreground"> kcal</span></span>}
+                {m.v !== "suplementos" && (
+                  <button type="button" onClick={() => openAdd(m.v)} aria-label={`Adicionar ao ${m.t.toLowerCase()}`}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-muted text-accent hover:bg-surface-3"><Plus className="h-5 w-5" /></button>
+                )}
+              </div>
+              {m.v !== "suplementos" && items.length > 0 && (
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  Proteína: <b className={mealProtein[m.v]! >= proteinAim ? "text-success-text" : "text-foreground"}>{mealProtein[m.v]} g</b>
+                  {mealProtein[m.v]! < proteinAim && <> · o ideal por refeição é a partir de {proteinAim} g</>}
+                </p>
+              )}
+              {items.length > 0 && (
+                <ul className="mt-2 divide-y divide-border">
+                  {items.map((f) => (
+                    <li key={f.id}>
+                      <button type="button" onClick={() => setEditing({ entry: f, planned: false })} aria-label={`Editar ${f.name}`}
+                        className="flex min-h-11 w-full items-center justify-between gap-2 py-2 text-left text-sm">
+                        <span className="min-w-0"><span className="block font-semibold">{f.name}</span><span className="block text-muted-foreground">{f.dose ?? `${f.grams}g`} · P {f.p} · C {f.c} · G {f.f}</span></span>
+                        <span className="flex shrink-0 items-center gap-2"><span className="font-semibold tabular-nums">{f.kcal}</span><Pencil className="h-3.5 w-3.5 text-muted-foreground" aria-hidden /></span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {plan.length > 0 && (
+                <div className="mt-2 rounded-2xl border border-dashed border-border px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground"><CalendarClock className="h-3.5 w-3.5" />Planejado · {Math.round(plan.reduce((s, f) => s + f.kcal, 0))} kcal</span>
+                    {plan.length > 1 && <button type="button" onClick={() => eatPlanned(new Set(plan.map((f) => f.id)))} className="min-h-9 px-1 text-xs font-bold text-primary">Comi tudo</button>}
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {plan.map((f) => (
+                      <li key={f.id} className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground">
+                        <button type="button" onClick={() => setEditing({ entry: f, planned: true })} aria-label={`Editar ${f.name} planejado`} className="min-h-11 min-w-0 flex-1 text-left">
+                          <span className="block font-semibold">{f.name}</span><span className="block text-xs">{f.grams}g · {f.kcal} kcal</span>
+                        </button>
+                        <button type="button" onClick={() => eatPlanned(new Set([f.id]))} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-input bg-card px-3 text-xs font-bold text-foreground">
+                          <Check className="h-3.5 w-3.5" />Comi
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {items.length > 0 && m.v !== "suplementos" && (
+                <button type="button" onClick={() => saveFavorite(m.v, m.t, items)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-accent">
+                  <Star className="h-4 w-4" />Salvar como favorita
+                </button>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
       {date === today() && (
         <CloseGapCard left={{ protein: t.protein - sum.p - plannedProtein, kcal: t.kcal - sum.kcal - plannedKcal }}
           history={[...prevMonthFoods.filter((f) => f.date < date), ...foods.filter((f) => f.date <= date)]} onAdd={addToMeal} />
@@ -218,7 +327,13 @@ function FoodPage() {
 
       {date === today() && <FastingCard />}
 
-      <section id="registrar" className="scroll-mt-24 rounded-3xl surface-card p-6">
+      <Dialog open={adding} onOpenChange={setAdding}>
+        <DialogContent className="top-auto bottom-0 left-0 max-h-[92dvh] w-full max-w-none translate-x-0 translate-y-0 gap-0 rounded-b-none rounded-t-3xl p-0 pb-[env(safe-area-inset-bottom)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:bottom-auto sm:top-[50%] sm:left-[50%] sm:max-w-2xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-3xl sm:pb-0">
+          <div className="sticky top-0 z-10 border-b border-border bg-popover px-5 pb-3 pt-2">
+            <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-line-strong sm:hidden" aria-hidden />
+            <DialogTitle className="text-xl">{planning ? "Planejar" : "Registrar"} · {mealLabel}</DialogTitle>
+          </div>
+      <section id="registrar" className="p-5">
         <div className="mb-4 grid grid-cols-2 gap-1 rounded-full bg-muted p-1" role="radiogroup" aria-label="Registrar ou planejar">
           {([[false, "Comi"], [true, "Planejar"]] as const).map(([value, label]) => (
             <button key={label} type="button" role="radio" aria-checked={planning === value} onClick={() => { setPlanning(value); if (!value && date > today()) setDate(today()); }}
@@ -350,64 +465,17 @@ function FoodPage() {
           </div>
         )}
       </section>
+        </DialogContent>
+      </Dialog>
 
-      <div id="refeicoes" className="grid scroll-mt-24 gap-4 md:grid-cols-2">
-        {[...MEALS, { v: "suplementos" as const, t: "Suplementos" }].map((m) => {
-          const items = day.filter((f) => f.meal === m.v);
-          const plan = plannedDay.filter((f) => f.meal === m.v);
-          if (m.v === "suplementos" && items.length === 0) return null;
-          const kcal = items.reduce((a, f) => a + f.kcal, 0);
-          return (
-            <section key={m.v} className="rounded-3xl surface-card p-5">
-              <div className="flex justify-between"><h3 className="font-bold">{m.t}</h3><span className="font-display font-bold text-accent">{kcal} kcal</span></div>
-              {m.v !== "suplementos" && items.length > 0 && (
-                <p className="text-xs tabular-nums text-muted-foreground">
-                  Proteína: <b className={mealProtein[m.v]! >= proteinAim ? "text-success-text" : "text-foreground"}>{mealProtein[m.v]} g</b>
-                  {mealProtein[m.v]! < proteinAim && <> · o ideal por refeição é a partir de {proteinAim} g</>}
-                </p>
-              )}
-              {items.length === 0 && plan.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">Nada registrado.</p> : items.length > 0 && (
-                <ul className="mt-2 divide-y divide-border">
-                  {items.map((f) => (
-                    <li key={f.id}>
-                      <button type="button" onClick={() => setEditing({ entry: f, planned: false })} aria-label={`Editar ${f.name}`}
-                        className="flex min-h-11 w-full items-center justify-between gap-2 py-2 text-left text-sm">
-                        <span className="min-w-0"><span className="block font-semibold">{f.name}</span><span className="block text-muted-foreground">{f.dose ?? `${f.grams}g`} · P {f.p} · C {f.c} · G {f.f}</span></span>
-                        <span className="flex shrink-0 items-center gap-2"><span className="font-semibold tabular-nums">{f.kcal}</span><Pencil className="h-3.5 w-3.5 text-muted-foreground" aria-hidden /></span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {plan.length > 0 && (
-                <div className="mt-2 rounded-2xl border border-dashed border-border px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground"><CalendarClock className="h-3.5 w-3.5" />Planejado · {Math.round(plan.reduce((s, f) => s + f.kcal, 0))} kcal</span>
-                    {plan.length > 1 && <button type="button" onClick={() => eatPlanned(new Set(plan.map((f) => f.id)))} className="min-h-9 px-1 text-xs font-bold text-primary">Comi tudo</button>}
-                  </div>
-                  <ul className="divide-y divide-border">
-                    {plan.map((f) => (
-                      <li key={f.id} className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground">
-                        <button type="button" onClick={() => setEditing({ entry: f, planned: true })} aria-label={`Editar ${f.name} planejado`} className="min-h-11 min-w-0 flex-1 text-left">
-                          <span className="block font-semibold">{f.name}</span><span className="block text-xs">{f.grams}g · {f.kcal} kcal</span>
-                        </button>
-                        <button type="button" onClick={() => eatPlanned(new Set([f.id]))} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-input bg-card px-3 text-xs font-bold text-foreground">
-                          <Check className="h-3.5 w-3.5" />Comi
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {items.length > 0 && m.v !== "suplementos" && (
-                <button type="button" onClick={() => saveFavorite(m.v, m.t, items)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-accent">
-                  <Star className="h-4 w-4" />Salvar como favorita
-                </button>
-              )}
-            </section>
-          );
-        })}
+      {/* Thumb-reach shortcuts above the tab bar: the plate photo (AI) and the search. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 px-4 md:bottom-6">
+        <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-2 gap-2 rounded-full border border-border bg-card/90 p-1.5 shadow-lg backdrop-blur-xl">
+          <Button type="button" onClick={() => openAdd(undefined, "ia")}><Camera />Foto do prato</Button>
+          <Button type="button" variant="secondary" onClick={() => openAdd(undefined, "busca")}><Plus />Adicionar</Button>
+        </div>
       </div>
+      <div className="h-16" aria-hidden />
       <FoodEditDialog
         entry={editing?.entry ?? null}
         onClose={() => setEditing(null)}
