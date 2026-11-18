@@ -27,7 +27,7 @@ export function TrainingInsights({ planned }: { planned: number }) {
   return (
     <>
       {streak >= 2 && (
-        <p className="flex items-center gap-2 rounded-3xl border border-border bg-card px-5 py-3 text-sm">
+        <p className="flex items-center gap-2 rounded-3xl surface-card px-5 py-3 text-sm">
           <Flame className="h-5 w-5 shrink-0 text-warning" aria-hidden /><b>{streakText(streak)}</b>
         </p>
       )}

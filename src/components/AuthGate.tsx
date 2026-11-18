@@ -21,7 +21,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (status === "loading") {
     return (
       <Screen>
-        <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" aria-label="Carregando" />
+        <Loader2 className="mx-auto h-6 w-6 animate-spin text-accent" aria-label="Carregando" />
       </Screen>
     );
   }
@@ -34,10 +34,10 @@ function Screen({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-6 text-center font-display text-5xl font-extrabold text-primary">
-          forma<span className="text-accent">.</span>
+        <div className="mb-8 text-center font-display text-5xl font-bold tracking-tight text-foreground">
+          forma<span className="text-brand">.</span>
         </div>
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">{children}</div>
+        <div className="animate-fade-up rounded-3xl surface-card p-6 shadow-md">{children}</div>
       </div>
     </div>
   );

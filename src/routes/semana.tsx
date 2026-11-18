@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles, X } from "lucide-react";
@@ -54,7 +55,7 @@ function WeekPage() {
   const [reviews, setReviews] = useLocal<Record<string, WeekReview>>(WEEKS_KEY, {});
   const [busy, setBusy] = useState(false);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
   const t = targets(profile);
   const inputs = { foods, water, weights, history, strava, health, targets: { kcal: t.kcal, waterMl: t.waterMl } };
@@ -102,7 +103,7 @@ function WeekPage() {
         <button type="button" onClick={() => go(7)} disabled={current} aria-label="Próxima semana" className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-card disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
       </div>
 
-      <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
+      <section className="rounded-3xl surface-card p-4 sm:p-6">
         <p className="mb-3 px-1 text-xs text-muted-foreground">
           {current
             ? `Semana em andamento (${week.days} de 7 dias), comparada com os mesmos dias da anterior: ${short(before.start)} a ${short(before.end)}.`

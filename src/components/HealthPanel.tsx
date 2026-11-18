@@ -49,7 +49,7 @@ export function HealthPanel() {
   };
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border bg-card p-6">
+    <section className="space-y-4 rounded-3xl surface-card p-6">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent"><HeartPulse className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">

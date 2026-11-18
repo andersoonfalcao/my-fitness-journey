@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Dumbbell, Share2, X } from "lucide-react";
@@ -84,7 +85,7 @@ function CalendarPage() {
   const [share, setShare] = useState<ShareRequest | null>(null);
   const [activity, setActivity] = useState<StravaActivity | null>(null);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
 
   const now = today();
@@ -162,14 +163,14 @@ function CalendarPage() {
         </div>
       </div>
 
-      <Link to="/semana" className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+      <Link to="/semana" className="flex min-h-14 items-center justify-between gap-3 rounded-3xl surface-card px-5 py-3">
         <span className="min-w-0">
           <span className="block font-bold">Resumo da semana</span>
           <span className="block text-xs text-muted-foreground">A semana comparada com a anterior, com comentário da IA</span>
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </Link>
-      <Link to="/mes" search={{ m: month }} className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+      <Link to="/mes" search={{ m: month }} className="flex min-h-14 items-center justify-between gap-3 rounded-3xl surface-card px-5 py-3">
         <span className="min-w-0">
           <span className="block font-bold">Retrospectiva de {new Date(`${month}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}</span>
           <span className="block text-xs text-muted-foreground">{month === now.slice(0, 7) ? "O mês até hoje, " : "O mês inteiro, "}comparado com o anterior, com os recordes</span>
@@ -177,7 +178,7 @@ function CalendarPage() {
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </Link>
 
-      <section className="rounded-3xl border border-border bg-card p-3 sm:p-5">
+      <section className="rounded-3xl surface-card p-3 sm:p-5">
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold uppercase text-muted-foreground">
           {WEEK.map((w) => <div key={w} className="py-1">{w}</div>)}
         </div>

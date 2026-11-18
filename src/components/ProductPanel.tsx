@@ -190,7 +190,7 @@ export function ProductPanel({ onAdd }: { onAdd: (food: Added) => void }) {
             {Math.round((product.kcal * grams) / 100)} kcal · P {r1((product.p * grams) / 100)}g · C {r1((product.c * grams) / 100)}g · G {r1((product.f * grams) / 100)}g
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={add} className="rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground">Adicionar</button>
+            <button type="button" onClick={add} className="min-h-11 rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground">Adicionar</button>
             <button type="button" onClick={() => photo.current?.click()} disabled={!!busy} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-semibold text-primary">
               {busy === "photo" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}Corrigir pela foto do rótulo
             </button>

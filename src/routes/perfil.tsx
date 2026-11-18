@@ -145,7 +145,7 @@ function PerfilPage() {
         <CalibrationCard profile={saved} />
       </> : <>
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">1. Sobre você</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <label className="block">
@@ -173,7 +173,7 @@ function PerfilPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">2. Foco principal</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {FOCUS.map((f) => (
@@ -186,7 +186,7 @@ function PerfilPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">3. Rotina de treino</h2>
         <div className="mt-4 space-y-5">
           <div>
@@ -219,7 +219,7 @@ function PerfilPage() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-3xl border border-border bg-card p-6">
+      <section className="space-y-4 rounded-3xl surface-card p-6">
         <div>
           <h2 className="text-xl font-bold">4. Método de treino</h2>
           <p className="text-sm text-muted-foreground">Sugerido pelo seu foco, nível e dias por semana. Toque em outro para mudar.</p>
@@ -258,7 +258,7 @@ function PerfilPage() {
         </div>
       )}
       {!showForm && plan && (
-        <section className="rounded-3xl border border-border bg-card p-5">
+        <section className="rounded-3xl surface-card p-5">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Dumbbell className="h-4 w-4 shrink-0 text-accent" aria-hidden />Plano atual
           </div>
@@ -318,7 +318,7 @@ function ProfileSummary({ p, current, start }: { p: Profile; current: number; st
   ];
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         {/* Phone: start on its own line, then current → what is left → goal. Wider screens: one line. */}
         <div className="flex flex-wrap items-start justify-center gap-y-4 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] sm:gap-6">
           <WeightFigure label="Início" value={start?.kg} sub={start ? new Date(`${start.date}T12:00:00`).toLocaleDateString("pt-BR") : undefined} className="w-full sm:w-auto" />
@@ -366,7 +366,7 @@ function WeekSplit({ profile, onChange }: { profile: Profile; onChange: (extra: 
   const current = profile.weekendExtra ?? 0;
   const base = targets(profile).weekKcal;
   return (
-    <section className="rounded-3xl border border-border bg-card p-5">
+    <section className="rounded-3xl surface-card p-5">
       <h2 className="text-lg font-bold">Calorias na semana</h2>
       <p className="mt-1 text-sm text-muted-foreground">Coma um pouco menos de segunda a sexta para ter mais no sábado e no domingo. O total da semana não muda.</p>
       <p className="mt-3 text-sm font-bold">Calorias a mais no sábado e no domingo</p>

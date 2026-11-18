@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { fmtKg, foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry, type WorkoutSession } from "@/lib/store";
 import { WorkoutNow } from "@/components/WorkoutNow";
@@ -43,7 +44,7 @@ function Index() {
   // A workout in progress takes the top of the screen and the place of the "Treino de hoje" card.
   const [session] = useLocal<WorkoutSession | null>(KEYS.session, null);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
 
   const t = targets(profile, today());
@@ -75,7 +76,7 @@ function Index() {
 
       {session && <WorkoutNow session={session} plan={plan} />}
 
-        <section className="rounded-3xl border border-border bg-card p-6">
+        <section className="rounded-3xl surface-card p-6">
           <div className="flex flex-col items-center gap-6 sm:flex-row">
             <Ring value={sum.kcal} max={t.kcal} label={Math.abs(left).toLocaleString("pt-BR")} sub={left >= 0 ? "kcal restantes" : "kcal acima"} />
             <div className="w-full flex-1 space-y-3">
@@ -84,7 +85,7 @@ function Index() {
               <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--chart-3)" />
             </div>
           </div>
-          <Link to="/alimentacao" className="mt-5 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">+ Registrar refeição</Link>
+          <Link to="/alimentacao" className="min-h-11 mt-5 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">+ Registrar refeição</Link>
         </section>
 
 
@@ -106,7 +107,7 @@ function Index() {
           </div>
         </Link>
       ) : session ? null : next && restToday ? (
-        <section className="rounded-3xl border border-border bg-card p-6">
+        <section className="rounded-3xl surface-card p-6">
           <div className="flex items-center gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Moon className="h-6 w-6" /></span>
           <div className="min-w-0 flex-1">
@@ -136,7 +137,7 @@ function Index() {
           </div>
         </section>
       ) : next && (
-        <section className="rounded-3xl border border-border bg-card p-6">
+        <section className="rounded-3xl surface-card p-6">
           {/* Name on its own line and the muscles below, so any workout (short or with five muscle groups) reads cleanly. */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
@@ -184,7 +185,7 @@ function Index() {
       {/* Sunday evening and Monday: the week just lived, one tap away. */}
       {[0, 1].includes(new Date().getDay()) && (
         <Link to="/semana" search={new Date().getDay() === 1 ? { inicio: weekStart(addDays(today(), -1)) } : {}}
-          className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+          className="flex min-h-14 items-center justify-between gap-3 rounded-3xl surface-card px-5 py-3">
           <span className="min-w-0">
             <span className="block text-sm font-bold uppercase tracking-widest text-accent">{new Date().getDay() === 1 ? "Semana passada" : "Domingo"}</span>
             <span className="block font-bold">Veja o resumo da semana</span>

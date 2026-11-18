@@ -10,7 +10,7 @@ import { CLOSED_TEST_SECONDS, disablePush, enablePush, sendClosedAppTest, sendTe
 const RESTS = [30, 45, 60, 75, 90, 120, 150, 180];
 const restLabel = (s: number) => (s < 60 ? `${s} segundos` : s % 60 === 0 ? `${s / 60} min` : `${Math.floor(s / 60)} min ${s % 60}s`);
 
-const CARD = "rounded-3xl border border-border bg-card p-5 sm:p-6";
+const CARD = "rounded-3xl surface-card p-5 sm:p-6";
 
 /** Treino: rest between sets (Configurações). */
 export function RestSetting() {

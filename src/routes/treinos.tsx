@@ -1,6 +1,8 @@
+import { EmptyState } from "@/components/ui/empty-state";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Dumbbell, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -118,14 +120,14 @@ function TreinosPage() {
     setTimeout(() => document.getElementById(`exercicio-${current}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
   }, [hash, ready, planReady, sessionReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
   if (!plan) {
     return (
-      <div className="rounded-3xl border border-border bg-card p-8 text-center">
-        <h2 className="text-2xl font-bold">Nenhum plano ainda</h2>
-        <button onClick={() => setPlan(generatePlan(profile))} className="mt-4 rounded-full bg-accent px-6 py-3 font-bold text-accent-foreground">Gerar plano</button>
-      </div>
+      <EmptyState icon={Dumbbell} title="Seu plano de treino começa aqui"
+        action={<Button size="lg" onClick={() => setPlan(generatePlan(profile))}>Gerar plano</Button>}>
+        Monto os treinos da semana a partir do seu perfil: meta, nível, dias e tempo disponível.
+      </EmptyState>
     );
   }
 
@@ -682,7 +684,7 @@ function TreinosPage() {
               ? <><b>{day.name} já foi feito nesta sequência.</b> Aqui é só para consulta.</>
               : <><b>{day.name} vem depois.</b> A sequência segue pelo {plan.days[nextIdx]!.name}.</>}
           </p>
-          <button onClick={() => setDayIdx(nextIdx)} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">
+          <button onClick={() => setDayIdx(nextIdx)} className="min-h-11 inline-flex shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">
             <Play className="h-4 w-4" />Ir para o {plan.days[nextIdx]!.name}
           </button>
         </div>
@@ -1078,7 +1080,7 @@ function TreinosPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="rounded-full">Voltar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { confirmAll?.run(); setConfirmAll(null); }} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Confirmar</AlertDialogAction>
+            <AlertDialogAction onClick={() => { confirmAll?.run(); setConfirmAll(null); }} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Confirmar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1103,7 +1105,7 @@ function TreinosPage() {
           </ul>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="rounded-full">Voltar ao treino</AlertDialogCancel>
-            <AlertDialogAction onClick={() => finishWorkout()} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Concluir mesmo assim</AlertDialogAction>
+            <AlertDialogAction onClick={() => finishWorkout()} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Concluir mesmo assim</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1792,7 +1794,7 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
           return { r, index, done, planned, total, prs, diff: total > 0 && beforeTotal > 0 ? total - beforeTotal : null };
         }).reverse().map(({ r, index, done, planned, total, prs, diff }) => {
           return (
-            <details key={r.id} className="group rounded-3xl border border-border bg-card px-4 py-3">
+            <details key={r.id} className="group rounded-3xl surface-card px-4 py-3">
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
@@ -1836,7 +1838,7 @@ function WeeklyVolume({ records }: { records: WorkoutRecord[] }) {
   const groups = (Object.keys(GROUP_LABEL) as Group[]).filter((g) => g !== "cardio");
   const pct = (n: number) => `${(Math.min(n, SCALE_SETS) / SCALE_SETS) * 100}%`;
   return (
-    <section className="space-y-3 rounded-3xl border border-border bg-card p-4">
+    <section className="space-y-3 rounded-3xl surface-card p-4">
       <div>
         <h2 className="text-xl font-bold">Séries da semana por músculo</h2>
         <p className="text-xs text-muted-foreground">
@@ -2047,7 +2049,7 @@ function RecoveryCard({ records, dayGroups, dayName }: { records: WorkoutRecord[
       ? `${names(almostToday)} ${almostToday.length === 1 ? "está quase pronto" : "estão quase prontos"} para o ${dayName}`
       : resting > 0 ? `${resting} ${resting === 1 ? "músculo ainda se recupera" : "músculos ainda se recuperam"}, nenhum do ${dayName}` : "Todos os músculos treinados estão recuperados";
   return (
-    <details className="group rounded-3xl border border-border bg-card px-4 py-3">
+    <details className="group rounded-3xl surface-card px-4 py-3">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Recuperação dos músculos</span>
@@ -2106,7 +2108,7 @@ function ProgramCard({ plan, history, days, nextIdx, lockedToday }: { plan: Plan
     return { n, ...w, start, done, planned, missed: n < now.week ? Math.max(0, days - done.length) : 0 };
   });
   return (
-    <details className="group rounded-3xl border border-border bg-card px-4 py-3">
+    <details className="group rounded-3xl surface-card px-4 py-3">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Ciclo {now.cycle} · semana {now.week} de {CYCLE_WEEKS}</span>

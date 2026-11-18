@@ -45,7 +45,7 @@ export function HealthToday({ date, age }: { date: string; age: number }) {
   if (day.restingHr !== undefined) tiles.push([HeartPulse, "Repouso", `${day.restingHr} bpm`, null, null]);
   if (!tiles.length) return null;
   return (
-    <Link to="/corpo" search={{ aba: "evolucao" }} hash="saude" className="block rounded-3xl border border-border bg-card p-6">
+    <Link to="/corpo" search={{ aba: "evolucao" }} hash="saude" className="block rounded-3xl surface-card p-6">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-xl font-bold">Sua Mi Band hoje</h2>
         <span className="shrink-0 text-xs text-muted-foreground">atualizado {clock(new Date(day.at).toISOString())}</span>

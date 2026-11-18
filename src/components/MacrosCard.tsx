@@ -55,7 +55,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
   const todayTotals = totals[6]!;
 
   return (
-    <section className={`rounded-3xl border border-border bg-card p-4 sm:p-5 ${className}`}>
+    <section className={`rounded-3xl surface-card p-4 sm:p-5 ${className}`}>
       <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center justify-between gap-2 text-left" aria-haspopup="dialog">
         <h2 className="font-display text-xl font-bold">Macros</h2>
         <span className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">

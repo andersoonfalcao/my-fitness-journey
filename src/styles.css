@@ -465,3 +465,29 @@ html.theme-switching *::after {
     scroll-behavior: auto !important;
   }
 }
+
+/* Card surface (the <Card> component uses it too). */
+@utility surface-card {
+  background-color: var(--surface-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+
+/* Every tappable element answers the touch: colours ease and it presses in slightly. */
+@layer base {
+  button,
+  a,
+  summary,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+  button:not(:disabled),
+  summary {
+    transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out);
+  }
+  button:not(:disabled):active {
+    transform: scale(0.98);
+  }
+}

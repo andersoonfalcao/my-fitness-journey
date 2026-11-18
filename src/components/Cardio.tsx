@@ -311,7 +311,7 @@ export function WaitingCardio({ record, onDelete }: { record: CardioRecord; onDe
   const summary = treadmillSummary(record.steps, seconds);
   const time = (ms: number) => new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   return (
-    <details open={!!record.steps?.length} className="group rounded-3xl border border-border bg-card px-4 py-3">
+    <details open={!!record.steps?.length} className="group rounded-3xl surface-card px-4 py-3">
       <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

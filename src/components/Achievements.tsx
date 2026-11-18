@@ -82,7 +82,7 @@ export function AchievementsGrid({ profile }: { profile: Profile }) {
   const count = list.filter((a) => isWon(a, won)).length;
   const fmt = (n: number) => n.toLocaleString("pt-BR");
   return (
-    <section id="conquistas" className="scroll-mt-24 rounded-3xl border border-border bg-card p-5">
+    <section id="conquistas" className="scroll-mt-24 rounded-3xl surface-card p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-lg font-bold">Minhas conquistas</h2>
         <span className="text-sm tabular-nums text-muted-foreground">{count} de {list.length}</span>

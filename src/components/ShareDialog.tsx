@@ -113,7 +113,7 @@ export function ShareDialog({ request, onClose }: { request: ShareRequest | null
           <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { pickPhoto(e.target.files?.[0]); e.target.value = ""; }} />
         </div>
 
-        <Button type="button" onClick={() => void share()} disabled={!blob} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+        <Button type="button" onClick={() => void share()} disabled={!blob} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
           {canShare ? <Share2 /> : <Download />}
           {canShare ? "Compartilhar" : "Baixar imagem"}
         </Button>

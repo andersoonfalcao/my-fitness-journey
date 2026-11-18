@@ -60,7 +60,7 @@ export function FastingCard() {
   }
 
   return (
-    <details className="group rounded-3xl border border-border bg-card px-4 py-3">
+    <details className="group rounded-3xl surface-card px-4 py-3">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
         <Hourglass className="h-5 w-5 shrink-0 text-accent" aria-hidden />
         <span className="flex-1 font-bold">Jejum intermitente</span>

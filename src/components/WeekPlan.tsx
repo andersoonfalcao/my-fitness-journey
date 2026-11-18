@@ -97,7 +97,7 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
   };
 
   return (
-    <section className="-mx-2 rounded-3xl border border-border bg-card px-1.5 py-3 sm:mx-0 sm:p-4">
+    <section className="-mx-2 rounded-3xl surface-card px-1.5 py-3 sm:mx-0 sm:p-4">
       <div className="flex items-center justify-between gap-2 px-2">
         <div>
           <h2 className="font-display text-lg font-bold">Sua semana</h2>

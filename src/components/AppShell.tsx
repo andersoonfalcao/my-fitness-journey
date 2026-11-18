@@ -1,5 +1,8 @@
 import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User } from "lucide-react";
+import { CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User, UserRound } from "lucide-react";
+import { ProgressBar, ProgressRing } from "@/components/ui/meter";
+import { EmptyState } from "@/components/ui/empty-state";
+import { buttonVariants } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme";
 import { useEffect, useState, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
@@ -16,6 +19,9 @@ export function useCloseCalendar() {
   const router = useRouter();
   return () => (router.history.canGoBack() ? router.history.back() : void router.navigate({ to: "/" }));
 }
+
+/** Header icon buttons: 44 px round targets, grey until their screen or panel is open. */
+const HEADER_ICON = "pressable grid h-11 w-11 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground";
 
 const NAV = [
   { to: "/", label: "Hoje", icon: Home },
@@ -92,11 +98,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link to="/" className="font-display text-2xl font-extrabold text-primary">
-            forma<span className="text-accent">.</span>
+    <div className="min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 py-1.5 pl-4 pr-2 md:px-4">
+          <Link to="/" aria-label="forma, início" className="font-display text-2xl font-bold tracking-tight text-foreground">
+            forma<span className="text-brand">.</span>
           </Link>
           <nav className="hidden gap-1 md:flex">
             {[...NAV.slice(0, 1), { to: "/calendario", label: "Calendário" } as const, ...NAV.slice(1)].map((n) => (
@@ -105,29 +111,29 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={n.to}
                 onClick={n.to === "/calendario" ? toggleCalendar : undefined}
                 activeOptions={{ exact: n.to === "/" }}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "bg-primary !text-primary-foreground" }}
+                className="pressable rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                activeProps={{ className: "!bg-brand-soft !text-accent" }}
               >
                 {n.label}
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-1">
-            {/* Header icons are grey and turn orange only while their screen or panel is open. */}
+          <div className="flex items-center">
+            {/* Header icons are grey and turn emerald only while their screen or panel is open. */}
             <button type="button" onClick={() => setCoachOpen(true)} aria-label="Pergunte ao forma" title="Pergunte ao forma" aria-expanded={coachOpen}
-              className={`rounded-full p-2.5 hover:text-foreground ${coachOpen ? "text-accent" : "text-muted-foreground"}`}>
-              <Sparkles className="h-6 w-6" />
+              className={`${HEADER_ICON} ${coachOpen ? "!text-accent bg-brand-soft" : ""}`}>
+              <Sparkles className="h-[22px] w-[22px]" />
             </button>
             <RefreshButton />
-            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className="rounded-full p-2.5 text-muted-foreground hover:text-foreground md:hidden" activeProps={{ className: "!text-accent" }}>
-              <CalendarDays className="h-6 w-6" />
+            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className={`${HEADER_ICON} md:hidden`} activeProps={{ className: "!text-accent bg-brand-soft" }}>
+              <CalendarDays className="h-[22px] w-[22px]" />
             </Link>
             <button type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={theme === "dark" ? "Desativar modo escuro" : "Ativar modo escuro"}
-              title={theme === "dark" ? "Modo claro" : "Modo escuro"} className="rounded-full p-2.5 text-muted-foreground hover:text-foreground">
-              {theme === "dark" ? <Sun className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
+              title={theme === "dark" ? "Modo claro" : "Modo escuro"} className={HEADER_ICON}>
+              {theme === "dark" ? <Sun className="h-[22px] w-[22px]" /> : <Moon className="h-[22px] w-[22px]" />}
             </button>
-            <Link to="/configuracoes" onClick={toggleSettings} aria-label={pathname === "/configuracoes" ? "Fechar configurações" : "Configurações"} title="Configurações" className="rounded-full p-2.5 text-muted-foreground hover:text-foreground" activeProps={{ className: "!text-accent" }}>
-              <Settings className="h-6 w-6" />
+            <Link to="/configuracoes" onClick={toggleSettings} aria-label={pathname === "/configuracoes" ? "Fechar configurações" : "Configurações"} title="Configurações" className={HEADER_ICON} activeProps={{ className: "!text-accent bg-brand-soft" }}>
+              <Settings className="h-[22px] w-[22px]" />
             </Link>
           </div>
         </div>
@@ -137,18 +143,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         {pathname === "/" && <PushNotice />}
         {children}
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card md:hidden">
-        <div className="mx-auto flex max-w-md justify-around py-2">
+      <nav aria-label="Principal" className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-card/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 px-1 pt-1.5">
           {NAV.map((n) => (
             <Link
               key={n.to}
               to={n.to}
               activeOptions={{ exact: n.to === "/" }}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-muted-foreground"
-              activeProps={{ className: "!text-accent" }}
+              className="group flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-200"
+              activeProps={{ className: "!text-accent !font-semibold", "aria-current": "page" }}
             >
-              <n.icon className="h-5 w-5" />
-              {n.label}
+              <span className="grid h-8 w-14 place-items-center rounded-full transition-colors duration-200 group-aria-[current=page]:bg-brand-soft">
+                <n.icon className="h-[22px] w-[22px]" aria-hidden />
+              </span>
+              <span className="max-w-full truncate px-0.5">{n.label}</span>
             </Link>
           ))}
         </div>
@@ -157,50 +165,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Calorie ring of Hoje: the figure in the middle in the display font. */
 export function Ring({ value, max, label, sub }: { value: number; max: number; label: string; sub: string }) {
-  const pct = Math.min(1, max ? value / max : 0);
-  const r = 52;
-  const c = 2 * Math.PI * r;
+  const over = max > 0 && value > max;
   return (
-    <div className="relative flex h-36 w-36 items-center justify-center">
-      <svg viewBox="0 0 120 120" className="absolute inset-0 -rotate-90">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--muted)" strokeWidth="10" />
-        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--accent)" strokeWidth="10" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - pct)} className="transition-all duration-700" />
-      </svg>
-      <div className="text-center">
-        <div className="font-display text-3xl font-extrabold">{label}</div>
-        <div className="text-xs text-muted-foreground">{sub}</div>
-      </div>
-    </div>
+    <ProgressRing value={value} max={max} size={152} stroke={12} color={over ? "var(--warning)" : "var(--accent-base)"} label={`${label} ${sub}`}>
+      <div className="type-number text-3xl leading-none">{label}</div>
+      <div className="mt-1 text-xs font-medium text-muted-foreground">{sub}</div>
+    </ProgressRing>
   );
 }
 
 export function MacroBar({ name, value, max, color }: { name: string; value: number; max: number; color: string }) {
   return (
     <div>
-      <div className="mb-1 flex justify-between text-sm">
-        <span className="font-semibold">{name}</span>
-        <span className="text-muted-foreground">{Math.round(value)} / {max} g</span>
+      <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
+        <span className="flex items-center gap-2 font-semibold"><span className="h-2 w-2 rounded-full" style={{ background: color }} aria-hidden />{name}</span>
+        <span className="tabular-nums text-muted-foreground"><b className="font-semibold text-foreground">{Math.round(value)}</b> / {max} g</span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, max ? (value / max) * 100 : 0)}%`, background: color }} />
-      </div>
+      <ProgressBar value={value} max={max} color={color} label={name} />
     </div>
   );
 }
 
 export function NeedProfile() {
   return (
-    <div className="rounded-3xl border border-border bg-card p-8 text-center">
-      <h2 className="text-2xl font-bold">Vamos começar pelo seu perfil</h2>
-      <p className="mx-auto mt-2 max-w-md text-muted-foreground">
-        Responda algumas perguntas sobre você e sua meta. Com isso calculo suas calorias, macros e monto seu plano de treino.
-      </p>
-      <Link to="/perfil" className="mt-6 inline-flex rounded-full bg-accent px-6 py-3 font-bold text-accent-foreground">
-        Preencher perfil
-      </Link>
-    </div>
+    <EmptyState icon={UserRound} title="Vamos começar pelo seu perfil"
+      action={<Link to="/perfil" className={buttonVariants({ size: "lg" })}>Preencher perfil</Link>}>
+      Responda algumas perguntas sobre você e sua meta. Com isso calculo suas calorias, macros e monto seu plano de treino.
+    </EmptyState>
   );
 }
 
@@ -230,8 +223,8 @@ function RefreshButton() {
   };
   return (
     <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Atualizar os dados: ${usesShortcut ? "Mi Band e " : ""}Strava`} title="Atualizar os dados"
-      className={`rounded-full p-2.5 hover:text-foreground ${busy ? "text-accent" : "text-muted-foreground"}`}>
-      <RefreshCw className={`h-6 w-6 ${busy ? "animate-spin" : ""}`} />
+      className={`${HEADER_ICON} ${busy ? "!text-accent" : ""}`}>
+      <RefreshCw className={`h-[22px] w-[22px] ${busy ? "animate-spin" : ""}`} />
     </button>
   );
 }

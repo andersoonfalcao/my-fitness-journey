@@ -52,7 +52,7 @@ export function MeasuresNotice() {
   const days = last ? Math.round((new Date(`${today()}T12:00:00`).getTime() - new Date(`${last}T12:00:00`).getTime()) / 86_400_000) : null;
   return (
     // A reminder that can wait: a quiet row instead of an orange alert.
-    <section role="status" className="flex items-center gap-3 rounded-3xl border border-border bg-card py-1 pl-4 pr-2">
+    <section role="status" className="flex items-center gap-3 rounded-3xl surface-card py-1 pl-4 pr-2">
       <Ruler className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
       <Link to="/corpo" hash="medidas" className="flex min-h-12 min-w-0 flex-1 flex-col justify-center py-1.5">
         <span className="text-sm font-bold">{days === null ? "Tirar as medidas" : `Medidas: faz ${days} dias`}</span>

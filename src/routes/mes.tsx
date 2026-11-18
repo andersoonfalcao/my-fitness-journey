@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Share2, Trophy, X } from "lucide-react";
@@ -47,7 +48,7 @@ function MonthPage() {
   const health = useTwo<HealthMonth>(healthKey, month, {}, (a, b) => ({ ...a, ...b }));
   const [share, setShare] = useState<ShareRequest | null>(null);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
   const t = targets(profile);
   const inputs = { foods, water, weights, history, strava: [...synced, ...waiting.map(cardioAsActivity)], health, targets: { kcal: t.kcal, waterMl: t.waterMl } };
@@ -107,10 +108,10 @@ function MonthPage() {
         ))}
       </div>
 
-      <section className="space-y-2 rounded-3xl border border-border bg-card p-5">
+      <section className="space-y-2 rounded-3xl surface-card p-5">
         <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-success-text" aria-hidden /><h2 className="text-xl font-bold">{r.records.length ? `${r.records.length} recorde${r.records.length === 1 ? "" : "s"} no mês` : "Recordes"}</h2></div>
         {r.records.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum recorde de carga neste mês.</p>
+          <p className="text-sm text-muted-foreground">Nenhum recorde de carga neste mês ainda. Cada treino é uma nova chance.</p>
         ) : (
           <ul className="space-y-2">
             {r.records.slice(0, 6).map((pr) => (

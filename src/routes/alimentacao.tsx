@@ -1,6 +1,8 @@
+import { EmptyState } from "@/components/ui/empty-state";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarClock, Check, ChefHat, ChevronDown, Pencil, Search, Sparkles, Star, Trash2, Loader2, ScanBarcode } from "lucide-react";
+import { CalendarClock, Check, Utensils, ChefHat, ChevronDown, Pencil, Search, Sparkles, Star, Trash2, Loader2, ScanBarcode } from "lucide-react";
 import { QuickMeals } from "@/components/QuickMeals";
 import { asItem, FAV_MEALS_KEY, frequentFoods, type FavItem, type FavMeal } from "@/lib/quick-foods";
 import { toast } from "sonner";
@@ -74,7 +76,7 @@ function FoodPage() {
   const [planning, setPlanning] = useState(false);
   const [editing, setEditing] = useState<{ entry: FoodEntry; planned: boolean } | null>(null);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
   const t = targets(profile, date);
   const day = foods.filter((f) => f.date === date);
@@ -172,7 +174,7 @@ function FoodPage() {
           <div className="text-sm font-semibold opacity-90">
             {date === today() ? "Hoje" : new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}
           </div>
-          <label className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-xs font-semibold">
+          <label className="min-h-11 inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-xs font-semibold">
             Outro dia
             <input type="date" value={date} max={planning ? addDays(today(), 7) : today()} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Registrar em outro dia"
               className="w-[8.5rem] bg-transparent text-primary-foreground [color-scheme:dark]" />
@@ -214,7 +216,7 @@ function FoodPage() {
 
       {date === today() && <FastingCard />}
 
-      <section id="registrar" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
+      <section id="registrar" className="scroll-mt-24 rounded-3xl surface-card p-6">
         <div className="mb-4 grid grid-cols-2 gap-1 rounded-full bg-muted p-1" role="radiogroup" aria-label="Registrar ou planejar">
           {([[false, "Comi"], [true, "Planejar"]] as const).map(([value, label]) => (
             <button key={label} type="button" role="radio" aria-checked={planning === value} onClick={() => { setPlanning(value); if (!value && date > today()) setDate(today()); }}
@@ -323,7 +325,7 @@ function FoodPage() {
                   {Math.round(sel.kcal * grams / 100)} kcal · P {num1(sel.p * grams / 100)} g · C {num1(sel.c * grams / 100)} g · G {num1(sel.f * grams / 100)} g
                 </div>
                 <div className="mt-4 flex gap-2">
-                  <button onClick={addFood} className="rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground">{planning ? "Planejar" : "Adicionar"}</button>
+                  <button onClick={addFood} className="min-h-11 rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground">{planning ? "Planejar" : "Adicionar"}</button>
                   <button onClick={() => setSel(null)} className="rounded-full px-4 py-2 font-semibold text-muted-foreground">Cancelar</button>
                 </div>
               </div>
@@ -334,7 +336,7 @@ function FoodPage() {
             <textarea value={aiText} onChange={(e) => setAiText(e.target.value)} rows={3}
               placeholder="Ex: 2 conchas de feijão, 4 colheres de arroz, 1 filé de frango grelhado e salada"
               className="w-full rounded-xl border border-input bg-background px-4 py-3" />
-            <button onClick={estimate} disabled={loading} className="mt-2 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 font-bold text-accent-foreground disabled:opacity-60">
+            <button onClick={estimate} disabled={loading} className="min-h-11 mt-2 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 font-bold text-accent-foreground disabled:opacity-60">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Estimar macros
             </button>
             <p className="mt-2 text-xs text-muted-foreground">A IA estima porções e valores; toque no item registrado para corrigir as gramas.</p>
@@ -354,7 +356,7 @@ function FoodPage() {
           if (m.v === "suplementos" && items.length === 0) return null;
           const kcal = items.reduce((a, f) => a + f.kcal, 0);
           return (
-            <section key={m.v} className="rounded-3xl border border-border bg-card p-5">
+            <section key={m.v} className="rounded-3xl surface-card p-5">
               <div className="flex justify-between"><h3 className="font-bold">{m.t}</h3><span className="font-display font-bold text-accent">{kcal} kcal</span></div>
               {m.v !== "suplementos" && items.length > 0 && (
                 <p className="text-xs tabular-nums text-muted-foreground">
@@ -446,9 +448,9 @@ function FoodHistory({ t, onEdit }: { t: ReturnType<typeof targets>; onEdit: (da
       <section className="space-y-2">
         <h2 className="px-1 text-xl font-bold">Últimos dias</h2>
         {days.length === 0 ? (
-          <p className="px-1 text-sm text-muted-foreground">Nenhuma refeição registrada nos últimos {DAYS_SHOWN} dias.</p>
+          <EmptyState icon={Utensils} title="Seu diário começa na próxima refeição">Registre o que comer e os últimos {DAYS_SHOWN} dias aparecem aqui, com calorias e macros.</EmptyState>
         ) : days.map(({ date, d, items, sum }) => (
-          <details key={date} className="group rounded-3xl border border-border bg-card px-4 py-3">
+          <details key={date} className="group rounded-3xl surface-card px-4 py-3">
             <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">

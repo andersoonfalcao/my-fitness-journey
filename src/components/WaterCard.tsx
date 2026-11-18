@@ -39,7 +39,7 @@ export function WaterCard({ date, targetMl }: { date: string; targetMl: number }
   };
 
   return (
-    <section id="agua" className="scroll-mt-24 rounded-3xl border border-border bg-card p-5">
+    <section id="agua" className="scroll-mt-24 rounded-3xl surface-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <Droplets className="h-5 w-5 text-chart-4" />

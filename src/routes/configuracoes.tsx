@@ -127,7 +127,7 @@ function ConfiguracoesPage() {
       </Group>
 
       <Group id="conta">
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl surface-card p-6">
           <div className="min-w-0">
             <h3 className="text-xl font-bold">Conta</h3>
             <p className="text-sm text-muted-foreground">{user?.email}{isAdmin ? " · administrador" : ""}</p>
@@ -158,7 +158,7 @@ function ThemeSetting() {
     { v: "dark", label: "Escuro", icon: Moon },
   ] as const;
   return (
-    <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+    <section className="rounded-3xl surface-card p-5 shadow-sm sm:p-6">
       <h2 className="type-h3">Aparência</h2>
       <p className="mt-1 text-sm text-muted-foreground">Vale para este aparelho. "Sistema" acompanha o modo claro ou escuro do celular.</p>
       <div role="radiogroup" aria-label="Tema" className="mt-4 grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
@@ -187,7 +187,7 @@ function AppVersion() {
     }
   };
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl surface-card p-6">
       <div className="min-w-0">
         <h3 className="text-xl font-bold">Versão do app</h3>
         <p className="text-sm text-muted-foreground">
@@ -236,7 +236,7 @@ function ExportData() {
   };
 
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl surface-card p-6">
       <div className="min-w-0">
         <h3 className="text-xl font-bold">Cópia dos seus dados</h3>
         <p className="text-sm text-muted-foreground">Um arquivo com tudo o que a conta guarda: perfil, refeições, pesagens, treinos e saúde.</p>

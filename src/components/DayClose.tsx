@@ -107,7 +107,7 @@ export function DayClose({ profile, date, embedded = false }: { profile: Profile
   }
 
   return (
-    <section className={embedded ? "space-y-4" : "space-y-4 rounded-3xl border border-border bg-card p-6"}>
+    <section className={embedded ? "space-y-4" : "space-y-4 rounded-3xl surface-card p-6"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <CalendarCheck className="h-5 w-5 text-accent" />
@@ -118,7 +118,7 @@ export function DayClose({ profile, date, embedded = false }: { profile: Profile
         {closed && (
         <div className="flex flex-wrap gap-2">
           {!busy && (
-            <Button type="button" onClick={() => setShare(dayShare(closed))} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button type="button" onClick={() => setShare(dayShare(closed))} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
               <Share2 />Compartilhar
             </Button>
           )}
