@@ -39,3 +39,42 @@ export function ProgressRing({ value, max, size = 144, stroke = 12, color = "var
     </div>
   );
 }
+
+export type RingSpec = { value: number; max: number; color: string; label: string };
+
+/**
+ * Concentric rings (outer first), Apple-Fitness style. A ring past its goal wraps around once more, a little
+ * darker, so going over shows; `closed` marks every ring done and plays the celebration (off with reduced motion).
+ */
+export function ActivityRings({ rings, size = 156, stroke = 14, gap = 3, className }: {
+  rings: RingSpec[]; size?: number; stroke?: number; gap?: number; className?: string;
+}) {
+  const closed = rings.length > 0 && rings.every((r) => r.max > 0 && r.value >= r.max);
+  return (
+    <div className={cn("relative shrink-0", closed && "animate-pop", className)} style={{ width: size, height: size }}
+      role="img" aria-label={rings.map((r) => `${r.label}: ${Math.round(r.max ? (r.value / r.max) * 100 : 0)}%`).join(", ")}>
+      <svg viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 -rotate-90" aria-hidden>
+        {rings.map((ring, i) => {
+          const r = size / 2 - stroke / 2 - i * (stroke + gap);
+          if (r <= stroke / 2) return null;
+          const c = 2 * Math.PI * r;
+          const pct = ring.max ? ring.value / ring.max : 0;
+          const first = Math.min(1, pct);
+          const extra = Math.min(1, Math.max(0, pct - 1));
+          return (
+            <g key={ring.label}>
+              <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ring.color} strokeOpacity={0.16} strokeWidth={stroke} />
+              <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ring.color} strokeWidth={stroke} strokeLinecap="round"
+                strokeDasharray={c} strokeDashoffset={c * (1 - first)} className="transition-[stroke-dashoffset] duration-700 ease-out" />
+              {extra > 0 && (
+                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`color-mix(in srgb, ${ring.color} 70%, black)`} strokeWidth={stroke}
+                  strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - extra)} className="transition-[stroke-dashoffset] duration-700 ease-out" />
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      {closed && <span className="absolute inset-0 grid place-items-center text-2xl" aria-hidden>🎉</span>}
+    </div>
+  );
+}

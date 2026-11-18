@@ -70,11 +70,14 @@
   --info-text: #0369a1;
 
   /* Data (charts and macro bars) */
-  --data-protein: #059669;
-  --data-carbs: #0369a1; /* 5.9:1 on white, also used as label text */
-  --data-fat: #7c3aed;
-  --data-4: #db2777;
-  --data-5: #64748b;
+  /* Each macro its own hue, apart from the emerald of calories/progress and the sky of water (all ≥ 4.5:1 on white). */
+  --data-protein: #7c3aed;
+  --data-carbs: #2563eb;
+  --data-fat: #db2777;
+  --data-4: #0d9488;
+  --data-5: #64748b; /* fibre */
+  --data-kcal: var(--accent-base);
+  --data-water: var(--info);
 
   /* Third-party brand colours that their guidelines require as-is */
   --brand-strava: #fc4c02;
@@ -119,10 +122,10 @@
   --info: #38bdf8;
   --info-text: #7dd3fc;
 
-  --data-protein: #10b981;
-  --data-carbs: #38bdf8;
-  --data-fat: #a78bfa;
-  --data-4: #f472b6;
+  --data-protein: #a78bfa;
+  --data-carbs: #60a5fa;
+  --data-fat: #f472b6;
+  --data-4: #2dd4bf;
   --data-5: #94a3b8;
 
   --shadow-1: none;

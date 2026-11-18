@@ -9,12 +9,24 @@ import { addDays, weekStart } from "@/lib/week";
  * Hoje: the week's goal as numbered arrows, one per planned training day; days trained this week (gym or cardio)
  * fill them in order.
  */
-export function WeekGoal({ planned }: { planned: number }) {
+export function WeekGoal({ planned, compact = false }: { planned: number; compact?: boolean }) {
   const trained = useTrainedDays();
   const from = weekStart(today());
   const to = addDays(from, 6);
   const done = trained.filter((d) => d >= from && d <= to).length;
   const n = Math.max(1, planned);
+  if (compact) {
+    // Hoje: a tile beside the weight, the week as a row of small segments.
+    return (
+      <Link to="/semana" aria-label={`Meta semanal: ${Math.min(done, n)} de ${n} treinos. Ver a semana`} className="pressable flex flex-col justify-between rounded-3xl surface-card p-4 hover:border-line-strong">
+        <span className="type-overline text-muted-foreground">Semana</span>
+        <span className="type-number mt-1 text-3xl leading-none">{Math.min(done, n)}<span className="text-sm font-semibold text-muted-foreground"> de {n} treinos</span></span>
+        <span className="mt-2 flex gap-1" aria-hidden>
+          {Array.from({ length: n }, (_, i) => <span key={i} className={`h-2 flex-1 rounded-full transition-colors duration-300 ${i < done ? "bg-brand" : "bg-muted"}`} />)}
+        </span>
+      </Link>
+    );
+  }
   return (
     <section aria-label={`Meta semanal: ${Math.min(done, n)} de ${n} treinos`} className="rounded-3xl surface-card p-5">
       <div className="mb-3 flex items-baseline justify-between gap-3">

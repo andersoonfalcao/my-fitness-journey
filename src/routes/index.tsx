@@ -1,16 +1,18 @@
 import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { fmtKg, foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry, type WorkoutSession } from "@/lib/store";
+import { fmtKg, foodsKey, KEYS, targets, today, useLocal, type FoodEntry, type Profile, type WeightEntry, type WorkoutSession, type WaterLog, waterKey } from "@/lib/store";
 import { WorkoutNow } from "@/components/WorkoutNow";
 import { nextWorkoutIndex, type Plan } from "@/lib/plan";
-import { MacroBar, NeedProfile, Ring } from "@/components/AppShell";
+import { NeedProfile } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
 import { HealthToday } from "@/components/HealthToday";
-import { CheckCheck, ChevronRight, Dumbbell, HeartPulse, Moon, Play, Plus } from "lucide-react";
+import { CheckCheck, ChevronRight, Droplets, Dumbbell, HeartPulse, Moon, Play, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { ActivityRings, ProgressBar, type RingSpec } from "@/components/ui/meter";
 import { Card, Eyebrow } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { addDays, weekStart } from "@/lib/week";
 import { cardioByDate, cardioKey, type CardioRecord } from "@/lib/cardio";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
@@ -42,6 +44,7 @@ function Index() {
   const [waitingCardio] = useLocal<CardioRecord[]>(cardioKey(today()), []);
   // A workout in progress takes the top of the screen and the place of the "Treino de hoje" card.
   const [session] = useLocal<WorkoutSession | null>(KEYS.session, null);
+  const [water, setWater] = useLocal<WaterLog>(waterKey(today()), {});
 
   if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
@@ -61,6 +64,17 @@ function Index() {
   const restToday = !trainingDays.includes(weekday(0).w);
   const nextDay = restToday ? [1, 2, 3, 4, 5, 6, 7].map(weekday).find(({ w }) => trainingDays.includes(w))?.d : undefined;
   const left = t.kcal - Math.round(sum.kcal);
+  const waterMl = water[today()] ?? 0;
+  const addWater = (ml: number) => {
+    setWater((l) => ({ ...l, [today()]: (l[today()] ?? 0) + ml }));
+    toast.success(`+${ml} ml de água`);
+  };
+  const rings: RingSpec[] = [
+    { label: "Calorias", value: sum.kcal, max: t.kcal, color: "var(--data-kcal)" },
+    { label: "Proteína", value: sum.p, max: t.protein, color: "var(--data-protein)" },
+    { label: "Água", value: waterMl, max: t.waterMl, color: "var(--data-water)" },
+  ];
+  const ringsClosed = rings.every((r) => r.value >= r.max);
 
   const toGoal = Math.abs(current - profile.goalWeight);
   return (
@@ -76,6 +90,44 @@ function Index() {
       </header>
 
       {session && <WorkoutNow session={session} plan={plan} />}
+
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="type-h3">{ringsClosed ? "Anéis fechados!" : "Seus anéis de hoje"}</h2>
+          {ringsClosed && <span className="rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success-text animate-pop">dia completo</span>}
+        </div>
+        <div className="mt-4 flex items-center gap-5">
+          <ActivityRings rings={rings} size={148} stroke={15} />
+          <dl className="min-w-0 flex-1 space-y-3">
+            <div>
+              <dt className="type-overline" style={{ color: "var(--data-kcal)" }}>Calorias</dt>
+              <dd className="type-number text-xl leading-tight">{Math.round(sum.kcal).toLocaleString("pt-BR")}<span className="text-sm font-medium text-muted-foreground"> / {t.kcal.toLocaleString("pt-BR")}</span></dd>
+              <dd className="text-xs text-muted-foreground">{left >= 0 ? `faltam ${left.toLocaleString("pt-BR")} kcal` : `${Math.abs(left).toLocaleString("pt-BR")} kcal acima`}</dd>
+            </div>
+            <div>
+              <dt className="type-overline" style={{ color: "var(--data-protein)" }}>Proteína</dt>
+              <dd className="type-number text-xl leading-tight">{Math.round(sum.p)}<span className="text-sm font-medium text-muted-foreground"> / {t.protein} g</span></dd>
+            </div>
+            <div>
+              <dt className="type-overline" style={{ color: "var(--data-water)" }}>Água</dt>
+              <dd className="type-number text-xl leading-tight">{(waterMl / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}<span className="text-sm font-medium text-muted-foreground"> / {(t.waterMl / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} L</span></dd>
+            </div>
+          </dl>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-border pt-4">
+          {([["Carboidratos", sum.c, t.carbs, "var(--data-carbs)"], ["Gorduras", sum.f, t.fat, "var(--data-fat)"]] as const).map(([name, value, max, color]) => (
+            <div key={name} className="min-w-0">
+              <div className="flex items-baseline justify-between gap-2 text-xs"><span className="font-semibold">{name}</span><span className="tabular-nums text-muted-foreground">{Math.round(value)}/{max} g</span></div>
+              <ProgressBar className="mt-1" size="sm" value={value} max={max} color={color} label={name} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
+          <Link to="/alimentacao" className={buttonVariants({ variant: "secondary" })}><Plus />Registrar refeição</Link>
+          <Button type="button" variant="outline" onClick={() => addWater(250)} aria-label="Adicionar 250 ml de água"><Droplets className="text-info" />250 ml</Button>
+        </div>
+      </Card>
+
 
       {doneToday.length === 0 && cardioToday.length > 0 ? (
         <Link to="/treinos" search={next && !restToday ? {} : { aba: "historico" }} className="pressable flex items-center gap-4 rounded-3xl border border-brand-line bg-brand-soft p-5 sm:p-6">
@@ -149,36 +201,14 @@ function Index() {
         </Card>
       )}
 
-      <Card>
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="type-h3">Alimentação de hoje</h2>
-          <span className="text-sm tabular-nums text-muted-foreground">meta {t.kcal.toLocaleString("pt-BR")} kcal</span>
-        </div>
-        <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row">
-          <Ring value={sum.kcal} max={t.kcal} label={Math.abs(left).toLocaleString("pt-BR")} sub={left >= 0 ? "kcal restantes" : "kcal acima"} />
-          <div className="w-full flex-1 space-y-4">
-            <MacroBar name="Proteína" value={sum.p} max={t.protein} color="var(--data-protein)" />
-            <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--data-carbs)" />
-            <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--data-fat)" />
-          </div>
-        </div>
-        <Link to="/alimentacao" className={buttonVariants({ variant: "secondary", className: "mt-5 w-full sm:w-auto" })}><Plus />Registrar refeição</Link>
-      </Card>
-
-      <WeekGoal planned={profile.days} />
-
-      <Link to="/corpo" search={{ aba: "evolucao" }} className="pressable flex items-end justify-between gap-3 rounded-3xl surface-card p-5 hover:border-line-strong sm:p-6">
-        <div className="min-w-0">
-          <div className="text-sm font-medium text-muted-foreground">Peso atual</div>
-          <div className="type-number whitespace-nowrap text-4xl leading-tight">{fmtKg(current)}<span className="text-xl font-semibold text-muted-foreground"> kg</span></div>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="text-sm text-muted-foreground">Meta: {fmtKg(profile.goalWeight)} kg</div>
-          <div className="whitespace-nowrap font-display text-lg font-bold text-accent">
-            {toGoal < 0.1 ? "Meta atingida!" : `faltam ${fmtKg(toGoal)} kg`}
-          </div>
-        </div>
-      </Link>
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/corpo" search={{ aba: "evolucao" }} className="pressable flex flex-col justify-between rounded-3xl surface-card p-4 hover:border-line-strong">
+          <span className="type-overline text-muted-foreground">Peso</span>
+          <span className="type-number mt-1 text-3xl leading-none">{fmtKg(current)}<span className="text-sm font-semibold text-muted-foreground"> kg</span></span>
+          <span className="mt-2 text-xs font-semibold text-accent">{toGoal < 0.1 ? "Meta atingida!" : `faltam ${fmtKg(toGoal)} kg`}</span>
+        </Link>
+        <WeekGoal planned={profile.days} compact />
+      </div>
 
       {/* Sunday evening and Monday: the week just lived, one tap away. */}
       {[0, 1].includes(new Date().getDay()) && (

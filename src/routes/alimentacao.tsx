@@ -187,7 +187,7 @@ function FoodPage() {
           <MacroBar name="Proteína" value={sum.p} max={t.protein} color="var(--data-protein)" />
           <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--data-carbs)" />
           <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--data-fat)" />
-          {fiber.known > 0 && <MacroBar name="Fibras" value={fiber.grams} max={FIBER_REFERENCE} color="var(--data-4)" />}
+          {fiber.known > 0 && <MacroBar name="Fibras" value={fiber.grams} max={FIBER_REFERENCE} color="var(--data-5)" />}
         </div>
         {fiber.known > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">Fibras: referência de 25 a 30 g por dia.{fiber.unknown > 0 ? ` ${fiber.unknown} ${fiber.unknown === 1 ? "item não tem" : "itens não têm"} esse valor e ${fiber.unknown === 1 ? "ficou" : "ficaram"} de fora.` : ""}</p>
