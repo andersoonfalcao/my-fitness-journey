@@ -112,7 +112,7 @@ export function sleepKind(value: unknown): "stage" | "awake" | "inBed" | "other"
 }
 
 /** Sleep source kept when the night came from more than one app. */
-const PREFERRED_SLEEP_SOURCE = /zepp\s*life/i;
+const PREFERRED_SLEEP_SOURCE = /mi\s*fitness/i;
 
 /** Minutes asleep in last night's sleep, from Health's sleep samples (value + start + end, and source when sent). */
 export function sleepOf(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string, sources: unknown[] = []) {
@@ -123,7 +123,7 @@ const hm = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart
 
 /**
  * Last night's sleep. The night is the one that ended between noon yesterday and noon today in `tz`; only the sleep
- * stages count (in bed and awake are left out); with more than one source, Zepp Life is kept and the others are
+ * stages count (in bed and awake are left out); with more than one source, Mi Fitness (the band's app) is kept and the others are
  * dropped; overlapping intervals are joined so no minute counts twice. Returns the sleep and a line for the
  * Shortcut's result: the total with source and times, or why there is none.
  */
@@ -153,12 +153,12 @@ export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[
     const fmtWhen = (ms: number) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
     if (night.length) {
       const kinds = [...new Set(night.map((s) => String(values[all.indexOf(s)] ?? "")))].slice(0, 4).join(", ");
-      return none(`sono: ${night.length} amostras desta noite, mas nenhuma fase de sono (vieram: ${kinds}); só Dormindo, Essencial, Profundo e REM contam`);
+      return none(`sono: ${night.length === 1 ? "1 amostra" : `${night.length} amostras`} desta noite, mas nenhuma fase de sono (vieram: ${kinds}); só Dormindo, Essencial, Profundo e REM contam`);
     }
     return none(`sono: ${arrived}, mas nenhuma terminou entre 12h de ontem e 12h de hoje (a mais recente termina em ${fmtWhen(Math.max(...dated.map((s) => s.end)))}); sincronize a pulseira e rode o atalho de novo`);
   }
 
-  // More than one app recorded the night: Zepp Life wins and the rest is dropped.
+  // More than one app recorded the night: Mi Fitness (the band's app) wins and the rest is dropped.
   const found = [...new Set(stages.map((s) => s.source).filter(Boolean))];
   let kept = found;
   let dropped: string[] = [];
@@ -185,7 +185,7 @@ export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[
   const last = Math.max(...sorted.map((s) => s.end));
   const clockAt = (ms: number) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
   const origin = kept.length ? kept.join(" + ") : hasSources ? "sem fonte" : "fonte não enviada";
-  const droppedText = dropped.length ? ` · descartadas: ${dropped.join(", ")}` : found.length > 1 ? " · várias fontes, sem Zepp Life: juntas sem repetir minutos" : "";
+  const droppedText = dropped.length ? ` · descartadas: ${dropped.join(", ")}` : found.length > 1 ? " · várias fontes, sem Mi Fitness: juntas sem repetir minutos" : "";
   return {
     sleep: { sleepMin, sleepStart: new Date(first).toISOString(), sleepEnd: new Date(last).toISOString() },
     note: `sono: ${hm(sleepMin)} dormindo (${origin} · ${clockAt(first)}–${clockAt(last)} · ${stages.length} ${stages.length === 1 ? "fase" : "fases"}${droppedText})`,
