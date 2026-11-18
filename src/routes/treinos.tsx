@@ -597,13 +597,13 @@ function TreinosPage() {
         </div>
       )}
 
-      <section className="flex items-center gap-3 rounded-3xl bg-primary p-4 text-primary-foreground sm:p-5">
+      <section className="flex items-center gap-3 rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_65%)] p-4 shadow-sm sm:p-5">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-bold uppercase tracking-widest text-accent">
+          <div className="type-overline text-accent">
             {viewingDone ? "Concluído hoje" : isCurrentClass ? `Aula ${classNumber}` : lockedToday && active === nextIdx ? "Próximo treino" : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
           </div>
-          <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(items.map((it) => it.exId))}</h2>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap opacity-75">{items.length} exercícios ·</span>
+          <h2 className="mt-1 text-balance font-display text-xl font-bold leading-tight sm:text-3xl">{musclesOf(items.map((it) => it.exId))}</h2>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap text-muted-foreground">{items.length} exercícios ·</span>
             <button type="button" onClick={() => setMethodOpen(true)} className="-my-2 inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold underline-offset-4 hover:underline">{plan.method}<Info className="h-4 w-4 text-accent" aria-label="Como o forma monta seu treino" /></button></p>
           {openItem !== null && items[openItem] && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
@@ -611,25 +611,26 @@ function TreinosPage() {
             </p>
           )}
         </div>
-        <BodyMap exIds={items.map((it) => it.exId)} focus={openItem !== null ? items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-card/95 px-2 py-2 text-foreground" />
+        <BodyMap exIds={items.map((it) => it.exId)} focus={openItem !== null ? items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-muted px-2 py-2 text-foreground" />
       </section>
 
       {session ? (
-        <div className="sticky top-[4.25rem] z-20 rounded-3xl bg-primary px-5 py-3 text-primary-foreground shadow-lg">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Timer className="h-6 w-6 text-accent" />
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider opacity-75">{session.dayName} em andamento</div>
-                <WorkoutClock startedAt={session.startedAt} className="font-display text-3xl font-extrabold tabular-nums" />
+        <div className="sticky top-[calc(3.75rem+env(safe-area-inset-top))] z-20 rounded-3xl border border-brand-line bg-card/90 py-2.5 pl-4 pr-2 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-accent"><Timer className="h-5 w-5" aria-hidden /></span>
+              <div className="min-w-0">
+                <div className="type-overline truncate text-muted-foreground">{session.dayName} em andamento</div>
+                <WorkoutClock startedAt={session.startedAt} className="type-number text-2xl leading-tight" />
               </div>
             </div>
+            {session.rest && <RestChip endsAt={session.rest.endsAt} item={session.rest.item} />}
             <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); setRirInputs({}); } }}
-              className="text-sm font-semibold underline-offset-4 opacity-75 hover:underline">Cancelar</button>
+              className="min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">Cancelar</button>
           </div>
         </div>
       ) : viewingDone ? (
-        <section className="rounded-3xl border-2 border-success bg-success/10 p-4">
+        <section className="rounded-3xl border border-success/40 bg-success/10 p-4">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-success text-on-brand"><CheckCheck className="h-6 w-6" aria-hidden /></span>
             <div className="min-w-0">
@@ -763,10 +764,10 @@ function TreinosPage() {
             && day.items.some((other, j) => j !== i && !session.later?.includes(j) && (session.sets?.[j] ?? 0) < other.sets);
           const lastSetKg = kgsToday[setsDone - 1] ?? null;
           return (
-            <article key={i} id={`exercicio-${i}`} className={`scroll-mt-28 overflow-hidden rounded-3xl border-2 ${finished ? "border-success bg-success/5" : open ? "border-primary bg-card" : "border-border bg-card"}`}>
+            <article key={i} id={`exercicio-${i}`} className={`scroll-mt-36 overflow-hidden rounded-3xl border transition-[border-color,box-shadow] duration-200 ${finished ? "border-success/40 bg-success/5" : open ? "border-brand-line bg-card shadow-md ring-1 ring-brand-line" : "surface-card"}`}>
               <button type="button" onClick={() => setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
                 className="flex w-full items-center gap-3 p-3 text-left sm:p-4">
-                <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover" />
+                <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-2xl border border-border object-cover" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {isLater && <span className="text-accent">Para depois · </span>}{combo && <span className="text-accent">{combo.label} · {combo.position}/{combo.members.length} · </span>}{GROUP_LABEL[ex.group]} · {ex.equipment}
@@ -784,7 +785,7 @@ function TreinosPage() {
                   </span>
                 </span>
                 {finished ? (
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-success text-on-brand"><Check className="h-5 w-5" aria-label="Exercício concluído" /></span>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-on-brand animate-pop"><Check className="h-5 w-5" strokeWidth={3} aria-label="Exercício concluído" /></span>
                 ) : tracksSets && session ? (
                   <SetsRing total={it.sets} done={setsDone} />
                 ) : (
@@ -1112,9 +1113,9 @@ function TreinosPage() {
 
       {tab === "historico" && (<>
         {session && (
-          <Link to="/treinos" search={{}} replace className="flex items-center justify-between gap-3 rounded-3xl bg-primary px-5 py-3 text-primary-foreground">
+          <Link to="/treinos" search={{}} replace className="pressable flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-brand-line bg-brand-soft px-5 py-3">
             <span className="flex items-center gap-2 text-sm font-bold"><Timer className="h-5 w-5 text-accent" />{session.dayName} em andamento</span>
-            <span className="text-sm font-semibold underline underline-offset-4">Voltar ao treino</span>
+            <span className="text-sm font-semibold text-accent">Voltar ao treino</span>
           </Link>
         )}
         <WorkoutHistory records={history} onDelete={(id) => setHistory((records) => records.filter((r) => r.id !== id))} onShare={setShare} />
@@ -1328,15 +1329,15 @@ function SessionCompare({ previous, previousTotal, currentTotal, dayName, finish
     <section className="rounded-3xl border-2 border-primary bg-card p-4">
       <h2 className="font-display text-lg font-bold">Peso total da sessão</h2>
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-muted/60 p-3">
-          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sessão anterior</div>
+        <div className="rounded-2xl bg-muted p-3">
+          <div className="type-overline text-muted-foreground">Sessão anterior</div>
           <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{previousTotal > 0 ? formatKg(previousTotal) : "—"}</div>
           <div className="mt-1 text-xs text-muted-foreground">{previous ? `${dayName} · ${formatDate(previous.date)}` : "primeira vez"}</div>
         </div>
-        <div className="rounded-2xl bg-primary p-3 text-primary-foreground">
-          <div className="text-xs font-bold uppercase tracking-wider opacity-75">{finished ? "Sessão de hoje" : "Sessão atual"}</div>
+        <div className="rounded-2xl border border-brand-line bg-brand-soft p-3">
+          <div className="type-overline text-accent">{finished ? "Sessão de hoje" : "Sessão atual"}</div>
           <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{formatKg(currentTotal)}</div>
-          <div className="mt-1 text-xs opacity-75">{finished ? "concluída" : "até agora"}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{finished ? "concluída" : "até agora"}</div>
         </div>
       </div>
       {previousTotal > 0 && currentTotal > 0 && (
@@ -1427,6 +1428,26 @@ function useRestLeft(endsAt: number | null, next: string, onDone: () => void, vo
 }
 
 /** The sets of an exercise as numbered circles: done, the one up next, still to do. */
+/**
+ * In the sticky workout bar: the rest left, visible wherever the screen is scrolled. Display only: the rest itself
+ * (its end, the notice and the voice) is run by the exercise card. A tap goes to that exercise.
+ */
+function RestChip({ endsAt, item }: { endsAt: number; item: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const left = endsAt - now;
+  if (left <= 0) return null;
+  return (
+    <a href={`#exercicio-${item}`} className="flex min-h-11 shrink-0 flex-col items-end justify-center rounded-2xl bg-brand-soft px-3 py-1 animate-fade-up" aria-label={`Descanso: ${formatDuration(left + 999)}`}>
+      <span className="type-overline text-accent">Descanso</span>
+      <span className="type-number text-xl leading-tight text-accent" role="timer">{formatDuration(left + 999)}</span>
+    </a>
+  );
+}
+
 function SetDots({ total, done, dark }: { total: number; done: number; dark?: boolean }) {
   return (
     <div className="flex flex-wrap gap-1.5" role="img" aria-label={`${done} de ${total} séries feitas`}>
@@ -1498,7 +1519,7 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
   const canComplete = !!onComplete && !resting;
   const c = RING_BOX / 2;
   return (
-    <div className="mt-3 rounded-3xl bg-muted/50 p-2">
+    <div className="mt-3 rounded-3xl bg-muted/60 p-2">
       <div className="relative mx-auto aspect-square w-full max-w-[340px]">
         <svg viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
           <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-border" strokeDasharray={pieces(total).replace(` 0 ${OUTER_C}`, "")} />
@@ -1516,15 +1537,15 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
             {resting ? "Descanso" : allDone ? "Concluído" : canComplete ? `Série ${done + 1} de ${total}` : "Séries"}
           </span>
-          <span className={`font-display font-extrabold leading-none tabular-nums ${canComplete ? "text-3xl" : "text-4xl"} ${resting ? "text-warning-text" : ""}`}
+          <span className={`font-display font-extrabold leading-none tabular-nums ${canComplete ? "text-3xl" : "text-5xl"} ${resting ? "text-accent" : ""}`}
             role={resting ? "timer" : undefined} aria-hidden={!resting}>
             {resting ? time : `${done}/${total}`}
           </span>
           {canComplete && (
             <>
               <button type="button" onClick={onComplete} aria-label={`Concluir série ${done + 1}${completeHint ? `, ${completeHint}` : ""}`}
-                className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm">
-                <Check className="h-4 w-4" />Concluir
+                className="mt-1 inline-flex min-h-14 items-center gap-2 rounded-full bg-primary px-6 font-display text-lg font-bold text-primary-foreground shadow-md hover:bg-brand-hover">
+                <Check className="h-5 w-5" strokeWidth={3} />Concluir
               </button>
               {completeHint && <span className="text-xs font-semibold text-muted-foreground tabular-nums" aria-hidden>{completeHint}</span>}
             </>
@@ -1537,7 +1558,7 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
             const now = live && s === done && !allDone;
             return (
               <li key={s} className={`absolute w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-2xl px-1.5 py-1 text-center tabular-nums ${
-                isDone ? "bg-success/15" : now ? "border-2 border-accent bg-accent/10" : "bg-card"}`}
+                isDone ? "bg-success/15 animate-pop" : now ? "border-2 border-brand bg-card shadow-sm" : "bg-card"}`}
                 style={{ left: `${((c + LABEL_R * Math.sin(angle)) / RING_BOX) * 100}%`, top: `${((c - LABEL_R * Math.cos(angle)) / RING_BOX) * 100}%` }}>
                 <span className={`block text-xs font-bold uppercase tracking-wide ${isDone ? "text-success-text" : "text-muted-foreground"}`}>
                   Série {s + 1}{isDone ? " ✓" : ""}{now && <span className="sr-only"> (agora)</span>}
@@ -1551,11 +1572,11 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
       {resting && (
         <div className="mt-1 flex justify-center gap-2 pb-1">
           <button type="button" onClick={() => onVoice(!voice)} aria-pressed={voice} aria-label={voice ? "Desligar a voz" : "Ligar a voz"}
-            className={`grid h-11 w-11 place-items-center rounded-full border border-input bg-card ${voice ? "" : "text-muted-foreground"}`}>
+            className={`grid h-12 w-12 place-items-center rounded-full border border-input bg-card ${voice ? "" : "text-muted-foreground"}`}>
             {voice ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
-          <button type="button" onClick={() => onAdd(15)} className="min-h-11 rounded-full border border-input bg-card px-4 text-sm font-bold">+15s</button>
-          <button type="button" onClick={onSkip} className="min-h-11 rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground">Pular descanso</button>
+          <button type="button" onClick={() => onAdd(15)} className="min-h-12 rounded-full border border-input bg-card px-5 text-sm font-bold tabular-nums">+15s</button>
+          <button type="button" onClick={onSkip} className="min-h-12 rounded-full bg-primary px-6 text-sm font-bold text-primary-foreground">Pular descanso</button>
         </div>
       )}
       {caption && <p className="pb-1 text-center text-xs text-muted-foreground">{caption}</p>}
@@ -1597,14 +1618,14 @@ function HoldTimer({ label, seconds, suggested, endsAt, onChange, onStart, onCan
 
   if (running) {
     return (
-      <div className="mt-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
-        <div className="text-xs font-bold uppercase tracking-wider text-accent">{label} · segure</div>
-        <div className="font-display text-5xl font-extrabold leading-tight tabular-nums text-accent" role="timer" aria-label="Tempo restante da série">{formatDuration(left + 999)}</div>
+      <div className="mt-3 rounded-2xl border border-brand-line bg-brand-soft px-4 py-3">
+        <div className="type-overline text-accent">{label} · segure</div>
+        <div className="type-number text-5xl leading-tight text-foreground" role="timer" aria-label="Tempo restante da série">{formatDuration(left + 999)}</div>
         <div className="mt-2 flex gap-2">
-          <button type="button" onClick={onFinish} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent px-4 text-sm font-bold text-accent-foreground">
-            <Check className="h-4 w-4" />Concluir série
+          <button type="button" onClick={onFinish} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 text-base font-bold text-primary-foreground">
+            <Check className="h-5 w-5" />Concluir série
           </button>
-          <button type="button" onClick={onCancel} className="min-h-11 rounded-full border border-primary-foreground/30 px-4 text-sm font-semibold">Cancelar</button>
+          <button type="button" onClick={onCancel} className="min-h-12 rounded-full border border-input bg-card px-4 text-sm font-semibold">Cancelar</button>
         </div>
       </div>
     );

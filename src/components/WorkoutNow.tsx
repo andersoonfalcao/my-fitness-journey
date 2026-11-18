@@ -19,38 +19,41 @@ export function WorkoutNow({ session, plan }: { session: WorkoutSession; plan: P
   const item = current === undefined ? undefined : items[current];
 
   return (
-    <Link to="/treinos" className="block rounded-3xl bg-primary p-5 text-primary-foreground shadow-lg">
+    <Link to="/treinos" className="pressable block rounded-3xl border border-brand-line bg-card p-5 shadow-md sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-accent">
-            <span className="inline-block h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-accent" aria-hidden />Treino em andamento
+          <div className="type-overline flex items-center gap-2 text-accent">
+            <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand" />
+            </span>Treino em andamento
           </div>
-          <h2 className="mt-1 text-2xl font-bold leading-tight">{session.dayName}</h2>
+          <h2 className="type-h2 mt-1">{session.dayName}</h2>
         </div>
-        <ChevronRight className="mt-1 h-6 w-6 shrink-0 opacity-75" aria-hidden />
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"><ChevronRight className="h-6 w-6" aria-hidden /></span>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="flex min-w-0 flex-col">
-          <span className="text-xs font-bold uppercase tracking-wider opacity-75">Tempo</span>
-          <WorkoutClock startedAt={session.startedAt} className="font-display text-3xl font-extrabold leading-tight tabular-nums" />
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="flex min-w-0 flex-col rounded-2xl bg-muted px-4 py-3">
+          <span className="type-overline text-muted-foreground">Tempo</span>
+          <WorkoutClock startedAt={session.startedAt} className="type-number text-3xl leading-tight" />
         </div>
         {items.length > 0 && (
-          <div className="flex min-w-0 flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider opacity-75">Exercícios</span>
-            <span className="font-display text-3xl font-extrabold leading-tight tabular-nums">{finished}<span className="text-lg font-bold opacity-75"> de {items.length}</span></span>
+          <div className="flex min-w-0 flex-col rounded-2xl bg-muted px-4 py-3">
+            <span className="type-overline text-muted-foreground">Exercícios</span>
+            <span className="type-number text-3xl leading-tight">{finished}<span className="text-lg font-semibold text-muted-foreground"> de {items.length}</span></span>
           </div>
         )}
       </div>
       {items.length > 0 && (
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-primary-foreground/20" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={finished} aria-label={`${finished} de ${items.length} exercícios concluídos`}>
-          <div className="h-full rounded-full bg-accent" style={{ width: `${(finished / items.length) * 100}%` }} />
+        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={finished} aria-label={`${finished} de ${items.length} exercícios concluídos`}>
+          <div className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out" style={{ width: `${(finished / items.length) * 100}%` }} />
         </div>
       )}
       {item && (
-        <div className="mt-4 border-t border-primary-foreground/20 pt-3">
-          <span className="block text-xs font-bold uppercase tracking-wider opacity-75">Agora</span>
-          <span className="block font-bold leading-tight">{byId(item.exId).name}</span>
-          <span className="block text-sm opacity-75">Série {done(current!) + 1} de {item.sets}</span>
+        <div className="mt-4 border-t border-border pt-3">
+          <span className="type-overline block text-muted-foreground">Agora</span>
+          <span className="block font-semibold leading-tight">{byId(item.exId).name}</span>
+          <span className="block text-sm text-muted-foreground">Série {done(current!) + 1} de {item.sets}</span>
         </div>
       )}
     </Link>

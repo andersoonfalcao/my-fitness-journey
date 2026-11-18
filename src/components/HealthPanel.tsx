@@ -67,7 +67,7 @@ export function HealthPanel() {
       </div>
 
       {key ? (
-        <div className="space-y-2 rounded-2xl border-2 border-accent bg-accent/5 p-4">
+        <div className="space-y-2 rounded-2xl border border-brand-line bg-brand-soft p-4">
           <p className="text-sm font-semibold">Sua chave (aparece só agora; copie para o atalho):</p>
           <CopyField label="Valor do cabeçalho Authorization (já com Bearer)" value={`Bearer ${key}`} />
           <CopyField label="Endereço" value={HEALTH_INGEST_URL} />

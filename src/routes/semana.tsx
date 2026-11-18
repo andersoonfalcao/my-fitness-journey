@@ -136,7 +136,7 @@ function WeekPage() {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-3xl bg-primary p-6 text-primary-foreground">
+      <section className="space-y-3 rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_70%)] p-6 shadow-sm">
         <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent" /><h2 className="text-xl font-bold">Comentário da semana</h2></div>
         {review ? (
           <>

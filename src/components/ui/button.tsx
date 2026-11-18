@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * Every size keeps a touch area of at least 44 px: the smaller ones extend it invisibly (::after).
  * States: hover, pressed (scales down), disabled, focus ring, and `loading` (spinner, not clickable).
  */
-const buttonVariants = cva(
+const baseButtonVariants = cva(
   "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold cursor-pointer transition-[background-color,border-color,color,transform,opacity] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 disabled:cursor-not-allowed aria-busy:cursor-progress after:absolute after:-inset-1 after:content-[''] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
@@ -38,8 +38,12 @@ const buttonVariants = cva(
   },
 );
 
+/** Classes of a button, with the caller's className merged last (so "hidden sm:inline-flex" or "w-full" win). */
+const buttonVariants = ({ className, ...rest }: VariantProps<typeof baseButtonVariants> & { className?: string | undefined } = {}) =>
+  cn(baseButtonVariants(rest), className);
+
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof baseButtonVariants> {
   asChild?: boolean;
   /** Shows a spinner and blocks clicks while an action runs. */
   loading?: boolean;

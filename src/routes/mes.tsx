@@ -89,7 +89,7 @@ function MonthPage() {
         <button type="button" onClick={() => go(1)} disabled={current} aria-label="Próximo mês" className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-card disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
       </div>
 
-      <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
+      <section className="rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_70%)] p-6 shadow-sm">
         <p className="text-sm opacity-80">{s.volumeKg ? "Peso total levantado" : "Treinos no mês"}</p>
         <p className="font-display text-5xl font-extrabold tabular-nums leading-tight">{s.volumeKg ? `${n(s.volumeKg)} kg` : s.workouts}</p>
         <p className="mt-1 text-sm opacity-80">

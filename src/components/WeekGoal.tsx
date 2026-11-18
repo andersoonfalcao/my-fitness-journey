@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Ruler, X } from "lucide-react";
+import { Check, Ruler, X } from "lucide-react";
 import { useState } from "react";
 import { KEYS, today, useLocal, type MeasureEntry } from "@/lib/store";
 import { useTrainedDays } from "@/lib/trained";
@@ -16,19 +16,17 @@ export function WeekGoal({ planned }: { planned: number }) {
   const done = trained.filter((d) => d >= from && d <= to).length;
   const n = Math.max(1, planned);
   return (
-    <section aria-label={`Meta semanal: ${Math.min(done, n)} de ${n} treinos`}>
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-bold">Meta semanal</h2>
-        <span className="text-sm tabular-nums text-muted-foreground">{done >= n ? (done > n ? `${done} treinos, ${done - n} além da meta` : "meta cumprida") : `${done} de ${n} treinos`}</span>
+    <section aria-label={`Meta semanal: ${Math.min(done, n)} de ${n} treinos`} className="rounded-3xl surface-card p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="type-h3">Meta semanal</h2>
+        <span className={`text-sm font-medium tabular-nums ${done >= n ? "text-success-text" : "text-muted-foreground"}`}>{done >= n ? (done > n ? `${done} treinos, ${done - n} além da meta` : "meta cumprida") : `${done} de ${n} treinos`}</span>
       </div>
-      <ol className="flex">
+      <ol className="flex gap-1.5">
         {Array.from({ length: n }, (_, i) => {
           const on = i < done;
-          // Arrow shapes that fit into each other; the first has a flat start.
-          const clip = i === 0 ? "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)" : "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)";
           return (
-            <li key={i} style={{ clipPath: clip }} className={`-ml-1 flex h-10 flex-1 items-center justify-center font-display text-base font-bold first:ml-0 ${on ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>
-              {i + 1}
+            <li key={i} className={`flex h-10 flex-1 items-center justify-center rounded-xl font-display text-base font-bold transition-colors duration-300 ${on ? "bg-brand text-on-brand" : "bg-muted text-muted-foreground"}`}>
+              {on ? <Check className="h-5 w-5" strokeWidth={3} aria-hidden /> : i + 1}
             </li>
           );
         })}

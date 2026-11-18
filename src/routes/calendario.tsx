@@ -204,7 +204,7 @@ function CalendarPage() {
                 {d && (
                   <span className="flex flex-wrap justify-center gap-0.5 sm:gap-1">
                     {d.trained && <Dot color="var(--accent)" />}
-                    {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--chart-2)" : "var(--muted-foreground)"} ring={!d.onCalories} />}
+                    {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--success)" : "var(--muted-foreground)"} ring={!d.onCalories} />}
                     {d.waterMl >= d.goal.waterMl && <Dot color="var(--info)" />}
                     {d.workouts.length > 0 && (d.cardio.length > 0 || d.strava.some(isCardio)) && <Dot color="var(--brand-strava)" ring />}
                   </span>
@@ -215,7 +215,7 @@ function CalendarPage() {
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground">
           <Legend color="var(--accent)" label="treino" />
-          <Legend color="var(--chart-2)" label="calorias na meta" />
+          <Legend color="var(--success)" label="calorias na meta" />
           <Legend color="var(--muted-foreground)" label="refeições fora da meta" ring />
           <Legend color="var(--info)" label="água na meta" />
           <Legend color="var(--brand-strava)" label="cardio além do treino" ring />
@@ -328,7 +328,7 @@ function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
+      <section className="rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_70%)] p-6 shadow-sm">
         <h2 className="text-2xl font-bold">Resumo de {monthName.split(" ")[0]!.toLowerCase()}</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {summary.map(([label, value]) => (

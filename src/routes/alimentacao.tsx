@@ -1,3 +1,4 @@
+import { ProgressBar } from "@/components/ui/meter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -169,29 +170,30 @@ function FoodPage() {
       {tab === "historico" ? (
         <FoodHistory t={t} onEdit={(d) => { setDate(d); void navigate({ to: "/alimentacao", search: {}, replace: true }); window.scrollTo({ top: 0 }); }} />
       ) : (<>
-      <section className="rounded-3xl bg-primary p-5 text-primary-foreground sm:p-6">
+      <section className="rounded-3xl surface-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm font-semibold opacity-90">
+          <div className="type-overline text-accent">
             {date === today() ? "Hoje" : new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}
           </div>
-          <label className="min-h-11 inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-xs font-semibold">
+          <label className="min-h-11 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">
             Outro dia
             <input type="date" value={date} max={planning ? addDays(today(), 7) : today()} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Registrar em outro dia"
-              className="w-[8.5rem] bg-transparent text-primary-foreground [color-scheme:dark]" />
+              className="w-[8.5rem] bg-transparent text-foreground" />
           </label>
         </div>
-        <div className="mt-1 font-display text-4xl font-extrabold">{Math.round(sum.kcal).toLocaleString("pt-BR")}<span className="text-lg opacity-75"> / {t.kcal.toLocaleString("pt-BR")} kcal</span></div>
-        <div className="mt-4 grid gap-3 [&_span]:!text-primary-foreground/80">
+        <div className="type-number mt-2 text-5xl leading-none">{Math.round(sum.kcal).toLocaleString("pt-BR")}<span className="text-lg font-semibold text-muted-foreground"> / {t.kcal.toLocaleString("pt-BR")} kcal</span></div>
+        <ProgressBar className="mt-3" size="lg" value={sum.kcal} max={t.kcal} color={sum.kcal > t.kcal ? "var(--warning)" : "var(--accent-base)"} label="Calorias do dia" />
+        <div className="mt-5 grid gap-4">
           <MacroBar name="Proteína" value={sum.p} max={t.protein} color="var(--data-protein)" />
-          <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--chart-1)" />
-          <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--chart-3)" />
-          {fiber.known > 0 && <MacroBar name="Fibras" value={fiber.grams} max={FIBER_REFERENCE} color="var(--chart-4)" />}
+          <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--data-carbs)" />
+          <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--data-fat)" />
+          {fiber.known > 0 && <MacroBar name="Fibras" value={fiber.grams} max={FIBER_REFERENCE} color="var(--data-4)" />}
         </div>
         {fiber.known > 0 && (
-          <p className="mt-2 text-xs opacity-75">Fibras: referência de 25 a 30 g por dia.{fiber.unknown > 0 ? ` ${fiber.unknown} ${fiber.unknown === 1 ? "item não tem" : "itens não têm"} esse valor e ${fiber.unknown === 1 ? "ficou" : "ficaram"} de fora.` : ""}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Fibras: referência de 25 a 30 g por dia.{fiber.unknown > 0 ? ` ${fiber.unknown} ${fiber.unknown === 1 ? "item não tem" : "itens não têm"} esse valor e ${fiber.unknown === 1 ? "ficou" : "ficaram"} de fora.` : ""}</p>
         )}
         {plannedKcal > 0 && (
-          <p className="mt-3 flex items-start gap-2 rounded-2xl bg-primary-foreground/10 px-3 py-2 text-sm">
+          <p className="mt-4 flex items-start gap-2 rounded-2xl bg-brand-soft px-3 py-2.5 text-sm">
             <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
             <span>Planejado: <b>+{plannedKcal} kcal</b>. Se comer tudo, o dia fecha em <b>{(Math.round(sum.kcal) + plannedKcal).toLocaleString("pt-BR")}</b> de {t.kcal.toLocaleString("pt-BR")} kcal
               {Math.round(sum.kcal) + plannedKcal <= t.kcal ? `, sobrando ${t.kcal - Math.round(sum.kcal) - plannedKcal}` : `, ${Math.round(sum.kcal) + plannedKcal - t.kcal} acima`}.</span>
@@ -199,8 +201,8 @@ function FoodPage() {
         )}
         {date !== today() && (
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold">
-            {date === dia && <Link to="/calendario" search={{ dia }} className="underline underline-offset-4">Voltar ao calendário</Link>}
-            <button type="button" onClick={() => setDate(today())} className="underline underline-offset-4">Voltar para hoje</button>
+            {date === dia && <Link to="/calendario" search={{ dia }} className="text-accent underline-offset-4 hover:underline">Voltar ao calendário</Link>}
+            <button type="button" onClick={() => setDate(today())} className="text-accent underline-offset-4 hover:underline">Voltar para hoje</button>
           </div>
         )}
       </section>
@@ -460,7 +462,7 @@ function FoodHistory({ t, onEdit }: { t: ReturnType<typeof targets>; onEdit: (da
                   {Math.round(sum.kcal).toLocaleString("pt-BR")} <span className="text-sm font-semibold text-muted-foreground">/ {t.kcal.toLocaleString("pt-BR")} kcal · {Math.round((sum.kcal / t.kcal) * 100)}%</span>
                 </span>
                 <span className="block text-xs tabular-nums text-muted-foreground">
-                  <b style={{ color: "var(--chart-2)" }}>P</b> {Math.round(sum.p)} g · <b style={{ color: "var(--chart-1)" }}>C</b> {Math.round(sum.c)} g · <b style={{ color: "var(--chart-3)" }}>G</b> {Math.round(sum.f)} g
+                  <b style={{ color: "var(--data-protein)" }}>P</b> {Math.round(sum.p)} g · <b style={{ color: "var(--data-carbs)" }}>C</b> {Math.round(sum.c)} g · <b style={{ color: "var(--data-fat)" }}>G</b> {Math.round(sum.f)} g
                 </span>
               </span>
               <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />

@@ -138,7 +138,7 @@ export function DayClose({ profile, date, embedded = false }: { profile: Profile
           <li key={label}>
             <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} search={searchOf(target)} aria-label={`${label}: ${detail}. ${fill ? "Preencher" : "Ver"}`}
               className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted active:bg-muted">
-              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-brand text-on-brand animate-pop" : "bg-surface-3 text-muted-foreground"}`}>
                 {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
               </span>
               <span className="min-w-0 flex-1 leading-tight"><b className="block">{label}</b><span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span></span>
@@ -224,7 +224,7 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
         <Bullets title="Indo bem" items={ai.goingWell} tone="good" />
         <Bullets title="Precisa melhorar" items={ai.improve} tone="improve" />
       </div>
-      <div className="rounded-2xl bg-primary p-4 text-primary-foreground">
+      <div className="rounded-2xl border border-brand-line bg-brand-soft p-4">
         <h4 className="font-bold">Desde o início</h4>
         <p className="mt-0.5 text-xs opacity-75">
           {s.days} dia(s) de acompanhamento · peso {fmtKg(s.weightStart)} → {fmtKg(s.weightNow)} kg ({weightChange >= 0 ? "+" : ""}{fmtKg(weightChange)}) · meta {fmtKg(s.weightGoal)} kg · {s.workouts} treino(s) · {s.daysLogged} dia(s) com refeições

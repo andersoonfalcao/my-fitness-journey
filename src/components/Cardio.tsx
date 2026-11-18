@@ -243,7 +243,7 @@ function RunningCardio({ session, onChange, onFinish, onCancel }: {
       {session.kind === "esteira" && (
         <div className="mt-3 border-t border-border pt-3">
           {current && (
-            <div className="mb-3 flex items-end justify-between gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
+            <div className="mb-3 flex items-end justify-between gap-3 rounded-2xl border border-brand-line bg-brand-soft px-4 py-3">
               <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-wider text-accent">Fase {steps.length} agora</div>
                 <div className="text-sm font-semibold">{describe(current)}</div>

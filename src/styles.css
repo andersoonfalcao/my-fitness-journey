@@ -71,7 +71,7 @@
 
   /* Data (charts and macro bars) */
   --data-protein: #059669;
-  --data-carbs: #0284c7;
+  --data-carbs: #0369a1; /* 5.9:1 on white, also used as label text */
   --data-fat: #7c3aed;
   --data-4: #db2777;
   --data-5: #64748b;

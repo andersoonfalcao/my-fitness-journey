@@ -42,7 +42,7 @@ export function WaterCard({ date, targetMl }: { date: string; targetMl: number }
     <section id="agua" className="scroll-mt-24 rounded-3xl surface-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Droplets className="h-5 w-5 text-chart-4" />
+          <Droplets className="h-5 w-5 text-info" />
           <h2 className="font-bold">Água</h2>
         </div>
         <div className="text-right">
@@ -51,7 +51,7 @@ export function WaterCard({ date, targetMl }: { date: string; targetMl: number }
         </div>
       </div>
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Água do dia">
-        <div className="h-full rounded-full bg-chart-4 transition-all" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-info transition-all" style={{ width: `${pct}%` }} />
       </div>
       <div className="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="Quantidade">
         {AMOUNTS.map((a) => (

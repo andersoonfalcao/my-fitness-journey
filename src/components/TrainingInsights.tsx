@@ -6,6 +6,24 @@ import { useTrainedDays } from "@/lib/trained";
 
 const streakText = (weeks: number) => `${weeks} semanas seguidas cumprindo o plano`;
 
+/** Weeks in a row with the planned training days (0 or 1 = no streak yet). */
+export function useWeekStreak(planned: number) {
+  return weekStreak(useTrainedDays(), planned, today());
+}
+
+/** Hoje, in the greeting: the streak as an amber chip (amber is kept for the streak and alerts). */
+export function StreakBadge({ planned }: { planned: number }) {
+  const streak = useWeekStreak(planned);
+  if (streak < 1) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1.5 text-sm font-semibold text-warning-text" title={streakText(streak)}>
+      <Flame className="h-4 w-4 fill-warning text-warning" aria-hidden />
+      <span className="tabular-nums">{streak}</span> {streak === 1 ? "semana" : "semanas"}
+      <span className="sr-only">seguidas cumprindo o plano</span>
+    </span>
+  );
+}
+
 /** Semana: how many weeks in a row had the planned training days. */
 export function StreakLine({ planned }: { planned: number }) {
   const streak = weekStreak(useTrainedDays(), planned, today());
@@ -14,7 +32,7 @@ export function StreakLine({ planned }: { planned: number }) {
 }
 
 /** Hoje: the streak of weeks on plan and, when the last days add up to fatigue, a suggestion to ease off. */
-export function TrainingInsights({ planned }: { planned: number }) {
+export function TrainingInsights({ planned, streakRow = true }: { planned: number; streakRow?: boolean }) {
   const date = today();
   const trained = useTrainedDays();
   const [thisMonth] = useLocal<HealthMonth>(healthKey(date), {});
@@ -23,10 +41,10 @@ export function TrainingInsights({ planned }: { planned: number }) {
   // A resting heart rate high for days is told in the Mi Band card (with today's numbers), not twice on the screen.
   const found = overreach({ ...prevMonth, ...thisMonth }, trained, date);
   const tired = found?.kind === "sem-descanso" ? found : null;
-  if (streak < 2 && !tired) return null;
+  if ((!streakRow || streak < 2) && !tired) return null;
   return (
     <>
-      {streak >= 2 && (
+      {streakRow && streak >= 2 && (
         <p className="flex items-center gap-2 rounded-3xl surface-card px-5 py-3 text-sm">
           <Flame className="h-5 w-5 shrink-0 text-warning" aria-hidden /><b>{streakText(streak)}</b>
         </p>

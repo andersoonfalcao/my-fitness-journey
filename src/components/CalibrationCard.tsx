@@ -87,7 +87,7 @@ export function CalibrationNotice({ profile }: { profile: Profile }) {
   const c = useCalibration(profile);
   if (!c || !c.result.ready || !c.suggest || c.dismissed) return null;
   return (
-    <section className="flex items-start gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
+    <section className="flex items-start gap-3 rounded-3xl border border-brand-line bg-brand-soft p-4">
       <Gauge className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
       <Link to="/perfil" className="min-w-0 flex-1 text-sm">
         <b>Seu gasto real parece {fmt(c.result.tdee)} kcal/dia</b>, não {fmt(c.inUse)}. Toque para ver e ajustar a meta no Perfil.
