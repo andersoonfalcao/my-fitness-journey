@@ -97,16 +97,46 @@ export function parseDate(v: unknown, tz: string): number {
 
 const localDate = (ms: number, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
 
+/**
+ * Kind of a sleep sample. The Shortcuts app sends Health's label ("Essencial", "Acordado", "Na Cama"…) or, on some
+ * iPhones, the raw category number (0 in bed, 1 asleep, 2 awake, 3 core, 4 deep, 5 REM).
+ */
+function sleepKind(value: unknown): "asleep" | "awake" | "inBed" {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (/^\d+$/.test(v)) return v === "0" ? "inBed" : v === "2" ? "awake" : "asleep";
+  if (/acord|awake/.test(v)) return "awake";
+  if (/cama|bed/.test(v)) return "inBed";
+  return "asleep";
+}
+
 /** Minutes asleep in the sleep that ended today, from Health's sleep samples (value + start + end). */
 export function sleepOf(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string) {
-  const samples = values.map((value, i) => ({ value: String(value ?? "").toLowerCase(), start: parseDate(starts[i], tz), end: parseDate(ends[i], tz) }))
-    .filter((s) => s.end > s.start && s.end - s.start < 16 * 3600_000 && localDate(s.end, tz) === today);
-  const awake = (s: { value: string }) => /acord|awake/.test(s.value);
-  const inBed = (s: { value: string }) => /cama|bed/.test(s.value);
+  return sleepReport(values, starts, ends, tz, today).sleep;
+}
+
+/**
+ * The sleep that ended today and, when there is none, why: shown on the iPhone after the Shortcut runs, so a missing
+ * permission or an unreadable date is visible without opening anything.
+ */
+export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string) {
+  const none = (note: string) => ({ sleep: null, note });
+  const arrived = values.length === 1 ? "1 amostra chegou" : `${values.length} amostras chegaram`;
+  if (!values.length) return none("sono: nenhuma amostra chegou (no iPhone: Ajustes → Saúde → Acesso a Dados → Atalhos → Análise do Sono ligado, e o Mi Fitness gravando Sono no Saúde)");
+  if (starts.length !== values.length || ends.length !== values.length) {
+    return none(`sono: as listas chegaram com tamanhos diferentes (${values.length} tipos, ${starts.length} inícios, ${ends.length} fins); confira se sleepValues, sleepStarts e sleepEnds vêm do mesmo “Encontrar Amostras de Saúde”`);
+  }
+  const all = values.map((value, i) => ({ kind: sleepKind(value), start: parseDate(starts[i], tz), end: parseDate(ends[i], tz) }));
+  const dated = all.filter((s) => !Number.isNaN(s.start) && !Number.isNaN(s.end));
+  if (!dated.length) return none(`sono: ${arrived}, mas as datas não foram entendidas (exemplo: “${String(ends[0] ?? "").slice(0, 40)}”)`);
+  const samples = dated.filter((s) => s.end > s.start && s.end - s.start < 16 * 3600_000 && localDate(s.end, tz) === today);
   // Stages (core, deep, REM) or plain "asleep"; only "in bed" when the band recorded nothing finer.
-  let asleep = samples.filter((s) => !awake(s) && !inBed(s));
-  if (!asleep.length) asleep = samples.filter(inBed);
-  if (!asleep.length) return null;
+  let asleep = samples.filter((s) => s.kind === "asleep");
+  if (!asleep.length) asleep = samples.filter((s) => s.kind === "inBed");
+  if (!asleep.length) {
+    const latest = Math.max(...dated.map((s) => s.end));
+    const when = new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(latest));
+    return none(`sono: ${arrived}, mas nenhuma de sono terminou hoje (a mais recente termina em ${when}); sincronize a Mi Band e rode o atalho de novo`);
+  }
   // Overlapping samples (stages inside an "asleep" block) are counted once.
   const sorted = asleep.sort((a, b) => a.start - b.start);
   let total = 0;
@@ -116,7 +146,10 @@ export function sleepOf(values: unknown[], starts: unknown[], ends: unknown[], t
     else { total += curEnd - curStart; [curStart, curEnd] = [s.start, s.end]; }
   }
   total += curEnd - curStart;
-  return { sleepMin: Math.round(total / 60000), sleepStart: new Date(sorted[0]!.start).toISOString(), sleepEnd: new Date(Math.max(...sorted.map((s) => s.end))).toISOString() };
+  return {
+    sleep: { sleepMin: Math.round(total / 60000), sleepStart: new Date(sorted[0]!.start).toISOString(), sleepEnd: new Date(Math.max(...sorted.map((s) => s.end))).toISOString() },
+    note: null,
+  };
 }
 
 /** Resting heart rate: the mean of the lowest tenth of the day's readings (at least five), as bands usually report it. */
@@ -239,8 +272,8 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   if (resting) day.restingHr = resting;
   const vo2 = parseNumber(Array.isArray(body.vo2max) ? body.vo2max.at(-1) : body.vo2max);
   if (vo2 >= 10 && vo2 <= 90) day.vo2max = Math.round(vo2 * 10) / 10;
-  const sleep = sleepOf(list(body.sleepValues), list(body.sleepStarts), list(body.sleepEnds), tz, today);
-  if (sleep) Object.assign(day, sleep);
+  const sleepRead = sleepReport(list(body.sleepValues), list(body.sleepStarts), list(body.sleepEnds), tz, today);
+  if (sleepRead.sleep) Object.assign(day, sleepRead.sleep);
 
   const docKey = `forma.health.${today.slice(0, 7)}`;
   let idToken: string;
@@ -270,5 +303,7 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   ].filter(Boolean);
   // Named so a doubled total (samples that came without their source) is easy to spot on the iPhone.
   const from = sources.length ? ` (fontes: ${sources.join(", ")})` : stepSamples || kcalSamples || distSamples ? " (as amostras vieram sem a fonte: passos e calorias podem estar somados em dobro)" : "";
-  return text(parts.length ? `forma recebeu: ${parts.join(" · ")}${from}` :"forma recebeu o envio, mas sem dados de hoje. Confira as permissões do atalho no app Saúde.", 200);
+  // A sleep that didn't come in says why, on its own line, so the Shortcut's result shows what to fix.
+  const sleepNote = sleepRead.note ? `\n${sleepRead.note}` : "";
+  return text(parts.length ? `forma recebeu: ${parts.join(" · ")}${from}${sleepNote}` : `forma recebeu o envio, mas sem dados de hoje. Confira as permissões do atalho no app Saúde.${sleepNote}`, 200);
 }
