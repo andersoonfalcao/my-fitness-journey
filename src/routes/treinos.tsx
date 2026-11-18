@@ -2,8 +2,8 @@ import { ProgressBar } from "@/components/ui/meter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Dumbbell, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, Minimize2, Maximize2, ChevronLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Dumbbell, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,13 @@ function TreinosPage() {
   const [dayIdx, setDayIdx] = useState<number | null>(null);
   // Exercises are collapsed cards; one opens at a time to show its sets, reps and loads.
   const [openItem, setOpenItem] = useState<number | null>(null);
+  // Focus mode: during a workout, one exercise at a time in full screen (kept per device).
+  const [focusPref, setFocusPref] = useState(() => { try { return localStorage.getItem(FOCUS_KEY) === "1"; } catch { return false; } });
+  const touchX = useRef<number | null>(null);
+  const toggleFocus = (on: boolean) => {
+    setFocusPref(on);
+    try { localStorage.setItem(FOCUS_KEY, on ? "1" : "0"); } catch { /* private mode */ }
+  };
   const [viewRecords, setViewRecords] = useState<WorkoutRecord[] | null>(null);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [swap, setSwap] = useState<{ d: number; i: number } | null>(null);
@@ -120,6 +127,24 @@ function TreinosPage() {
     setOpenItem(current);
     setTimeout(() => document.getElementById(`exercicio-${current}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
   }, [hash, ready, planReady, sessionReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // In focus mode there is always an exercise on screen: the one resting, else the next one in line.
+  useEffect(() => {
+    if (!focusPref || !session || !plan || openItem !== null) return;
+    const d = plan.days.findIndex((x) => x.name === session.dayName);
+    if (d < 0 || (dayIdx !== null && dayIdx !== d)) return;
+    const dayItems = plan.days[d]!.items;
+    const pending = dayItems.map((_, j) => j).filter((j) => (session.sets?.[j] ?? 0) < dayItems[j]!.sets);
+    const current = session.rest?.item ?? nextInLine(pending, session.later, -1);
+    if (current !== undefined) setOpenItem(current);
+  }, [focusPref, session, plan, openItem, dayIdx]);
+
+  // In focus mode the sets circle (with "Concluir") opens centred under the thumb; the photo is one swipe up.
+  useEffect(() => {
+    if (!focusPref || openItem === null) return;
+    const id = setTimeout(() => document.querySelector(".focus-overlay [data-sets-ring]")?.scrollIntoView({ block: "center" }), 80);
+    return () => clearTimeout(id);
+  }, [focusPref, openItem]);
 
   if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
@@ -181,6 +206,23 @@ function TreinosPage() {
   // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
   // so only the next one can be started (going back takes "Recomeçar"). Other tabs are view-only.
   const tracksSets = session ? sessionIdx === active || sessionIdx < 0 : active === nextIdx && !lockedToday;
+  const focusing = focusPref && !!session && sessionIdx === active && openItem !== null && openItem < day.items.length;
+  const goTo = (j: number) => {
+    if (j < 0 || j >= day.items.length) return;
+    setOpenItem(j);
+    document.getElementById(`exercicio-${j}`)?.scrollTo({ top: 0 });
+  };
+  // A sideways swipe on the focused exercise goes to the next or the previous one.
+  const swipe = {
+    onTouchStart: (e: React.TouchEvent) => { touchX.current = e.touches[0]?.clientX ?? null; },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const start = touchX.current;
+      touchX.current = null;
+      const end = e.changedTouches[0]?.clientX;
+      if (start === null || end === undefined || openItem === null || Math.abs(end - start) < 70) return;
+      goTo(openItem + (end < start ? 1 : -1));
+    },
+  };
   // Week of the six-week cycle: its intensity sets the effort and the suggested load.
   const week = programAt(plan, today());
   // Inside the exercise cards `history` is the load list of that exercise; the workouts go by this name there.
@@ -624,6 +666,10 @@ function TreinosPage() {
               </div>
             </div>
             {session.rest && <RestChip endsAt={session.rest.endsAt} item={session.rest.item} />}
+            {sessionIdx === active && (
+              <button type="button" onClick={() => toggleFocus(true)} aria-label="Modo foco: um exercício por vez em tela cheia" title="Modo foco"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Maximize2 className="h-5 w-5" /></button>
+            )}
             <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); setRirInputs({}); } }}
               className="min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">Cancelar</button>
           </div>
@@ -763,10 +809,13 @@ function TreinosPage() {
             && day.items.some((other, j) => j !== i && !session.later?.includes(j) && (session.sets?.[j] ?? 0) < other.sets);
           const lastSetKg = kgsToday[setsDone - 1] ?? null;
           return (
-            <article key={i} id={`exercicio-${i}`} className={`scroll-mt-36 overflow-hidden rounded-3xl border transition-[border-color,box-shadow] duration-200 ${finished ? "border-success/40 bg-success/5" : open ? "border-brand-line bg-card shadow-md ring-1 ring-brand-line" : "surface-card"}`}>
-              <button type="button" onClick={() => setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
+            <article key={i} id={`exercicio-${i}`} {...(focusing && open ? swipe : {})}
+              className={focusing && open
+                ? "focus-overlay dark fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-[calc(7.25rem+env(safe-area-inset-top))] text-foreground animate-fade-up"
+                : `scroll-mt-36 overflow-hidden rounded-3xl border transition-[border-color,box-shadow] duration-200 ${finished ? "border-success/40 bg-success/5" : open ? "border-brand-line bg-card shadow-md ring-1 ring-brand-line" : "surface-card"}`}>
+              <button type="button" onClick={() => !focusing && setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
                 className="flex w-full items-center gap-3 p-3 text-left sm:p-4">
-                <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-2xl border border-border object-cover" />
+                <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className={`h-14 w-14 shrink-0 rounded-2xl border border-border object-cover ${focusing && open ? "hidden" : ""}`} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {isLater && <span className="text-accent">Para depois · </span>}{combo && <span className="text-accent">{combo.label} · {combo.position}/{combo.members.length} · </span>}{GROUP_LABEL[ex.group]} · {ex.equipment}
@@ -792,9 +841,9 @@ function TreinosPage() {
                 )}
               </button>
               {open && (
-              <div id={`exercicio-${i}-corpo`} className="border-t border-border p-3 sm:p-4">
-                <div className="flex gap-3">
-                  <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
+              <div id={`exercicio-${i}-corpo`} className={focusing ? "mx-auto max-w-lg" : "border-t border-border p-3 sm:p-4"}>
+                <div className={focusing ? "flex flex-col gap-3" : "flex gap-3"}>
+                  <ExerciseMedia exercise={ex} compact={!focusing} onOpen={() => setDetail(ex)} className={focusing ? "mx-auto aspect-video w-full max-w-sm rounded-3xl border border-border" : "h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28"} />
                   <div className="flex min-w-0 flex-1 flex-wrap content-start gap-2">
                     <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
                     {!doneRecord && (
@@ -1121,6 +1170,33 @@ function TreinosPage() {
         <WeeklyVolume records={history} />
         <StravaActivities />
       </>)}
+      {focusing && session && (
+        <div className="dark fixed inset-x-0 top-0 z-50 bg-background/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-foreground backdrop-blur-xl">
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-2">
+            <Button variant="ghost" size="sm" onClick={() => toggleFocus(false)}><Minimize2 />Sair do foco</Button>
+            <WorkoutClock startedAt={session.startedAt} className="type-number text-lg tabular-nums" />
+            {session.rest && session.rest.endsAt > Date.now()
+              ? <RestChip endsAt={session.rest.endsAt} item={session.rest.item} />
+              : <span className="min-w-16 text-right text-sm font-semibold tabular-nums text-muted-foreground">{openItem! + 1} de {day.items.length}</span>}
+          </div>
+          <div className="mx-auto mt-3 flex max-w-lg gap-1" aria-hidden>
+            {day.items.map((it, j) => (
+              <button key={j} type="button" tabIndex={-1} onClick={() => goTo(j)}
+                className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${(session.sets?.[j] ?? 0) >= it.sets ? "bg-brand" : j === openItem ? "bg-foreground/80" : "bg-surface-3"}`} />
+            ))}
+          </div>
+        </div>
+      )}
+      {focusing && (
+        <nav aria-label="Exercícios" className="dark fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 text-foreground backdrop-blur-xl">
+          <div className="mx-auto grid max-w-lg grid-cols-2 gap-2">
+            <Button variant="secondary" size="lg" disabled={openItem === 0} onClick={() => goTo(openItem! - 1)}><ChevronLeft />Anterior</Button>
+            {openItem === day.items.length - 1
+              ? <Button size="lg" onClick={() => (pendingItems.length > 0 ? setConfirmFinish(true) : finishWorkout())}><CheckCheck />Concluir treino</Button>
+              : <Button variant="secondary" size="lg" onClick={() => goTo(openItem! + 1)}>Próximo<ChevronRight /></Button>}
+          </div>
+        </nav>
+      )}
       <WorkoutComplete ask={feelAsk}
         onClose={(feel, share) => {
           if (!feelAsk) return;
@@ -1518,7 +1594,7 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
   const canComplete = !!onComplete && !resting;
   const c = RING_BOX / 2;
   return (
-    <div className="mt-3 rounded-3xl bg-muted/60 p-2">
+    <div data-sets-ring className="mt-3 rounded-3xl bg-muted/60 p-2">
       <div className="relative mx-auto aspect-square w-full max-w-[340px]">
         <svg viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
           <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-border" strokeDasharray={pieces(total).replace(` 0 ${OUTER_C}`, "")} />
@@ -1670,6 +1746,7 @@ function nextInLine(pending: number[], later: number[] | undefined, from: number
 }
 
 const FEELS = [5, 4, 3, 2, 1] as const;
+const FOCUS_KEY = "forma.focus";
 
 /** What the finish screen shows; computed when the workout is saved. */
 type FinishSummary = { durationMs: number | null; setsDone: number; setsPlanned: number; total: number; lastTotal: number; records: string[] };

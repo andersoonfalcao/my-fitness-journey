@@ -493,3 +493,8 @@ html.theme-switching *::after {
     transform: scale(0.98);
   }
 }
+
+/* Focus mode in Treinos: the page behind the full-screen exercise stays still. */
+body:has(.focus-overlay) {
+  overflow: hidden;
+}
