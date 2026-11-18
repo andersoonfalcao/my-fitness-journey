@@ -469,7 +469,7 @@ function FoodPage() {
       </Dialog>
 
       {/* Thumb-reach shortcuts above the tab bar: the plate photo (AI) and the search. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 px-4 md:bottom-6">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 px-4 lg:bottom-6">
         <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-2 gap-2 rounded-full border border-border bg-card/90 p-1.5 shadow-lg backdrop-blur-xl">
           <Button type="button" onClick={() => openAdd(undefined, "ia")}><Camera />Foto do prato</Button>
           <Button type="button" variant="secondary" onClick={() => openAdd(undefined, "busca")}><Plus />Adicionar</Button>

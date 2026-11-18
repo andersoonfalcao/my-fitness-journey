@@ -172,9 +172,8 @@
   /* Unworked muscles on the body figure (BodyMap). */
   --body-map: var(--surface-3);
 }
-.dark {
-  --popover: var(--surface-2); /* raised layers get a lighter tone instead of a shadow */
-}
+/* Dialogs and toasts keep the card tone in dark too: the dimmed page and their border already lift them, and
+   their inner wells (bg-muted, surface-2) stay visible on it. */
 
 @theme inline {
   /* Fonts */

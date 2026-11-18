@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import { Bell, CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User, UserRound } from "lucide-react";
+import { Bell, CalendarDays, Dumbbell, Home, Moon, Plus, RefreshCw, Settings, Sparkles, Sun, TrendingUp, User, UserRound } from "lucide-react";
 import { ProgressBar, ProgressRing } from "@/components/ui/meter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonVariants } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { useTheme } from "@/lib/theme";
 import { useEffect, useState, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
 import { NoticeList, useNoticeCount } from "@/components/NoticeCenter";
+import { QuickLog } from "@/components/QuickLog";
 import { CoachChat } from "@/components/CoachChat";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -21,16 +22,25 @@ export function useCloseCalendar() {
 }
 
 /** Header icon buttons: 44 px round targets, grey until their screen or panel is open. */
-const HEADER_ICON = "pressable grid h-11 w-11 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground";
+// 40 px circles that still answer a 44 px touch (::after), so six fit beside the logo on a 360 px phone.
+const HEADER_ICON = "pressable relative grid h-10 w-10 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground after:absolute after:-inset-0.5 after:content-['']";
 
-// `short` is the tab-bar label: six tabs share a phone's width.
-const NAV = [
-  { to: "/", label: "Hoje", short: "Hoje", icon: Home },
-  { to: "/alimentacao", label: "Alimentação", short: "Dieta", icon: Utensils },
-  { to: "/corpo", label: "Corpo", short: "Corpo", icon: Scale },
-  { to: "/treinos", label: "Treinos", short: "Treinos", icon: Dumbbell },
-  { to: "/avisos", label: "Avisos", short: "Avisos", icon: Bell },
-  { to: "/perfil", label: "Perfil", short: "Perfil", icon: User },
+/** Tab bar (phones and tablets): four screens around the "+", which opens the quick log. */
+const TABS = [
+  { to: "/", label: "Hoje", icon: Home },
+  { to: "/treinos", label: "Treinos", icon: Dumbbell },
+  { to: "/evolucao", label: "Evolução", icon: TrendingUp },
+  { to: "/avisos", label: "Avisos", icon: Bell },
+] as const;
+/** Top menu on wide screens: every main screen. */
+const MENU = [
+  { to: "/", label: "Hoje" },
+  { to: "/calendario", label: "Calendário" },
+  { to: "/alimentacao", label: "Alimentação" },
+  { to: "/corpo", label: "Corpo" },
+  { to: "/treinos", label: "Treinos" },
+  { to: "/evolucao", label: "Evolução" },
+  { to: "/avisos", label: "Avisos" },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -50,6 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const closeCalendar = useCloseCalendar();
   const [theme, toggleTheme] = useTheme();
   const [coachOpen, setCoachOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const [profile] = useLocal<Profile | null>(KEYS.profile, null);
   const [probe, setProbe] = useState<HTMLDivElement | null>(null);
   const notices = useNoticeCount(probe);
@@ -104,14 +115,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 py-1.5 pl-4 pr-2 md:px-4">
           <Link to="/" aria-label="forma, início" className="font-display text-2xl font-bold tracking-tight text-foreground">
             forma<span className="text-brand">.</span>
           </Link>
-          <nav className="hidden gap-1 md:flex">
-            {[...NAV.slice(0, 1), { to: "/calendario", label: "Calendário" } as const, ...NAV.slice(1)].map((n) => (
+          <nav className="hidden gap-1 lg:flex">
+            {MENU.map((n) => (
               <Link
                 key={n.to}
                 to={n.to}
@@ -132,7 +143,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Sparkles className="h-[22px] w-[22px]" />
             </button>
             <RefreshButton />
-            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className={`${HEADER_ICON} md:hidden`} activeProps={{ className: "!text-accent bg-brand-soft" }}>
+            <Link to="/calendario" onClick={toggleCalendar} aria-label={pathname === "/calendario" ? "Fechar calendário" : "Calendário"} className={`${HEADER_ICON} lg:hidden`} activeProps={{ className: "!text-accent bg-brand-soft" }}>
               <CalendarDays className="h-[22px] w-[22px]" />
             </Link>
             <button type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={theme === "dark" ? "Desativar modo escuro" : "Ativar modo escuro"}
@@ -141,6 +152,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
             <Link to="/configuracoes" onClick={toggleSettings} aria-label={pathname === "/configuracoes" ? "Fechar configurações" : "Configurações"} title="Configurações" className={HEADER_ICON} activeProps={{ className: "!text-accent bg-brand-soft" }}>
               <Settings className="h-[22px] w-[22px]" />
+            </Link>
+            <Link to="/perfil" aria-label="Perfil" title="Perfil" className={`${HEADER_ICON} ml-0.5`} activeProps={{ className: "ring-2 ring-brand" }}>
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-soft font-display text-sm font-bold uppercase text-accent">{(profile?.name || "").trim().charAt(0) || <User className="h-4 w-4" />}</span>
             </Link>
           </div>
         </div>
@@ -151,9 +165,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       {/* The notices live in Avisos; this hidden copy only counts them for the badge (fresh on every screen change). */}
       <div hidden aria-hidden key={pathname} ref={setProbe}>{pathname !== "/avisos" && <NoticeList profile={profile} />}</div>
-      <nav aria-label="Principal" className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-card/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-6 px-1 pt-1.5">
-          {NAV.map((n) => (
+      <nav aria-label="Principal" className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-card/90 backdrop-blur-xl backdrop-saturate-150 lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 items-start px-1 pt-1.5">
+          {TABS.slice(0, 2).map((n: (typeof TABS)[number]) => (
             <Link
               key={n.to}
               to={n.to}
@@ -161,19 +175,45 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="group flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-200"
               activeProps={{ className: "!text-accent", "aria-current": "page" }}
             >
-              <span className="relative grid h-8 w-12 place-items-center rounded-full transition-colors duration-200 group-aria-[current=page]:bg-brand-soft">
+              <span className="relative grid h-8 w-14 place-items-center rounded-full transition-colors duration-200 group-aria-[current=page]:bg-brand-soft">
                 <n.icon className="h-[22px] w-[22px]" aria-hidden />
                 {badge(n.to) > 0 && (
-                  <span className="absolute -right-0.5 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-warning px-1 text-xs font-bold leading-none text-on-warning ring-2 ring-card tabular-nums animate-pop">
+                  <span className="absolute right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-warning px-1 text-xs font-bold leading-none text-on-warning ring-2 ring-card tabular-nums animate-pop">
                     {badge(n.to)}<span className="sr-only"> {badge(n.to) === 1 ? "aviso" : "avisos"}</span>
                   </span>
                 )}
               </span>
-              <span className="max-w-full truncate px-0.5">{n.short}</span>
+              <span className="max-w-full truncate px-0.5">{n.label}</span>
+            </Link>
+          ))}
+          <div className="flex justify-center">
+            <button type="button" onClick={() => setLogOpen(true)} aria-label="Registrar" aria-expanded={logOpen}
+              className={`pressable -mt-5 grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background hover:bg-brand-hover ${["/alimentacao", "/corpo"].includes(pathname) ? "outline-2 outline-offset-2 outline-brand" : ""}`}>
+              <Plus className={`h-7 w-7 transition-transform duration-200 ${logOpen ? "rotate-45" : ""}`} strokeWidth={2.5} aria-hidden />
+            </button>
+          </div>
+          {TABS.slice(2).map((n: (typeof TABS)[number]) => (
+            <Link
+              key={n.to}
+              to={n.to}
+              activeOptions={{ exact: n.to === "/" }}
+              className="group flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-200"
+              activeProps={{ className: "!text-accent", "aria-current": "page" }}
+            >
+              <span className="relative grid h-8 w-14 place-items-center rounded-full transition-colors duration-200 group-aria-[current=page]:bg-brand-soft">
+                <n.icon className="h-[22px] w-[22px]" aria-hidden />
+                {badge(n.to) > 0 && (
+                  <span className="absolute right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-warning px-1 text-xs font-bold leading-none text-on-warning ring-2 ring-card tabular-nums animate-pop">
+                    {badge(n.to)}<span className="sr-only"> {badge(n.to) === 1 ? "aviso" : "avisos"}</span>
+                  </span>
+                )}
+              </span>
+              <span className="max-w-full truncate px-0.5">{n.label}</span>
             </Link>
           ))}
         </div>
       </nav>
+      <QuickLog open={logOpen} onOpenChange={setLogOpen} />
     </div>
   );
 }
