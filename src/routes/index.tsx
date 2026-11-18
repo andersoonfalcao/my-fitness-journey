@@ -8,7 +8,6 @@ import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
 import { HealthToday } from "@/components/HealthToday";
-import { CalibrationNotice } from "@/components/CalibrationCard";
 import { CheckCheck, ChevronRight, Dumbbell, HeartPulse, Moon, Play, Plus } from "lucide-react";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -16,10 +15,8 @@ import { addDays, weekStart } from "@/lib/week";
 import { cardioByDate, cardioKey, type CardioRecord } from "@/lib/cardio";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { defaultTrainingDays, musclesOf } from "@/components/WeekPlan";
-import { WeightNotices } from "@/components/WeightInsights";
-import { StreakBadge, TrainingInsights } from "@/components/TrainingInsights";
-import { MeasuresNotice, WeekGoal } from "@/components/WeekGoal";
-import { AchievementWatcher } from "@/components/Achievements";
+import { StreakBadge } from "@/components/TrainingInsights";
+import { WeekGoal } from "@/components/WeekGoal";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -182,16 +179,6 @@ function Index() {
           </div>
         </div>
       </Link>
-
-      <TrainingInsights planned={profile.days} streakRow={false} />
-
-      <WeightNotices profile={profile} />
-
-      <CalibrationNotice profile={profile} />
-
-      <MeasuresNotice />
-
-      <AchievementWatcher profile={profile} />
 
       {/* Sunday evening and Monday: the week just lived, one tap away. */}
       {[0, 1].includes(new Date().getDay()) && (

@@ -1,18 +1,18 @@
 import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User, UserRound } from "lucide-react";
+import { Bell, CalendarDays, Home, Moon, RefreshCw, Utensils, Scale, Dumbbell, Settings, Sparkles, Sun, User, UserRound } from "lucide-react";
 import { ProgressBar, ProgressRing } from "@/components/ui/meter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme";
 import { useEffect, useState, type ReactNode } from "react";
 import { syncPush, useSettings } from "@/lib/push";
-import { PushNotice } from "@/components/PushNotice";
+import { NoticeList, useNoticeCount } from "@/components/NoticeCenter";
 import { CoachChat } from "@/components/CoachChat";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { syncStrava } from "@/lib/strava";
 import { healthKey, isIos, runHealthShortcut, type HealthMonth } from "@/lib/health";
-import { today, useLocal } from "@/lib/store";
+import { KEYS, today, useLocal, type Profile } from "@/lib/store";
 
 /** Leaves the calendar back to the screen it was opened from (or Hoje when opened directly). */
 export function useCloseCalendar() {
@@ -23,12 +23,14 @@ export function useCloseCalendar() {
 /** Header icon buttons: 44 px round targets, grey until their screen or panel is open. */
 const HEADER_ICON = "pressable grid h-11 w-11 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground";
 
+// `short` is the tab-bar label: six tabs share a phone's width.
 const NAV = [
-  { to: "/", label: "Hoje", icon: Home },
-  { to: "/alimentacao", label: "Alimentação", icon: Utensils },
-  { to: "/corpo", label: "Corpo", icon: Scale },
-  { to: "/treinos", label: "Treinos", icon: Dumbbell },
-  { to: "/perfil", label: "Perfil", icon: User },
+  { to: "/", label: "Hoje", short: "Hoje", icon: Home },
+  { to: "/alimentacao", label: "Alimentação", short: "Dieta", icon: Utensils },
+  { to: "/corpo", label: "Corpo", short: "Corpo", icon: Scale },
+  { to: "/treinos", label: "Treinos", short: "Treinos", icon: Dumbbell },
+  { to: "/avisos", label: "Avisos", short: "Avisos", icon: Bell },
+  { to: "/perfil", label: "Perfil", short: "Perfil", icon: User },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -48,6 +50,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const closeCalendar = useCloseCalendar();
   const [theme, toggleTheme] = useTheme();
   const [coachOpen, setCoachOpen] = useState(false);
+  const [profile] = useLocal<Profile | null>(KEYS.profile, null);
+  const [probe, setProbe] = useState<HTMLDivElement | null>(null);
+  const notices = useNoticeCount(probe);
+  const badge = (to: string) => to === "/avisos" && notices > 0 && pathname !== "/avisos" ? notices : 0;
   // Tapping the calendar (or the gear) again while it is open closes it.
   const toggle = (to: string) => (event: { preventDefault: () => void }) => {
     if (pathname !== to) return;
@@ -115,6 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 activeProps={{ className: "!bg-brand-soft !text-accent" }}
               >
                 {n.label}
+                {badge(n.to) > 0 && <span className="ml-1.5 inline-grid h-5 min-w-5 place-items-center rounded-full bg-warning px-1 text-xs font-bold text-on-warning tabular-nums">{badge(n.to)}</span>}
               </Link>
             ))}
           </nav>
@@ -140,11 +147,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
       <CoachChat open={coachOpen} onOpenChange={setCoachOpen} />
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {pathname === "/" && <PushNotice />}
         {children}
       </main>
+      {/* The notices live in Avisos; this hidden copy only counts them for the badge (fresh on every screen change). */}
+      <div hidden aria-hidden key={pathname} ref={setProbe}>{pathname !== "/avisos" && <NoticeList profile={profile} />}</div>
       <nav aria-label="Principal" className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-card/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 px-1 pt-1.5">
+        <div className="mx-auto grid max-w-md grid-cols-6 px-1 pt-1.5">
           {NAV.map((n) => (
             <Link
               key={n.to}
@@ -153,10 +161,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="group flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-200"
               activeProps={{ className: "!text-accent", "aria-current": "page" }}
             >
-              <span className="grid h-8 w-14 place-items-center rounded-full transition-colors duration-200 group-aria-[current=page]:bg-brand-soft">
+              <span className="relative grid h-8 w-12 place-items-center rounded-full transition-colors duration-200 group-aria-[current=page]:bg-brand-soft">
                 <n.icon className="h-[22px] w-[22px]" aria-hidden />
+                {badge(n.to) > 0 && (
+                  <span className="absolute -right-0.5 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-warning px-1 text-xs font-bold leading-none text-on-warning ring-2 ring-card tabular-nums animate-pop">
+                    {badge(n.to)}<span className="sr-only"> {badge(n.to) === 1 ? "aviso" : "avisos"}</span>
+                  </span>
+                )}
               </span>
-              <span className="max-w-full truncate px-0.5">{n.label}</span>
+              <span className="max-w-full truncate px-0.5">{n.short}</span>
             </Link>
           ))}
         </div>

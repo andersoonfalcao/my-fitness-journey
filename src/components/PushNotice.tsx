@@ -14,7 +14,7 @@ const dismissedBefore = () => {
 };
 
 /**
- * Warns on Hoje (the other screens stay clean) that this device gets nothing while the app is closed: notifications were never turned
+ * Warns in Avisos (the bell in the tab bar) that this device gets nothing while the app is closed: notifications were never turned
  * on here, the phone dropped the subscription (a reinstalled home-screen app starts empty) or they are blocked.
  * Without it the app would fall back to its own in-page notice, which only runs while it is open, and say nothing.
  * Only "never turned on" can be dismissed; a subscription that stopped keeps asking until it is fixed.
@@ -55,7 +55,7 @@ export function PushNotice() {
       : "Sem isso, descanso e lembretes não chegam com o app fechado.";
 
   return (
-    <div role="status" className="mb-5 flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 py-2 pl-4 pr-2">
+    <div role="status" className="flex items-center gap-3 rounded-3xl border border-warning/40 bg-warning/10 py-2 pl-4 pr-2">
       <BellOff className="h-5 w-5 shrink-0 text-warning-text" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold">{title}</p>
