@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarRange, ChevronRight, Dumbbell, Flame, LineChart as LineIcon, Scale } from "lucide-react";
+import { CalendarRange, Camera, ChevronRight, Dumbbell, Flame, LineChart as LineIcon, Scale } from "lucide-react";
 import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { Card, Eyebrow } from "@/components/ui/card";
@@ -46,6 +46,7 @@ function ProgressPage() {
       <StrengthCard />
       <nav aria-label="Mais sobre a sua evolução" className="grid gap-2 sm:grid-cols-2">
         {([
+          ["/fotos", Camera, "Fotos de progresso", "Antes e depois, lado a lado"],
           ["/semana", CalendarRange, "Resumo da semana", "Números e comentário da IA"],
           ["/mes", LineIcon, "Retrospectiva do mês", "O mês comparado com o anterior"],
           ["/corpo", Scale, "Corpo", "Pesagens, IMC e bioimpedância"],

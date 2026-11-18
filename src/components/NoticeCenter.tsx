@@ -5,6 +5,7 @@ import { WeightNotices } from "@/components/WeightInsights";
 import { TrainingInsights } from "@/components/TrainingInsights";
 import { CalibrationNotice } from "@/components/CalibrationCard";
 import { MeasuresNotice } from "@/components/WeekGoal";
+import { PhotosNotice } from "@/components/PhotosNotice";
 import { AchievementWatcher } from "@/components/Achievements";
 
 /**
@@ -23,6 +24,7 @@ export function NoticeList({ profile }: { profile: Profile | null }) {
           <TrainingInsights planned={profile.days} streakRow={false} />
           <CalibrationNotice profile={profile} />
           <MeasuresNotice />
+          <PhotosNotice />
         </>
       )}
     </>
