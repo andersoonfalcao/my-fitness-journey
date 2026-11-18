@@ -1,3 +1,4 @@
+import { ProgressBar } from "@/components/ui/meter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
@@ -83,7 +84,7 @@ function TreinosPage() {
   // A drop set being typed: the exercise (plan item index) and the fields.
   const [dropForm, setDropForm] = useState<{ item: number; kg: string; reps: string } | null>(null);
   // The workout just saved, waiting for "how did it feel?" before the share card opens.
-  const [feelAsk, setFeelAsk] = useState<{ id: string; dayName: string; share: ShareRequest } | null>(null);
+  const [feelAsk, setFeelAsk] = useState<{ id: string; dayName: string; share: ShareRequest; summary: FinishSummary } | null>(null);
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
   const [settings, updateSettings] = useSettings();
   const say = (text: string) => { if (settings.voice) speak(text); };
@@ -349,8 +350,17 @@ function TreinosPage() {
       }),
     };
     setHistory((records) => [...records, record]);
-    // "How did it feel?" comes first; the share card opens after it is answered or skipped.
-    setFeelAsk({ id: record.id, dayName: record.dayName, share: workoutShare(record, lastRecordBefore(history, record.dayName)) });
+    const records = personalRecords(history, record);
+    // The finish screen: the numbers of the workout, its records, "how did it feel?" and sharing.
+    setFeelAsk({
+      id: record.id, dayName: record.dayName, share: workoutShare(record, lastRecordBefore(history, record.dayName)),
+      summary: {
+        durationMs: record.durationMs ?? null,
+        setsDone: record.exercises.reduce((n, e) => n + e.setsDone, 0),
+        setsPlanned: record.exercises.reduce((n, e) => n + e.setsPlanned, 0),
+        total: todayTotal, lastTotal: lastFinishTotal, records: records.map(recordText),
+      },
+    });
     setDropForm(null);
     setDone((d) => [...d, `${today()}|${finishDay.name}`]);
     setDayIdx(null);
@@ -358,17 +368,6 @@ function TreinosPage() {
     setLoadInputs({});
     setRepsInputs({});
     setRirInputs({});
-    const weight = todayTotal > 0
-      ? ` · ${formatKg(todayTotal)}${lastFinishTotal > 0 ? ` (${formatDiff(todayTotal - lastFinishTotal)} vs. última vez)` : ""}`
-      : "";
-    toast.success(session ? `Treino concluído em ${formatDuration(finishedAt - session.startedAt)}${weight}! 💪` : "Treino concluído! 💪");
-    const records = personalRecords(history, record);
-    if (records.length > 0) {
-      toast(`🏆 ${records.length === 1 ? "Novo recorde!" : `${records.length} novos recordes!`}`, {
-        description: records.map(recordText).join(" · "),
-        duration: 8000,
-      });
-    }
     setSession(null);
   };
 
@@ -1122,11 +1121,11 @@ function TreinosPage() {
         <WeeklyVolume records={history} />
         <StravaActivities />
       </>)}
-      <FeelDialog ask={feelAsk}
-        onAnswer={(feel) => {
+      <WorkoutComplete ask={feelAsk}
+        onClose={(feel, share) => {
           if (!feelAsk) return;
           if (feel) setHistory((records) => records.map((r) => (r.id === feelAsk.id ? { ...r, feel } : r)));
-          setShare(feelAsk.share);
+          if (share) setShare(feelAsk.share);
           setFeelAsk(null);
         }} />
       <ShareDialog request={share} onClose={() => setShare(null)} />
@@ -1672,22 +1671,74 @@ function nextInLine(pending: number[], later: number[] | undefined, from: number
 
 const FEELS = [5, 4, 3, 2, 1] as const;
 
-/** Asked once the workout is saved; the answer goes into the record and feeds the day and week reviews. */
-function FeelDialog({ ask, onAnswer }: { ask: { dayName: string } | null; onAnswer: (feel: WorkoutFeel | null) => void }) {
+/** What the finish screen shows; computed when the workout is saved. */
+type FinishSummary = { durationMs: number | null; setsDone: number; setsPlanned: number; total: number; lastTotal: number; records: string[] };
+
+/**
+ * Full screen right after a workout is saved: time, sets, volume, the records of the day and the comparison with
+ * last time; then "how did it feel?" (goes into the record and feeds the day and week reviews) and sharing.
+ */
+function WorkoutComplete({ ask, onClose }: {
+  ask: { dayName: string; summary: FinishSummary } | null;
+  onClose: (feel: WorkoutFeel | null, share: boolean) => void;
+}) {
+  const [feel, setFeel] = useState<WorkoutFeel | null>(null);
+  useEffect(() => { if (ask) setFeel(null); }, [ask]);
+  const s = ask?.summary;
+  const diff = s && s.lastTotal > 0 && s.total > 0 ? s.total - s.lastTotal : null;
+  const pct = diff !== null && s ? Math.round((diff / s.lastTotal) * 100) : 0;
+  const tonnes = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} t` : `${kgNumber(kg)} kg`);
   return (
-    <Dialog open={!!ask} onOpenChange={(open) => !open && onAnswer(null)}>
-      <DialogContent className="w-[calc(100%-2rem)] rounded-3xl sm:max-w-sm">
-        <DialogHeader><DialogTitle className="font-display text-xl">Como foi o {ask?.dayName}?</DialogTitle></DialogHeader>
-        <p className="-mt-2 text-sm text-muted-foreground">A IA do Fechar o dia e do Resumo da semana cruza isso com o seu sono e com a carga.</p>
-        <div className="grid gap-2">
-          {FEELS.map((n) => (
-            <button key={n} type="button" onClick={() => onAnswer(n)}
-              className="flex min-h-12 items-center gap-3 rounded-2xl border border-input bg-card px-4 text-left font-semibold hover:border-primary">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted font-display font-extrabold tabular-nums">{n}</span>{FEEL_LABEL[n]}
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={() => onAnswer(null)} className="min-h-11 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Pular</button>
+    <Dialog open={!!ask} onOpenChange={(open) => !open && onClose(feel, false)}>
+      <DialogContent className="top-0 left-0 h-[100dvh] max-h-none w-full max-w-none translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-none border-0 bg-background p-0 sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[92dvh] sm:max-w-md sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-3xl sm:border">
+        {ask && s && (
+          <div className="flex min-h-full flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:pt-8">
+            <div className="text-center">
+              <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-brand-soft text-4xl animate-pop" aria-hidden>🏆</span>
+              <p className="type-overline mt-4 text-accent">Treino concluído</p>
+              <DialogTitle className="mt-1 pr-0 text-3xl leading-tight">{ask.dayName}</DialogTitle>
+            </div>
+            <dl className="mt-6 grid grid-cols-3 gap-2">
+              {([["Tempo", s.durationMs !== null ? formatDuration(s.durationMs) : "—"], ["Séries", `${s.setsDone}/${s.setsPlanned}`], ["Volume", s.total > 0 ? tonnes(s.total) : "—"]] as const).map(([label, value]) => (
+                <div key={label} className="rounded-2xl bg-muted px-3 py-3 animate-fade-up">
+                  <dt className="type-overline text-muted-foreground">{label}</dt>
+                  <dd className="type-number mt-0.5 text-xl leading-tight">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {s.records.length > 0 && (
+              <section className="mt-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 animate-fade-up">
+                <p className="type-overline text-warning-text">{s.records.length === 1 ? "Novo recorde" : `${s.records.length} recordes`}</p>
+                <ul className="mt-1 space-y-1 text-sm font-semibold">{s.records.map((r) => <li key={r}>{r}</li>)}</ul>
+              </section>
+            )}
+            {diff !== null && (
+              <section className="mt-3 rounded-2xl surface-card p-4">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="font-semibold">Comparado com a última vez</span>
+                  <b className={diff >= 0 ? "text-success-text" : "text-muted-foreground"}>{formatDiff(diff)}{diff > 0 && pct ? ` (+${pct}%)` : ""}</b>
+                </div>
+                <ProgressBar className="mt-2" value={s.total} max={Math.max(s.total, s.lastTotal)} color={diff >= 0 ? "var(--success)" : "var(--data-5)"} label="Volume comparado com a última vez" />
+              </section>
+            )}
+            <section className="mt-6">
+              <p className="text-sm font-semibold">Como foi?</p>
+              <div role="radiogroup" aria-label="Como foi o treino" className="mt-2 grid grid-cols-5 gap-1.5">
+                {FEELS.map((n) => (
+                  <button key={n} type="button" role="radio" aria-checked={feel === n} onClick={() => setFeel(n)} title={FEEL_LABEL[n]}
+                    className={`flex min-h-14 flex-col items-center justify-center rounded-2xl border text-xs font-semibold ${feel === n ? "border-brand bg-brand-soft text-accent" : "border-input bg-card text-muted-foreground"}`}>
+                    <span className="type-number text-lg text-foreground">{n}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 min-h-5 text-center text-xs text-muted-foreground">{feel ? FEEL_LABEL[feel] : "5 = muito bem · 1 = muito difícil. A IA cruza isso com o sono e a carga."}</p>
+            </section>
+            <div className="mt-auto grid gap-2 pt-6">
+              <Button size="lg" onClick={() => onClose(feel, true)}><Share2 />Compartilhar</Button>
+              <Button size="lg" variant="ghost" onClick={() => onClose(feel, false)}>Fechar</Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
