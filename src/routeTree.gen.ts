@@ -15,6 +15,7 @@ import { Route as AvisosRouteImport } from './routes/avisos'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as CorpoRouteImport } from './routes/corpo'
+import { Route as EvolucaoRouteImport } from './routes/evolucao'
 import { Route as MesRouteImport } from './routes/mes'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PergunteRouteImport } from './routes/pergunte'
@@ -51,6 +52,11 @@ const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
 const CorpoRoute = CorpoRouteImport.update({
   id: '/corpo',
   path: '/corpo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvolucaoRoute = EvolucaoRouteImport.update({
+  id: '/evolucao',
+  path: '/evolucao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MesRoute = MesRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/calendario': typeof CalendarioRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
+  '/evolucao': typeof EvolucaoRoute
   '/mes': typeof MesRoute
   '/perfil': typeof PerfilRoute
   '/pergunte': typeof PergunteRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/calendario': typeof CalendarioRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
+  '/evolucao': typeof EvolucaoRoute
   '/mes': typeof MesRoute
   '/perfil': typeof PerfilRoute
   '/pergunte': typeof PergunteRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/calendario': typeof CalendarioRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/corpo': typeof CorpoRoute
+  '/evolucao': typeof EvolucaoRoute
   '/mes': typeof MesRoute
   '/perfil': typeof PerfilRoute
   '/pergunte': typeof PergunteRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/configuracoes'
     | '/corpo'
+    | '/evolucao'
     | '/mes'
     | '/perfil'
     | '/pergunte'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/configuracoes'
     | '/corpo'
+    | '/evolucao'
     | '/mes'
     | '/perfil'
     | '/pergunte'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/configuracoes'
     | '/corpo'
+    | '/evolucao'
     | '/mes'
     | '/perfil'
     | '/pergunte'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   CalendarioRoute: typeof CalendarioRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   CorpoRoute: typeof CorpoRoute
+  EvolucaoRoute: typeof EvolucaoRoute
   MesRoute: typeof MesRoute
   PerfilRoute: typeof PerfilRoute
   PergunteRoute: typeof PergunteRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/corpo'
       fullPath: '/corpo'
       preLoaderRoute: typeof CorpoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/evolucao': {
+      id: '/evolucao'
+      path: '/evolucao'
+      fullPath: '/evolucao'
+      preLoaderRoute: typeof EvolucaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mes': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarioRoute: CalendarioRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   CorpoRoute: CorpoRoute,
+  EvolucaoRoute: EvolucaoRoute,
   MesRoute: MesRoute,
   PerfilRoute: PerfilRoute,
   PergunteRoute: PergunteRoute,
