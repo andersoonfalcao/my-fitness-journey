@@ -136,3 +136,27 @@ export function runHealthShortcut(): Promise<void> {
     window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(HEALTH_SHORTCUT)}`;
   });
 }
+
+export type ReadinessScore = { score: number; band: "pronto" | "leve" | "recuperar"; sleep: number | null; hrDiff: number | null; run: number };
+
+/**
+ * Hoje: the readiness above as a 0–100 figure. Sleep gives up to 40 points (8 h = full), the resting heart rate up
+ * to 40 (minus 5 per beat above the person's 14-day normal) and the training load up to 20 (minus 4 per training
+ * day in a row past the second). Parts without data are left out and the rest is scaled to 100. The figure follows
+ * the reading it comes from: a "baixo" day stays under 60 and a "bom" day at 70 or more.
+ */
+export function readinessScore(day: HealthDay, before: HealthDay[], ready: Readiness, run: number): ReadinessScore {
+  const hrs = before.map((d) => d.restingHr).filter((n): n is number => n !== undefined);
+  const hasHr = day.restingHr !== undefined && hrs.length >= READINESS_MIN_DAYS;
+  const hrDiff = hasHr ? day.restingHr! - hrs.reduce((s, n) => s + n, 0) / hrs.length : null;
+  let points = 0;
+  let max = 0;
+  if (day.sleepMin !== undefined) { points += Math.min(1, day.sleepMin / 480) * 40; max += 40; }
+  if (hrDiff !== null) { points += 40 - Math.min(8, Math.max(0, hrDiff)) * 5; max += 40; }
+  points += 20 - Math.min(4, Math.max(0, run - 1)) * 4;
+  max += 20;
+  let score = Math.round((points / max) * 100);
+  if (ready.level === "baixo") score = Math.min(score, 59);
+  if (ready.level === "bom") score = Math.max(score, 70);
+  return { score, band: score >= 70 ? "pronto" : score >= 50 ? "leve" : "recuperar", sleep: day.sleepMin ?? null, hrDiff, run };
+}

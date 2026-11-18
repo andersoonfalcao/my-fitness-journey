@@ -7,7 +7,7 @@ import { NeedProfile } from "@/components/AppShell";
 import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
-import { HealthToday } from "@/components/HealthToday";
+import { HealthToday, ReadinessCard } from "@/components/HealthToday";
 import { CheckCheck, ChevronRight, Droplets, Dumbbell, HeartPulse, Moon, Play, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ActivityRings, ProgressBar, type RingSpec } from "@/components/ui/meter";
@@ -88,6 +88,8 @@ function Index() {
           <StreakBadge planned={profile.days} />
         </div>
       </header>
+
+      <ReadinessCard date={today()} />
 
       {session && <WorkoutNow session={session} plan={plan} />}
 
@@ -222,7 +224,7 @@ function Index() {
         </Link>
       )}
 
-      <HealthToday date={today()} age={profile.age} />
+      <HealthToday date={today()} age={profile.age} showReadiness={false} />
 
       <DayClose profile={profile} date={today()} />
     </div>
