@@ -181,7 +181,7 @@ export function RegenerateDialog({ open, onOpenChange, onDone }: { open: boolean
                 onClick={() => (options.source === "ai" ? askAi() : showCatalog(variation + 1))}>
                 {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}Outras opções
               </Button>
-              <Button type="button" onClick={approve} disabled={!!session || busy} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90"><Check />Aprovar este treino</Button>
+              <Button type="button" onClick={approve} disabled={!!session || busy} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90"><Check />Aprovar este treino</Button>
             </div>
           </div>
         )}

@@ -49,13 +49,13 @@ export function HealthPanel() {
   };
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border bg-card p-6">
+    <section className="space-y-4 rounded-3xl surface-card p-6">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent"><HeartPulse className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-xl font-bold">Saúde do iPhone</h2>
-            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${status?.hasKey ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
+            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${status?.hasKey ? "bg-success/15 text-success-text" : "bg-muted text-muted-foreground"}`}>
               {status === null ? "…" : status.hasKey ? "Ligada" : "Desligada"}
             </span>
           </div>
@@ -67,7 +67,7 @@ export function HealthPanel() {
       </div>
 
       {key ? (
-        <div className="space-y-2 rounded-2xl border-2 border-accent bg-accent/5 p-4">
+        <div className="space-y-2 rounded-2xl border border-brand-line bg-brand-soft p-4">
           <p className="text-sm font-semibold">Sua chave (aparece só agora; copie para o atalho):</p>
           <CopyField label="Valor do cabeçalho Authorization (já com Bearer)" value={`Bearer ${key}`} />
           <CopyField label="Endereço" value={HEALTH_INGEST_URL} />

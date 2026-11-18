@@ -107,7 +107,7 @@ export function DayClose({ profile, date, embedded = false }: { profile: Profile
   }
 
   return (
-    <section className={embedded ? "space-y-4" : "space-y-4 rounded-3xl border border-border bg-card p-6"}>
+    <section className={embedded ? "space-y-4" : "space-y-4 rounded-3xl surface-card p-6"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <CalendarCheck className="h-5 w-5 text-accent" />
@@ -118,7 +118,7 @@ export function DayClose({ profile, date, embedded = false }: { profile: Profile
         {closed && (
         <div className="flex flex-wrap gap-2">
           {!busy && (
-            <Button type="button" onClick={() => setShare(dayShare(closed))} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button type="button" onClick={() => setShare(dayShare(closed))} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
               <Share2 />Compartilhar
             </Button>
           )}
@@ -138,7 +138,7 @@ export function DayClose({ profile, date, embedded = false }: { profile: Profile
           <li key={label}>
             <Link to={target.to} {...(target.hash ? { hash: target.hash } : {})} search={searchOf(target)} aria-label={`${label}: ${detail}. ${fill ? "Preencher" : "Ver"}`}
               className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted active:bg-muted">
-              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-border text-muted-foreground"}`}>
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ok ? "bg-brand text-on-brand animate-pop" : "bg-surface-3 text-muted-foreground"}`}>
                 {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
               </span>
               <span className="min-w-0 flex-1 leading-tight"><b className="block">{label}</b><span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span></span>
@@ -224,7 +224,7 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
         <Bullets title="Indo bem" items={ai.goingWell} tone="good" />
         <Bullets title="Precisa melhorar" items={ai.improve} tone="improve" />
       </div>
-      <div className="rounded-2xl bg-primary p-4 text-primary-foreground">
+      <div className="rounded-2xl border border-brand-line bg-brand-soft p-4">
         <h4 className="font-bold">Desde o início</h4>
         <p className="mt-0.5 text-xs opacity-75">
           {s.days} dia(s) de acompanhamento · peso {fmtKg(s.weightStart)} → {fmtKg(s.weightNow)} kg ({weightChange >= 0 ? "+" : ""}{fmtKg(weightChange)}) · meta {fmtKg(s.weightGoal)} kg · {s.workouts} treino(s) · {s.daysLogged} dia(s) com refeições
@@ -241,7 +241,7 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
 
 function Bullets({ title, items, tone }: { title: string; items: string[]; tone: "good" | "improve" }) {
   return (
-    <div className={`rounded-2xl p-4 ${tone === "good" ? "bg-secondary" : "bg-accent/10"}`}>
+    <div className={`rounded-2xl p-4 ${tone === "good" ? "bg-brand-soft" : "bg-warning/10"}`}>
       <h4 className="font-bold">{title}</h4>
       <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">{items.map((item) => <li key={item}>{item}</li>)}</ul>
     </div>

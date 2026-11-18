@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { Bell, ChevronDown, Download, Dumbbell, Info, Link2, Loader2, LogOut, Moon, RefreshCw, UserRound, X, type LucideIcon } from "lucide-react";
+import { Bell, ChevronDown, Download, Dumbbell, Info, Link2, Loader2, LogOut, Monitor, Moon, RefreshCw, Sun, UserRound, X, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
 import { today } from "@/lib/store";
@@ -9,8 +9,7 @@ import { useCloseCalendar } from "@/components/AppShell";
 import { HealthPanel } from "@/components/HealthPanel";
 import { InvitesPanel } from "@/components/InvitesPanel";
 import { NotificationSettings, ReminderSettings, RestSetting } from "@/components/SettingsPanel";
-import { Switch } from "@/components/ui/switch";
-import { useTheme } from "@/lib/theme";
+import { useThemePreference } from "@/lib/theme";
 import { StravaCard } from "@/components/StravaCard";
 import { logout, useAuth } from "@/lib/auth";
 import { updateApp, useAppVersion } from "@/lib/offline";
@@ -128,7 +127,7 @@ function ConfiguracoesPage() {
       </Group>
 
       <Group id="conta">
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl surface-card p-6">
           <div className="min-w-0">
             <h3 className="text-xl font-bold">Conta</h3>
             <p className="text-sm text-muted-foreground">{user?.email}{isAdmin ? " · administrador" : ""}</p>
@@ -150,18 +149,26 @@ function ConfiguracoesPage() {
   );
 }
 
-/** Aparência: the same light/dark switch as the moon/sun in the header. */
+/** Aparência: follow the device (default) or keep light / dark; the moon/sun in the header switches too. */
 function ThemeSetting() {
-  const [theme, toggle] = useTheme();
+  const [pref, setPref] = useThemePreference();
+  const options = [
+    { v: "system", label: "Sistema", icon: Monitor },
+    { v: "light", label: "Claro", icon: Sun },
+    { v: "dark", label: "Escuro", icon: Moon },
+  ] as const;
   return (
-    <section className="rounded-3xl border border-border bg-card p-6">
-      <label className="flex items-center justify-between gap-3">
-        <span className="min-w-0">
-          <span className="block text-xl font-bold">Modo escuro</span>
-          <span className="block text-sm text-muted-foreground">Vale para este aparelho. Também dá para trocar pela lua no topo.</span>
-        </span>
-        <Switch checked={theme === "dark"} onCheckedChange={toggle} />
-      </label>
+    <section className="rounded-3xl surface-card p-5 shadow-sm sm:p-6">
+      <h2 className="type-h3">Aparência</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Vale para este aparelho. "Sistema" acompanha o modo claro ou escuro do celular.</p>
+      <div role="radiogroup" aria-label="Tema" className="mt-4 grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
+        {options.map((o) => (
+          <button key={o.v} type="button" role="radio" aria-checked={pref === o.v} onClick={() => setPref(o.v)}
+            className={`pressable flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold ${pref === o.v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+            <o.icon className="h-4 w-4" aria-hidden />{o.label}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -180,7 +187,7 @@ function AppVersion() {
     }
   };
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl surface-card p-6">
       <div className="min-w-0">
         <h3 className="text-xl font-bold">Versão do app</h3>
         <p className="text-sm text-muted-foreground">
@@ -229,7 +236,7 @@ function ExportData() {
   };
 
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-card p-6">
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl surface-card p-6">
       <div className="min-w-0">
         <h3 className="text-xl font-bold">Cópia dos seus dados</h3>
         <p className="text-sm text-muted-foreground">Um arquivo com tudo o que a conta guarda: perfil, refeições, pesagens, treinos e saúde.</p>

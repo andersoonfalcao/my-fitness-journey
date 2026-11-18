@@ -20,7 +20,7 @@ export function CloseGapCard({ left, history, onAdd }: {
   const [a, b] = gap.options;
 
   return (
-    <section className="space-y-3 rounded-3xl border border-border bg-card p-5" aria-labelledby="fechar-dia-titulo">
+    <section className="space-y-3 rounded-3xl surface-card p-5" aria-labelledby="fechar-dia-titulo">
       <div className="flex items-center gap-2">
         <Utensils className="h-5 w-5 shrink-0 text-accent" aria-hidden />
         <h2 id="fechar-dia-titulo" className="text-xl font-bold">Para fechar o dia</h2>

@@ -243,7 +243,7 @@ function RunningCardio({ session, onChange, onFinish, onCancel }: {
       {session.kind === "esteira" && (
         <div className="mt-3 border-t border-border pt-3">
           {current && (
-            <div className="mb-3 flex items-end justify-between gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
+            <div className="mb-3 flex items-end justify-between gap-3 rounded-2xl border border-brand-line bg-brand-soft px-4 py-3">
               <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-wider text-accent">Fase {steps.length} agora</div>
                 <div className="text-sm font-semibold">{describe(current)}</div>
@@ -311,7 +311,7 @@ export function WaitingCardio({ record, onDelete }: { record: CardioRecord; onDe
   const summary = treadmillSummary(record.steps, seconds);
   const time = (ms: number) => new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   return (
-    <details open={!!record.steps?.length} className="group rounded-3xl border border-border bg-card px-4 py-3">
+    <details open={!!record.steps?.length} className="group rounded-3xl surface-card px-4 py-3">
       <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -370,11 +370,11 @@ function CardioGoal({ elapsedS }: { elapsedS?: number }) {
       </dl>
       {elapsedS !== undefined && (
         <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-card" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Tempo até o objetivo">
-          <div className={`h-full rounded-full ${done ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${pct}%` }} />
+          <div className={`h-full rounded-full ${done ? "bg-success" : "bg-accent"}`} style={{ width: `${pct}%` }} />
         </div>
       )}
       <p className="mt-2 text-xs text-muted-foreground">
-        {done ? <b className="text-[#3f9d6b]">Tempo do objetivo cumprido. </b> : null}
+        {done ? <b className="text-success-text">Tempo do objetivo cumprido. </b> : null}
         Mantenha o batimento na faixa (confira na Mi Band): dá para conversar, mas não cantar.{goal.measured ? "" : " A faixa usa um repouso estimado até a Mi Band mandar o seu."}
       </p>
     </div>

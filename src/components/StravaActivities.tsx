@@ -47,13 +47,13 @@ export function StravaActivities({ waitingOnly = false }: { waitingOnly?: boolea
     <>
     {groups.map(({ id, title, Icon, items }) => (
     <section key={title} id={id} className="scroll-mt-24 space-y-3 border-t border-border pt-6">
-      <h2 className="flex items-center gap-2 text-2xl font-bold"><Icon className="h-6 w-6 shrink-0 text-[#fc4c02]" />{title}</h2>
+      <h2 className="flex items-center gap-2 text-2xl font-bold"><Icon className="h-6 w-6 shrink-0 text-strava" />{title}</h2>
       <ul className="space-y-2">
         {items.map(({ activity: a, cardio }) => cardio ? (
           <li key={cardio.id}><WaitingCardio record={cardio} onDelete={() => remove(cardio)} /></li>
         ) : a && (
           <li key={a.id}>
-            <button type="button" onClick={() => setOpen(a)} className="w-full rounded-3xl border border-border bg-card px-4 py-3 text-left transition hover:border-[#fc4c02]">
+            <button type="button" onClick={() => setOpen(a)} className="w-full rounded-3xl surface-card px-4 py-3 text-left transition hover:border-strava">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">

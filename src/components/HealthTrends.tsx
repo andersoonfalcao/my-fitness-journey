@@ -43,7 +43,7 @@ export function HealthTrends() {
   const avgWalked = walked.length ? Math.round(walked.reduce((s, m) => s + m, 0) / walked.length) : null;
 
   return (
-    <section id="saude" className="scroll-mt-24 space-y-6 rounded-3xl border border-border bg-card p-4 sm:p-6">
+    <section id="saude" className="scroll-mt-24 space-y-6 rounded-3xl surface-card p-4 sm:p-6">
       <div className="px-2 sm:px-0">
         <h2 className="text-2xl font-bold">Recuperação</h2>
         <p className="text-sm text-muted-foreground">Da sua Mi Band, pelo app Saúde do iPhone.</p>
@@ -72,7 +72,7 @@ export function HealthTrends() {
             {rhythm && (
               <p>
                 Você dorme em média às <b className="tabular-nums">{rhythm.bedtime}</b> e acorda às <b className="tabular-nums">{rhythm.wake}</b>. Horário{" "}
-                <b className={rhythm.level === "regular" ? "text-[#3f9d6b]" : "text-accent"}>{rhythm.level}</b>
+                <b className={rhythm.level === "regular" ? "text-success-text" : "text-warning-text"}>{rhythm.level}</b>
                 <span className="text-muted-foreground"> (dormir varia {rhythm.bedtimeSd} min e acordar {rhythm.wakeSd} min)</span>.
               </p>
             )}

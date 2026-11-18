@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles, X } from "lucide-react";
@@ -54,7 +55,7 @@ function WeekPage() {
   const [reviews, setReviews] = useLocal<Record<string, WeekReview>>(WEEKS_KEY, {});
   const [busy, setBusy] = useState(false);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
   const t = targets(profile);
   const inputs = { foods, water, weights, history, strava, health, targets: { kcal: t.kcal, waterMl: t.waterMl } };
@@ -102,7 +103,7 @@ function WeekPage() {
         <button type="button" onClick={() => go(7)} disabled={current} aria-label="Próxima semana" className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-card disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
       </div>
 
-      <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
+      <section className="rounded-3xl surface-card p-4 sm:p-6">
         <p className="mb-3 px-1 text-xs text-muted-foreground">
           {current
             ? `Semana em andamento (${week.days} de 7 dias), comparada com os mesmos dias da anterior: ${short(before.start)} a ${short(before.end)}.`
@@ -120,7 +121,7 @@ function WeekPage() {
                 <div className="mt-0.5 whitespace-nowrap font-display text-xl font-extrabold tabular-nums">{v === null ? "—" : m.format(v)}</div>
                 <div className="text-xs tabular-nums text-muted-foreground">
                   {v === null ? "sem registro nesta semana" : p === null ? "sem dado na anterior" : diff === 0 ? "igual à anterior"
-                    : <b className={good === null ? "" : good ? "text-[#3f9d6b]" : "text-destructive"}>{diff! > 0 ? "+" : "−"}{m.format(Math.abs(diff!))}</b>}
+                    : <b className={good === null ? "" : good ? "text-success-text" : "text-destructive"}>{diff! > 0 ? "+" : "−"}{m.format(Math.abs(diff!))}</b>}
                 </div>
                 {m.sub && v !== null && <div className="text-xs tabular-nums text-muted-foreground">{m.sub(week)}</div>}
               </div>
@@ -129,13 +130,13 @@ function WeekPage() {
         </div>
         <div className="mt-3 space-y-1.5 px-1 text-sm">
           {week.kcalWeekdays !== null && week.kcalWeekend !== null && (
-            <p>Segunda a sexta: <b className="tabular-nums">{n(week.kcalWeekdays)} kcal</b> por dia · sábado e domingo: <b className={`tabular-nums ${week.kcalWeekend > week.kcalWeekdays * 1.1 ? "text-accent" : ""}`}>{n(week.kcalWeekend)} kcal</b></p>
+            <p>Segunda a sexta: <b className="tabular-nums">{n(week.kcalWeekdays)} kcal</b> por dia · sábado e domingo: <b className={`tabular-nums ${week.kcalWeekend > week.kcalWeekdays * 1.1 ? "text-warning-text" : ""}`}>{n(week.kcalWeekend)} kcal</b></p>
           )}
           <StreakLine planned={profile.days} />
         </div>
       </section>
 
-      <section className="space-y-3 rounded-3xl bg-primary p-6 text-primary-foreground">
+      <section className="space-y-3 rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_70%)] p-6 shadow-sm">
         <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent" /><h2 className="text-xl font-bold">Comentário da semana</h2></div>
         {review ? (
           <>

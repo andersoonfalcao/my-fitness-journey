@@ -134,7 +134,7 @@ function PerfilPage() {
 
       {!showForm && saved ? <>
         {latest && Math.abs(latest.kg - saved.weight) >= 0.5 && (
-          <section className="flex flex-col gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="flex flex-col gap-3 rounded-3xl border border-brand-line bg-brand-soft p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="min-w-0 flex-1 text-sm">
               Sua última pesagem foi <b>{fmtKg(latest.kg)} kg</b> em {new Date(`${latest.date}T12:00:00`).toLocaleDateString("pt-BR")}. As metas de calorias e macros ainda usam <b>{fmtKg(saved.weight)} kg</b>.
             </p>
@@ -145,7 +145,7 @@ function PerfilPage() {
         <CalibrationCard profile={saved} />
       </> : <>
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">1. Sobre você</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <label className="block">
@@ -173,7 +173,7 @@ function PerfilPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">2. Foco principal</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {FOCUS.map((f) => (
@@ -186,7 +186,7 @@ function PerfilPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">3. Rotina de treino</h2>
         <div className="mt-4 space-y-5">
           <div>
@@ -219,7 +219,7 @@ function PerfilPage() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-3xl border border-border bg-card p-6">
+      <section className="space-y-4 rounded-3xl surface-card p-6">
         <div>
           <h2 className="text-xl font-bold">4. Método de treino</h2>
           <p className="text-sm text-muted-foreground">Sugerido pelo seu foco, nível e dias por semana. Toque em outro para mudar.</p>
@@ -228,7 +228,7 @@ function PerfilPage() {
       </section>
       </>}
 
-      <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
+      <section className="rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_70%)] p-6 shadow-sm">
         <h2 className="text-xl font-bold">Suas metas diárias</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[["Calorias", t.kcal.toLocaleString("pt-BR"), "kcal"], ["Proteína", `${t.protein}`, "g"], ["Carboidratos", `${t.carbs}`, "g"], ["Gorduras", `${t.fat}`, "g"]].map(([a, b, c]) => (
@@ -258,7 +258,7 @@ function PerfilPage() {
         </div>
       )}
       {!showForm && plan && (
-        <section className="rounded-3xl border border-border bg-card p-5">
+        <section className="rounded-3xl surface-card p-5">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Dumbbell className="h-4 w-4 shrink-0 text-accent" aria-hidden />Plano atual
           </div>
@@ -318,22 +318,22 @@ function ProfileSummary({ p, current, start }: { p: Profile; current: number; st
   ];
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         {/* Phone: start on its own line, then current → what is left → goal. Wider screens: one line. */}
         <div className="flex flex-wrap items-start justify-center gap-y-4 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] sm:gap-6">
           <WeightFigure label="Início" value={start?.kg} sub={start ? new Date(`${start.date}T12:00:00`).toLocaleDateString("pt-BR") : undefined} className="w-full sm:w-auto" />
           <div className="flex w-full min-w-0 items-start justify-center gap-2 sm:contents">
             <WeightFigure label="Peso atual" value={current} />
             <div className="flex min-w-[5.5rem] flex-1 flex-col items-center gap-1 pt-5">
-              <span className={`rounded-full px-2.5 py-1 text-center text-xs font-bold leading-tight sm:text-sm ${diff === 0 ? "bg-[#3f9d6b]/10 text-[#3f9d6b]" : "bg-destructive/10 text-destructive"}`}>
+              <span className={`rounded-full px-2.5 py-1 text-center text-xs font-bold leading-tight sm:text-sm ${diff === 0 ? "bg-success/10 text-success-text" : "bg-brand-soft text-accent"}`}>
                 {diff === 0 ? "Na meta" : <>{diff > 0 ? "Ganhar" : "Perder"} <span className="whitespace-nowrap">{kg(Math.abs(diff))}</span></>}
               </span>
-              <span className={`flex w-full items-center ${diff === 0 ? "text-[#3f9d6b]" : "text-destructive"}`} aria-hidden>
+              <span className={`flex w-full items-center ${diff === 0 ? "text-success-text" : "text-accent"}`} aria-hidden>
                 <span className="h-px flex-1 bg-current opacity-50" />
                 <ArrowRight className="-ml-1 h-4 w-4" />
               </span>
             </div>
-            <WeightFigure label="Meta" value={p.goalWeight} className="text-[#3f9d6b]" />
+            <WeightFigure label="Meta" value={p.goalWeight} className="text-success-text" />
           </div>
         </div>
         <div className="mt-5 flex flex-wrap justify-center gap-2 border-t border-border pt-4">
@@ -366,7 +366,7 @@ function WeekSplit({ profile, onChange }: { profile: Profile; onChange: (extra: 
   const current = profile.weekendExtra ?? 0;
   const base = targets(profile).weekKcal;
   return (
-    <section className="rounded-3xl border border-border bg-card p-5">
+    <section className="rounded-3xl surface-card p-5">
       <h2 className="text-lg font-bold">Calorias na semana</h2>
       <p className="mt-1 text-sm text-muted-foreground">Coma um pouco menos de segunda a sexta para ter mais no sábado e no domingo. O total da semana não muda.</p>
       <p className="mt-3 text-sm font-bold">Calorias a mais no sábado e no domingo</p>

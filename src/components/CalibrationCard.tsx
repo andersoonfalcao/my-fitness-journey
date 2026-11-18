@@ -25,7 +25,7 @@ export function CalibrationCard({ profile }: { profile: Profile }) {
   };
 
   return (
-    <section className="space-y-3 rounded-3xl border border-border bg-card p-5">
+    <section className="space-y-3 rounded-3xl surface-card p-5">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <Gauge className="h-4 w-4 shrink-0 text-accent" aria-hidden />Gasto calibrado
       </div>
@@ -76,7 +76,7 @@ function Need({ done, need, label }: { done: number; need: number; label: string
   const ok = done >= need;
   return (
     <li className="flex items-center gap-2">
-      <span className={`w-12 shrink-0 text-right font-display font-bold tabular-nums ${ok ? "text-[#3f9d6b]" : ""}`}>{Math.min(done, need)}/{need}</span>
+      <span className={`w-12 shrink-0 text-right font-display font-bold tabular-nums ${ok ? "text-success-text" : ""}`}>{Math.min(done, need)}/{need}</span>
       <span className="text-muted-foreground">{label}</span>
     </li>
   );
@@ -87,7 +87,7 @@ export function CalibrationNotice({ profile }: { profile: Profile }) {
   const c = useCalibration(profile);
   if (!c || !c.result.ready || !c.suggest || c.dismissed) return null;
   return (
-    <section className="flex items-start gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
+    <section className="flex items-start gap-3 rounded-3xl border border-brand-line bg-brand-soft p-4">
       <Gauge className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
       <Link to="/perfil" className="min-w-0 flex-1 text-sm">
         <b>Seu gasto real parece {fmt(c.result.tdee)} kcal/dia</b>, não {fmt(c.inUse)}. Toque para ver e ajustar a meta no Perfil.

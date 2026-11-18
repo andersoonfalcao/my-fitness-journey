@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Dumbbell, Share2, X } from "lucide-react";
@@ -84,7 +85,7 @@ function CalendarPage() {
   const [share, setShare] = useState<ShareRequest | null>(null);
   const [activity, setActivity] = useState<StravaActivity | null>(null);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
 
   const now = today();
@@ -162,14 +163,14 @@ function CalendarPage() {
         </div>
       </div>
 
-      <Link to="/semana" className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+      <Link to="/semana" className="flex min-h-14 items-center justify-between gap-3 rounded-3xl surface-card px-5 py-3">
         <span className="min-w-0">
           <span className="block font-bold">Resumo da semana</span>
           <span className="block text-xs text-muted-foreground">A semana comparada com a anterior, com comentário da IA</span>
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </Link>
-      <Link to="/mes" search={{ m: month }} className="flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-border bg-card px-5 py-3">
+      <Link to="/mes" search={{ m: month }} className="flex min-h-14 items-center justify-between gap-3 rounded-3xl surface-card px-5 py-3">
         <span className="min-w-0">
           <span className="block font-bold">Retrospectiva de {new Date(`${month}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}</span>
           <span className="block text-xs text-muted-foreground">{month === now.slice(0, 7) ? "O mês até hoje, " : "O mês inteiro, "}comparado com o anterior, com os recordes</span>
@@ -177,7 +178,7 @@ function CalendarPage() {
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </Link>
 
-      <section className="rounded-3xl border border-border bg-card p-3 sm:p-5">
+      <section className="rounded-3xl surface-card p-3 sm:p-5">
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold uppercase text-muted-foreground">
           {WEEK.map((w) => <div key={w} className="py-1">{w}</div>)}
         </div>
@@ -203,9 +204,9 @@ function CalendarPage() {
                 {d && (
                   <span className="flex flex-wrap justify-center gap-0.5 sm:gap-1">
                     {d.trained && <Dot color="var(--accent)" />}
-                    {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--chart-2)" : "var(--muted-foreground)"} ring={!d.onCalories} />}
-                    {d.waterMl >= d.goal.waterMl && <Dot color="#4fb3c9" />}
-                    {d.workouts.length > 0 && (d.cardio.length > 0 || d.strava.some(isCardio)) && <Dot color="#fc4c02" ring />}
+                    {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--success)" : "var(--muted-foreground)"} ring={!d.onCalories} />}
+                    {d.waterMl >= d.goal.waterMl && <Dot color="var(--info)" />}
+                    {d.workouts.length > 0 && (d.cardio.length > 0 || d.strava.some(isCardio)) && <Dot color="var(--brand-strava)" ring />}
                   </span>
                 )}
               </button>
@@ -214,10 +215,10 @@ function CalendarPage() {
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground">
           <Legend color="var(--accent)" label="treino" />
-          <Legend color="var(--chart-2)" label="calorias na meta" />
+          <Legend color="var(--success)" label="calorias na meta" />
           <Legend color="var(--muted-foreground)" label="refeições fora da meta" ring />
-          <Legend color="#4fb3c9" label="água na meta" />
-          <Legend color="#fc4c02" label="cardio além do treino" ring />
+          <Legend color="var(--info)" label="água na meta" />
+          <Legend color="var(--brand-strava)" label="cardio além do treino" ring />
           <span><b className="text-accent">7</b> dia finalizado</span>
         </div>
       </section>
@@ -283,9 +284,9 @@ function CalendarPage() {
         })}
 
         {sel.strava.map((a) => (
-          <button key={a.id} type="button" onClick={() => setActivity(a)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 text-left hover:border-[#fc4c02]">
+          <button key={a.id} type="button" onClick={() => setActivity(a)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 text-left hover:border-strava">
             <span className="min-w-0">
-              <span className="block text-xs font-bold uppercase tracking-wider text-[#fc4c02]">{a.app ? cardioLabel(a.app) : sportLabel(a.sport)} · Strava</span>
+              <span className="block text-xs font-bold uppercase tracking-wider text-strava">{a.app ? cardioLabel(a.app) : sportLabel(a.sport)} · Strava</span>
               <span className="block truncate font-display font-bold">{a.name}</span>
             </span>
             <span className="shrink-0 text-right text-sm font-semibold tabular-nums">
@@ -327,7 +328,7 @@ function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
+      <section className="rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_70%)] p-6 shadow-sm">
         <h2 className="text-2xl font-bold">Resumo de {monthName.split(" ")[0]!.toLowerCase()}</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {summary.map(([label, value]) => (

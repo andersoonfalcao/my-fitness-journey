@@ -1,6 +1,9 @@
+import { ProgressBar } from "@/components/ui/meter";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, Minimize2, Maximize2, ChevronLeft, ArrowLeftRight, Check, CheckCheck, ChevronDown, ChevronRight, Dumbbell, Flame, Info, Link2, ListChecks, Minus, Pencil, Play, Plus, RotateCcw, Share2, SkipForward, StickyNote, Timer, Trash2, TrendingDown, X, TrendingUp, Volume2, VolumeX, Youtube } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -69,6 +72,13 @@ function TreinosPage() {
   const [dayIdx, setDayIdx] = useState<number | null>(null);
   // Exercises are collapsed cards; one opens at a time to show its sets, reps and loads.
   const [openItem, setOpenItem] = useState<number | null>(null);
+  // Focus mode: during a workout, one exercise at a time in full screen (kept per device).
+  const [focusPref, setFocusPref] = useState(() => { try { return localStorage.getItem(FOCUS_KEY) === "1"; } catch { return false; } });
+  const touchX = useRef<number | null>(null);
+  const toggleFocus = (on: boolean) => {
+    setFocusPref(on);
+    try { localStorage.setItem(FOCUS_KEY, on ? "1" : "0"); } catch { /* private mode */ }
+  };
   const [viewRecords, setViewRecords] = useState<WorkoutRecord[] | null>(null);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [swap, setSwap] = useState<{ d: number; i: number } | null>(null);
@@ -81,7 +91,7 @@ function TreinosPage() {
   // A drop set being typed: the exercise (plan item index) and the fields.
   const [dropForm, setDropForm] = useState<{ item: number; kg: string; reps: string } | null>(null);
   // The workout just saved, waiting for "how did it feel?" before the share card opens.
-  const [feelAsk, setFeelAsk] = useState<{ id: string; dayName: string; share: ShareRequest } | null>(null);
+  const [feelAsk, setFeelAsk] = useState<{ id: string; dayName: string; share: ShareRequest; summary: FinishSummary } | null>(null);
   const [confirmAll, setConfirmAll] = useState<{ name: string; count: number; detail: string; run: () => void } | null>(null);
   const [settings, updateSettings] = useSettings();
   const say = (text: string) => { if (settings.voice) speak(text); };
@@ -118,14 +128,32 @@ function TreinosPage() {
     setTimeout(() => document.getElementById(`exercicio-${current}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
   }, [hash, ready, planReady, sessionReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!ready) return null;
+  // In focus mode there is always an exercise on screen: the one resting, else the next one in line.
+  useEffect(() => {
+    if (!focusPref || !session || !plan || openItem !== null) return;
+    const d = plan.days.findIndex((x) => x.name === session.dayName);
+    if (d < 0 || (dayIdx !== null && dayIdx !== d)) return;
+    const dayItems = plan.days[d]!.items;
+    const pending = dayItems.map((_, j) => j).filter((j) => (session.sets?.[j] ?? 0) < dayItems[j]!.sets);
+    const current = session.rest?.item ?? nextInLine(pending, session.later, -1);
+    if (current !== undefined) setOpenItem(current);
+  }, [focusPref, session, plan, openItem, dayIdx]);
+
+  // In focus mode the sets circle (with "Concluir") opens centred under the thumb; the photo is one swipe up.
+  useEffect(() => {
+    if (!focusPref || openItem === null) return;
+    const id = setTimeout(() => document.querySelector(".focus-overlay [data-sets-ring]")?.scrollIntoView({ block: "center" }), 80);
+    return () => clearTimeout(id);
+  }, [focusPref, openItem]);
+
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
   if (!plan) {
     return (
-      <div className="rounded-3xl border border-border bg-card p-8 text-center">
-        <h2 className="text-2xl font-bold">Nenhum plano ainda</h2>
-        <button onClick={() => setPlan(generatePlan(profile))} className="mt-4 rounded-full bg-accent px-6 py-3 font-bold text-accent-foreground">Gerar plano</button>
-      </div>
+      <EmptyState icon={Dumbbell} title="Seu plano de treino começa aqui"
+        action={<Button size="lg" onClick={() => setPlan(generatePlan(profile))}>Gerar plano</Button>}>
+        Monto os treinos da semana a partir do seu perfil: meta, nível, dias e tempo disponível.
+      </EmptyState>
     );
   }
 
@@ -178,6 +206,23 @@ function TreinosPage() {
   // The sequence decides which workout is trained: earlier ones of this round are done and later ones wait their turn,
   // so only the next one can be started (going back takes "Recomeçar"). Other tabs are view-only.
   const tracksSets = session ? sessionIdx === active || sessionIdx < 0 : active === nextIdx && !lockedToday;
+  const focusing = focusPref && !!session && sessionIdx === active && openItem !== null && openItem < day.items.length;
+  const goTo = (j: number) => {
+    if (j < 0 || j >= day.items.length) return;
+    setOpenItem(j);
+    document.getElementById(`exercicio-${j}`)?.scrollTo({ top: 0 });
+  };
+  // A sideways swipe on the focused exercise goes to the next or the previous one.
+  const swipe = {
+    onTouchStart: (e: React.TouchEvent) => { touchX.current = e.touches[0]?.clientX ?? null; },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const start = touchX.current;
+      touchX.current = null;
+      const end = e.changedTouches[0]?.clientX;
+      if (start === null || end === undefined || openItem === null || Math.abs(end - start) < 70) return;
+      goTo(openItem + (end < start ? 1 : -1));
+    },
+  };
   // Week of the six-week cycle: its intensity sets the effort and the suggested load.
   const week = programAt(plan, today());
   // Inside the exercise cards `history` is the load list of that exercise; the workouts go by this name there.
@@ -347,8 +392,17 @@ function TreinosPage() {
       }),
     };
     setHistory((records) => [...records, record]);
-    // "How did it feel?" comes first; the share card opens after it is answered or skipped.
-    setFeelAsk({ id: record.id, dayName: record.dayName, share: workoutShare(record, lastRecordBefore(history, record.dayName)) });
+    const records = personalRecords(history, record);
+    // The finish screen: the numbers of the workout, its records, "how did it feel?" and sharing.
+    setFeelAsk({
+      id: record.id, dayName: record.dayName, share: workoutShare(record, lastRecordBefore(history, record.dayName)),
+      summary: {
+        durationMs: record.durationMs ?? null,
+        setsDone: record.exercises.reduce((n, e) => n + e.setsDone, 0),
+        setsPlanned: record.exercises.reduce((n, e) => n + e.setsPlanned, 0),
+        total: todayTotal, lastTotal: lastFinishTotal, records: records.map(recordText),
+      },
+    });
     setDropForm(null);
     setDone((d) => [...d, `${today()}|${finishDay.name}`]);
     setDayIdx(null);
@@ -356,17 +410,6 @@ function TreinosPage() {
     setLoadInputs({});
     setRepsInputs({});
     setRirInputs({});
-    const weight = todayTotal > 0
-      ? ` · ${formatKg(todayTotal)}${lastFinishTotal > 0 ? ` (${formatDiff(todayTotal - lastFinishTotal)} vs. última vez)` : ""}`
-      : "";
-    toast.success(session ? `Treino concluído em ${formatDuration(finishedAt - session.startedAt)}${weight}! 💪` : "Treino concluído! 💪");
-    const records = personalRecords(history, record);
-    if (records.length > 0) {
-      toast(`🏆 ${records.length === 1 ? "Novo recorde!" : `${records.length} novos recordes!`}`, {
-        description: records.map(recordText).join(" · "),
-        duration: 8000,
-      });
-    }
     setSession(null);
   };
 
@@ -595,13 +638,13 @@ function TreinosPage() {
         </div>
       )}
 
-      <section className="flex items-center gap-3 rounded-3xl bg-primary p-4 text-primary-foreground sm:p-5">
+      <section className="flex items-center gap-3 rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_65%)] p-4 shadow-sm sm:p-5">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-bold uppercase tracking-widest text-accent">
+          <div className="type-overline text-accent">
             {viewingDone ? "Concluído hoje" : isCurrentClass ? `Aula ${classNumber}` : lockedToday && active === nextIdx ? "Próximo treino" : active < nextIdx ? "Já feito nesta sequência" : "Próximos treinos"} · {day.name}
           </div>
-          <h2 className="mt-1 text-balance font-display text-lg font-extrabold leading-tight sm:text-3xl">{musclesOf(items.map((it) => it.exId))}</h2>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap opacity-75">{items.length} exercícios ·</span>
+          <h2 className="mt-1 text-balance font-display text-xl font-bold leading-tight sm:text-3xl">{musclesOf(items.map((it) => it.exId))}</h2>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm"><span className="whitespace-nowrap text-muted-foreground">{items.length} exercícios ·</span>
             <button type="button" onClick={() => setMethodOpen(true)} className="-my-2 inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold underline-offset-4 hover:underline">{plan.method}<Info className="h-4 w-4 text-accent" aria-label="Como o forma monta seu treino" /></button></p>
           {openItem !== null && items[openItem] && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
@@ -609,29 +652,34 @@ function TreinosPage() {
             </p>
           )}
         </div>
-        <BodyMap exIds={items.map((it) => it.exId)} focus={openItem !== null ? items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-card/95 px-2 py-2 text-foreground" />
+        <BodyMap exIds={items.map((it) => it.exId)} focus={openItem !== null ? items[openItem]?.exId : null} className="shrink-0 rounded-2xl bg-muted px-2 py-2 text-foreground" />
       </section>
 
       {session ? (
-        <div className="sticky top-[4.25rem] z-20 rounded-3xl bg-primary px-5 py-3 text-primary-foreground shadow-lg">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Timer className="h-6 w-6 text-accent" />
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider opacity-75">{session.dayName} em andamento</div>
-                <WorkoutClock startedAt={session.startedAt} className="font-display text-3xl font-extrabold tabular-nums" />
+        <div className="sticky top-[calc(3.75rem+env(safe-area-inset-top))] z-20 rounded-3xl border border-brand-line bg-card/90 py-2.5 pl-4 pr-2 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-accent"><Timer className="h-5 w-5" aria-hidden /></span>
+              <div className="min-w-0">
+                <div className="type-overline truncate text-muted-foreground">{session.dayName} em andamento</div>
+                <WorkoutClock startedAt={session.startedAt} className="type-number text-2xl leading-tight" />
               </div>
             </div>
+            {session.rest && <RestChip endsAt={session.rest.endsAt} item={session.rest.item} />}
+            {sessionIdx === active && (
+              <button type="button" onClick={() => toggleFocus(true)} aria-label="Modo foco: um exercício por vez em tela cheia" title="Modo foco"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Maximize2 className="h-5 w-5" /></button>
+            )}
             <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); setRirInputs({}); } }}
-              className="text-sm font-semibold underline-offset-4 opacity-75 hover:underline">Cancelar</button>
+              className="min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">Cancelar</button>
           </div>
         </div>
       ) : viewingDone ? (
-        <section className="rounded-3xl border-2 border-[#3f9d6b] bg-[#3f9d6b]/10 p-4">
+        <section className="rounded-3xl border border-success/40 bg-success/10 p-4">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#3f9d6b] text-white"><CheckCheck className="h-6 w-6" aria-hidden /></span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-success text-on-brand"><CheckCheck className="h-6 w-6" aria-hidden /></span>
             <div className="min-w-0">
-              <div className="text-xs font-bold uppercase tracking-wider text-[#3f9d6b]">Treino de hoje · concluído</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-success-text">Treino de hoje · concluído</div>
               <h2 className="font-display text-xl font-extrabold leading-tight">{day.name}</h2>
             </div>
           </div>
@@ -682,7 +730,7 @@ function TreinosPage() {
               ? <><b>{day.name} já foi feito nesta sequência.</b> Aqui é só para consulta.</>
               : <><b>{day.name} vem depois.</b> A sequência segue pelo {plan.days[nextIdx]!.name}.</>}
           </p>
-          <button onClick={() => setDayIdx(nextIdx)} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">
+          <button onClick={() => setDayIdx(nextIdx)} className="min-h-11 inline-flex shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">
             <Play className="h-4 w-4" />Ir para o {plan.days[nextIdx]!.name}
           </button>
         </div>
@@ -761,18 +809,21 @@ function TreinosPage() {
             && day.items.some((other, j) => j !== i && !session.later?.includes(j) && (session.sets?.[j] ?? 0) < other.sets);
           const lastSetKg = kgsToday[setsDone - 1] ?? null;
           return (
-            <article key={i} id={`exercicio-${i}`} className={`scroll-mt-28 overflow-hidden rounded-3xl border-2 ${finished ? "border-[#3f9d6b] bg-[#3f9d6b]/5" : open ? "border-primary bg-card" : "border-border bg-card"}`}>
-              <button type="button" onClick={() => setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
+            <article key={i} id={`exercicio-${i}`} {...(focusing && open ? swipe : {})}
+              className={focusing && open
+                ? "focus-overlay dark fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-[calc(7.25rem+env(safe-area-inset-top))] text-foreground animate-fade-up"
+                : `scroll-mt-36 overflow-hidden rounded-3xl border transition-[border-color,box-shadow] duration-200 ${finished ? "border-success/40 bg-success/5" : open ? "border-brand-line bg-card shadow-md ring-1 ring-brand-line" : "surface-card"}`}>
+              <button type="button" onClick={() => !focusing && setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
                 className="flex w-full items-center gap-3 p-3 text-left sm:p-4">
-                <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover" />
+                <img src={photosFor(ex.id)?.[1] ?? ex.img} alt="" loading="lazy" className={`h-14 w-14 shrink-0 rounded-2xl border border-border object-cover ${focusing && open ? "hidden" : ""}`} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <span className="block truncate text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {isLater && <span className="text-accent">Para depois · </span>}{combo && <span className="text-accent">{combo.label} · {combo.position}/{combo.members.length} · </span>}{GROUP_LABEL[ex.group]} · {ex.equipment}
                   </span>
                   <span className="block font-display text-base font-bold leading-tight">{ex.name}</span>
                   <span className="mt-0.5 block text-sm">
                     {finished ? (
-                      <b className="text-[#3f9d6b]">Peso total: {exTotal > 0 ? formatKg(exTotal) : "sem carga"}</b>
+                      <b className="text-success-text">Peso total: {exTotal > 0 ? formatKg(exTotal) : "sem carga"}</b>
                     ) : (
                       <span className="text-muted-foreground">
                         <b className="font-display text-foreground">{it.sets}x{it.reps}</b>{repsCount(it.reps) ? "" : " por série"}
@@ -782,7 +833,7 @@ function TreinosPage() {
                   </span>
                 </span>
                 {finished ? (
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#3f9d6b] text-white"><Check className="h-5 w-5" aria-label="Exercício concluído" /></span>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success text-on-brand animate-pop"><Check className="h-5 w-5" strokeWidth={3} aria-label="Exercício concluído" /></span>
                 ) : tracksSets && session ? (
                   <SetsRing total={it.sets} done={setsDone} />
                 ) : (
@@ -790,9 +841,9 @@ function TreinosPage() {
                 )}
               </button>
               {open && (
-              <div id={`exercicio-${i}-corpo`} className="border-t border-border p-3 sm:p-4">
-                <div className="flex gap-3">
-                  <ExerciseMedia exercise={ex} compact onOpen={() => setDetail(ex)} className="h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28" />
+              <div id={`exercicio-${i}-corpo`} className={focusing ? "mx-auto max-w-lg" : "border-t border-border p-3 sm:p-4"}>
+                <div className={focusing ? "flex flex-col gap-3" : "flex gap-3"}>
+                  <ExerciseMedia exercise={ex} compact={!focusing} onOpen={() => setDetail(ex)} className={focusing ? "mx-auto aspect-video w-full max-w-sm rounded-3xl border border-border" : "h-24 w-24 shrink-0 rounded-2xl border border-border sm:h-28 sm:w-28"} />
                   <div className="flex min-w-0 flex-1 flex-wrap content-start gap-2">
                     <Button type="button" variant="secondary" size="sm" onClick={() => setDetail(ex)} className="rounded-full"><Info />Detalhes</Button>
                     {!doneRecord && (
@@ -883,7 +934,7 @@ function TreinosPage() {
                           disabled={advisedKg == null}
                           onClick={() => advisedKg != null && setLoadInputs((inputs) => ({ ...inputs, [ex.id]: kgInput(advisedKg) }))}
                           aria-label={advisedKg != null ? `Usar ${formatKg(advisedKg)} sugeridos` : undefined}
-                          className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${advice.kind === "subir" ? "bg-accent/15 text-accent" : "bg-destructive/10 text-destructive"}`}
+                          className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-bold ${advice.kind === "subir" ? "bg-accent/15 text-accent" : "bg-destructive/10 text-destructive"}`}
                         >
                           {advice.kind === "subir" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                           {advice.kind === "subir" ? "subir carga" : "reduzir carga"}
@@ -992,7 +1043,7 @@ function TreinosPage() {
                       {setsDone < it.sets ? (
                         <span className="text-sm font-semibold text-muted-foreground">Série {setsDone + 1} de {it.sets}</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-sm font-bold text-[#3f9d6b]"><CheckCheck className="h-4 w-4" />Exercício concluído</span>
+                        <span className="inline-flex items-center gap-1 text-sm font-bold text-success-text"><CheckCheck className="h-4 w-4" />Exercício concluído</span>
                       )}
                       {setsDone > 0 && (
                         <button type="button" onClick={() => undoSet(i)} className="px-1 py-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Desfazer</button>
@@ -1078,7 +1129,7 @@ function TreinosPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="rounded-full">Voltar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { confirmAll?.run(); setConfirmAll(null); }} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Confirmar</AlertDialogAction>
+            <AlertDialogAction onClick={() => { confirmAll?.run(); setConfirmAll(null); }} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Confirmar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1103,27 +1154,54 @@ function TreinosPage() {
           </ul>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="rounded-full">Voltar ao treino</AlertDialogCancel>
-            <AlertDialogAction onClick={() => finishWorkout()} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Concluir mesmo assim</AlertDialogAction>
+            <AlertDialogAction onClick={() => finishWorkout()} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Concluir mesmo assim</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {tab === "historico" && (<>
         {session && (
-          <Link to="/treinos" search={{}} replace className="flex items-center justify-between gap-3 rounded-3xl bg-primary px-5 py-3 text-primary-foreground">
+          <Link to="/treinos" search={{}} replace className="pressable flex min-h-14 items-center justify-between gap-3 rounded-3xl border border-brand-line bg-brand-soft px-5 py-3">
             <span className="flex items-center gap-2 text-sm font-bold"><Timer className="h-5 w-5 text-accent" />{session.dayName} em andamento</span>
-            <span className="text-sm font-semibold underline underline-offset-4">Voltar ao treino</span>
+            <span className="text-sm font-semibold text-accent">Voltar ao treino</span>
           </Link>
         )}
         <WorkoutHistory records={history} onDelete={(id) => setHistory((records) => records.filter((r) => r.id !== id))} onShare={setShare} />
         <WeeklyVolume records={history} />
         <StravaActivities />
       </>)}
-      <FeelDialog ask={feelAsk}
-        onAnswer={(feel) => {
+      {focusing && session && (
+        <div className="dark fixed inset-x-0 top-0 z-50 bg-background/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-foreground backdrop-blur-xl">
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-2">
+            <Button variant="ghost" size="sm" onClick={() => toggleFocus(false)}><Minimize2 />Sair do foco</Button>
+            <WorkoutClock startedAt={session.startedAt} className="type-number text-lg tabular-nums" />
+            {session.rest && session.rest.endsAt > Date.now()
+              ? <RestChip endsAt={session.rest.endsAt} item={session.rest.item} />
+              : <span className="min-w-16 text-right text-sm font-semibold tabular-nums text-muted-foreground">{openItem! + 1} de {day.items.length}</span>}
+          </div>
+          <div className="mx-auto mt-3 flex max-w-lg gap-1" aria-hidden>
+            {day.items.map((it, j) => (
+              <button key={j} type="button" tabIndex={-1} onClick={() => goTo(j)}
+                className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${(session.sets?.[j] ?? 0) >= it.sets ? "bg-brand" : j === openItem ? "bg-foreground/80" : "bg-surface-3"}`} />
+            ))}
+          </div>
+        </div>
+      )}
+      {focusing && (
+        <nav aria-label="Exercícios" className="dark fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 text-foreground backdrop-blur-xl">
+          <div className="mx-auto grid max-w-lg grid-cols-2 gap-2">
+            <Button variant="secondary" size="lg" disabled={openItem === 0} onClick={() => goTo(openItem! - 1)}><ChevronLeft />Anterior</Button>
+            {openItem === day.items.length - 1
+              ? <Button size="lg" onClick={() => (pendingItems.length > 0 ? setConfirmFinish(true) : finishWorkout())}><CheckCheck />Concluir treino</Button>
+              : <Button variant="secondary" size="lg" onClick={() => goTo(openItem! + 1)}>Próximo<ChevronRight /></Button>}
+          </div>
+        </nav>
+      )}
+      <WorkoutComplete ask={feelAsk}
+        onClose={(feel, share) => {
           if (!feelAsk) return;
           if (feel) setHistory((records) => records.map((r) => (r.id === feelAsk.id ? { ...r, feel } : r)));
-          setShare(feelAsk.share);
+          if (share) setShare(feelAsk.share);
           setFeelAsk(null);
         }} />
       <ShareDialog request={share} onClose={() => setShare(null)} />
@@ -1326,19 +1404,19 @@ function SessionCompare({ previous, previousTotal, currentTotal, dayName, finish
     <section className="rounded-3xl border-2 border-primary bg-card p-4">
       <h2 className="font-display text-lg font-bold">Peso total da sessão</h2>
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-muted/60 p-3">
-          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sessão anterior</div>
+        <div className="rounded-2xl bg-muted p-3">
+          <div className="type-overline text-muted-foreground">Sessão anterior</div>
           <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{previousTotal > 0 ? formatKg(previousTotal) : "—"}</div>
           <div className="mt-1 text-xs text-muted-foreground">{previous ? `${dayName} · ${formatDate(previous.date)}` : "primeira vez"}</div>
         </div>
-        <div className="rounded-2xl bg-primary p-3 text-primary-foreground">
-          <div className="text-xs font-bold uppercase tracking-wider opacity-75">{finished ? "Sessão de hoje" : "Sessão atual"}</div>
+        <div className="rounded-2xl border border-brand-line bg-brand-soft p-3">
+          <div className="type-overline text-accent">{finished ? "Sessão de hoje" : "Sessão atual"}</div>
           <div className="mt-1 font-display text-2xl font-extrabold leading-none tabular-nums">{formatKg(currentTotal)}</div>
-          <div className="mt-1 text-xs opacity-75">{finished ? "concluída" : "até agora"}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{finished ? "concluída" : "até agora"}</div>
         </div>
       </div>
       {previousTotal > 0 && currentTotal > 0 && (
-        <p className={`mt-3 text-center text-sm font-bold ${diff >= 0 ? "text-[#3f9d6b]" : "text-muted-foreground"}`}>
+        <p className={`mt-3 text-center text-sm font-bold ${diff >= 0 ? "text-success-text" : "text-muted-foreground"}`}>
           {diff === 0 ? "Igual à sessão anterior" : diff > 0 ? `${formatDiff(diff)}${pct ? ` (+${pct}%)` : ""} em relação à sessão anterior` : `Faltam ${kgNumber(-diff)} kg para igualar a sessão anterior`}
         </p>
       )}
@@ -1425,12 +1503,32 @@ function useRestLeft(endsAt: number | null, next: string, onDone: () => void, vo
 }
 
 /** The sets of an exercise as numbered circles: done, the one up next, still to do. */
+/**
+ * In the sticky workout bar: the rest left, visible wherever the screen is scrolled. Display only: the rest itself
+ * (its end, the notice and the voice) is run by the exercise card. A tap goes to that exercise.
+ */
+function RestChip({ endsAt, item }: { endsAt: number; item: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const left = endsAt - now;
+  if (left <= 0) return null;
+  return (
+    <a href={`#exercicio-${item}`} className="flex min-h-11 shrink-0 flex-col items-end justify-center rounded-2xl bg-brand-soft px-3 py-1 animate-fade-up" aria-label={`Descanso: ${formatDuration(left + 999)}`}>
+      <span className="type-overline text-accent">Descanso</span>
+      <span className="type-number text-xl leading-tight text-accent" role="timer">{formatDuration(left + 999)}</span>
+    </a>
+  );
+}
+
 function SetDots({ total, done, dark }: { total: number; done: number; dark?: boolean }) {
   return (
     <div className="flex flex-wrap gap-1.5" role="img" aria-label={`${done} de ${total} séries feitas`}>
       {Array.from({ length: total }, (_, s) => (
         <span key={s} className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${
-          s < done ? "bg-[#3f9d6b] text-white"
+          s < done ? "bg-success text-on-brand"
             : s === done ? "border-[3px] border-accent"
               : dark ? "border-2 border-primary-foreground/40 opacity-85" : "border-2 border-dashed border-border text-muted-foreground"}`}>
           {s < done ? <Check className="h-4 w-4" strokeWidth={3} /> : s + 1}
@@ -1451,9 +1549,9 @@ function SetsRing({ total, done }: { total: number; done: number }) {
     <span className="relative grid h-10 w-10 shrink-0 place-items-center" role="img" aria-label={`${done} de ${total} séries feitas`}>
       <svg viewBox="0 0 40 40" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
         <circle cx="20" cy="20" r={r} fill="none" strokeWidth="4.5" className="stroke-muted" strokeDasharray={`${seg} ${gap}`} />
-        <circle cx="20" cy="20" r={r} fill="none" strokeWidth="4.5" className="stroke-[#3f9d6b]" strokeDasharray={fill} />
+        <circle cx="20" cy="20" r={r} fill="none" strokeWidth="4.5" className="stroke-success" strokeDasharray={fill} />
       </svg>
-      <span className="text-[11px] font-bold tabular-nums">{done}/{total}</span>
+      <span className="text-xs font-bold tabular-nums">{done}/{total}</span>
     </span>
   );
 }
@@ -1496,11 +1594,11 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
   const canComplete = !!onComplete && !resting;
   const c = RING_BOX / 2;
   return (
-    <div className="mt-3 rounded-3xl bg-muted/50 p-2">
+    <div data-sets-ring className="mt-3 rounded-3xl bg-muted/60 p-2">
       <div className="relative mx-auto aspect-square w-full max-w-[340px]">
         <svg viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
           <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-border" strokeDasharray={pieces(total).replace(` 0 ${OUTER_C}`, "")} />
-          <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-[#3f9d6b] transition-all duration-300" strokeDasharray={pieces(done)} />
+          <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-success transition-all duration-300" strokeDasharray={pieces(done)} />
           {/* The set up next, only on the workout being done (a workout to look at has no "next"). */}
           {!allDone && live && (
             <circle cx={c} cy={c} r={OUTER_R} fill="none" strokeWidth="18" className="stroke-accent opacity-60" strokeDasharray={`${seg} ${OUTER_C}`} strokeDashoffset={-done * (seg + gap)} />
@@ -1511,20 +1609,20 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
           <span className="sr-only">{`${done} de ${total} séries feitas${resting ? `, descanso restante ${time}` : ""}`}</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
             {resting ? "Descanso" : allDone ? "Concluído" : canComplete ? `Série ${done + 1} de ${total}` : "Séries"}
           </span>
-          <span className={`font-display font-extrabold leading-none tabular-nums ${canComplete ? "text-3xl" : "text-4xl"} ${resting ? "text-[#c2581b] dark:text-accent" : ""}`}
+          <span className={`font-display font-extrabold leading-none tabular-nums ${canComplete ? "text-3xl" : "text-5xl"} ${resting ? "text-accent" : ""}`}
             role={resting ? "timer" : undefined} aria-hidden={!resting}>
             {resting ? time : `${done}/${total}`}
           </span>
           {canComplete && (
             <>
               <button type="button" onClick={onComplete} aria-label={`Concluir série ${done + 1}${completeHint ? `, ${completeHint}` : ""}`}
-                className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm">
-                <Check className="h-4 w-4" />Concluir
+                className="mt-1 inline-flex min-h-14 items-center gap-2 rounded-full bg-primary px-6 font-display text-lg font-bold text-primary-foreground shadow-md hover:bg-brand-hover">
+                <Check className="h-5 w-5" strokeWidth={3} />Concluir
               </button>
-              {completeHint && <span className="text-[11px] font-semibold text-muted-foreground tabular-nums" aria-hidden>{completeHint}</span>}
+              {completeHint && <span className="text-xs font-semibold text-muted-foreground tabular-nums" aria-hidden>{completeHint}</span>}
             </>
           )}
         </div>
@@ -1535,12 +1633,12 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
             const now = live && s === done && !allDone;
             return (
               <li key={s} className={`absolute w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-2xl px-1.5 py-1 text-center tabular-nums ${
-                isDone ? "bg-[#3f9d6b]/15" : now ? "border-2 border-accent bg-accent/10" : "bg-card"}`}
+                isDone ? "bg-success/15 animate-pop" : now ? "border-2 border-brand bg-card shadow-sm" : "bg-card"}`}
                 style={{ left: `${((c + LABEL_R * Math.sin(angle)) / RING_BOX) * 100}%`, top: `${((c - LABEL_R * Math.cos(angle)) / RING_BOX) * 100}%` }}>
-                <span className={`block text-[10px] font-bold uppercase tracking-wide ${isDone ? "text-[#2f7d54] dark:text-[#7fd1a4]" : "text-muted-foreground"}`}>
+                <span className={`block text-xs font-bold uppercase tracking-wide ${isDone ? "text-success-text" : "text-muted-foreground"}`}>
                   Série {s + 1}{isDone ? " ✓" : ""}{now && <span className="sr-only"> (agora)</span>}
                 </span>
-                <span className={`block text-[13px] font-extrabold leading-tight ${isDone ? "text-[#2f7d54] dark:text-[#7fd1a4]" : now ? "" : "text-muted-foreground"}`}>{value}</span>
+                <span className={`block text-sm font-extrabold leading-tight ${isDone ? "text-success-text" : now ? "" : "text-muted-foreground"}`}>{value}</span>
               </li>
             );
           })}
@@ -1549,11 +1647,11 @@ function SetsAndRest({ total, done, labels, caption, onComplete, completeHint, r
       {resting && (
         <div className="mt-1 flex justify-center gap-2 pb-1">
           <button type="button" onClick={() => onVoice(!voice)} aria-pressed={voice} aria-label={voice ? "Desligar a voz" : "Ligar a voz"}
-            className={`grid h-11 w-11 place-items-center rounded-full border border-input bg-card ${voice ? "" : "text-muted-foreground"}`}>
+            className={`grid h-12 w-12 place-items-center rounded-full border border-input bg-card ${voice ? "" : "text-muted-foreground"}`}>
             {voice ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
-          <button type="button" onClick={() => onAdd(15)} className="min-h-11 rounded-full border border-input bg-card px-4 text-sm font-bold">+15s</button>
-          <button type="button" onClick={onSkip} className="min-h-11 rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground">Pular descanso</button>
+          <button type="button" onClick={() => onAdd(15)} className="min-h-12 rounded-full border border-input bg-card px-5 text-sm font-bold tabular-nums">+15s</button>
+          <button type="button" onClick={onSkip} className="min-h-12 rounded-full bg-primary px-6 text-sm font-bold text-primary-foreground">Pular descanso</button>
         </div>
       )}
       {caption && <p className="pb-1 text-center text-xs text-muted-foreground">{caption}</p>}
@@ -1595,14 +1693,14 @@ function HoldTimer({ label, seconds, suggested, endsAt, onChange, onStart, onCan
 
   if (running) {
     return (
-      <div className="mt-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
-        <div className="text-xs font-bold uppercase tracking-wider text-accent">{label} · segure</div>
-        <div className="font-display text-5xl font-extrabold leading-tight tabular-nums text-accent" role="timer" aria-label="Tempo restante da série">{formatDuration(left + 999)}</div>
+      <div className="mt-3 rounded-2xl border border-brand-line bg-brand-soft px-4 py-3">
+        <div className="type-overline text-accent">{label} · segure</div>
+        <div className="type-number text-5xl leading-tight text-foreground" role="timer" aria-label="Tempo restante da série">{formatDuration(left + 999)}</div>
         <div className="mt-2 flex gap-2">
-          <button type="button" onClick={onFinish} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent px-4 text-sm font-bold text-accent-foreground">
-            <Check className="h-4 w-4" />Concluir série
+          <button type="button" onClick={onFinish} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 text-base font-bold text-primary-foreground">
+            <Check className="h-5 w-5" />Concluir série
           </button>
-          <button type="button" onClick={onCancel} className="min-h-11 rounded-full border border-primary-foreground/30 px-4 text-sm font-semibold">Cancelar</button>
+          <button type="button" onClick={onCancel} className="min-h-12 rounded-full border border-input bg-card px-4 text-sm font-semibold">Cancelar</button>
         </div>
       </div>
     );
@@ -1648,23 +1746,76 @@ function nextInLine(pending: number[], later: number[] | undefined, from: number
 }
 
 const FEELS = [5, 4, 3, 2, 1] as const;
+const FOCUS_KEY = "forma.focus";
 
-/** Asked once the workout is saved; the answer goes into the record and feeds the day and week reviews. */
-function FeelDialog({ ask, onAnswer }: { ask: { dayName: string } | null; onAnswer: (feel: WorkoutFeel | null) => void }) {
+/** What the finish screen shows; computed when the workout is saved. */
+type FinishSummary = { durationMs: number | null; setsDone: number; setsPlanned: number; total: number; lastTotal: number; records: string[] };
+
+/**
+ * Full screen right after a workout is saved: time, sets, volume, the records of the day and the comparison with
+ * last time; then "how did it feel?" (goes into the record and feeds the day and week reviews) and sharing.
+ */
+function WorkoutComplete({ ask, onClose }: {
+  ask: { dayName: string; summary: FinishSummary } | null;
+  onClose: (feel: WorkoutFeel | null, share: boolean) => void;
+}) {
+  const [feel, setFeel] = useState<WorkoutFeel | null>(null);
+  useEffect(() => { if (ask) setFeel(null); }, [ask]);
+  const s = ask?.summary;
+  const diff = s && s.lastTotal > 0 && s.total > 0 ? s.total - s.lastTotal : null;
+  const pct = diff !== null && s ? Math.round((diff / s.lastTotal) * 100) : 0;
+  const tonnes = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} t` : `${kgNumber(kg)} kg`);
   return (
-    <Dialog open={!!ask} onOpenChange={(open) => !open && onAnswer(null)}>
-      <DialogContent className="w-[calc(100%-2rem)] rounded-3xl sm:max-w-sm">
-        <DialogHeader><DialogTitle className="font-display text-xl">Como foi o {ask?.dayName}?</DialogTitle></DialogHeader>
-        <p className="-mt-2 text-sm text-muted-foreground">A IA do Fechar o dia e do Resumo da semana cruza isso com o seu sono e com a carga.</p>
-        <div className="grid gap-2">
-          {FEELS.map((n) => (
-            <button key={n} type="button" onClick={() => onAnswer(n)}
-              className="flex min-h-12 items-center gap-3 rounded-2xl border border-input bg-card px-4 text-left font-semibold hover:border-primary">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted font-display font-extrabold tabular-nums">{n}</span>{FEEL_LABEL[n]}
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={() => onAnswer(null)} className="min-h-11 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Pular</button>
+    <Dialog open={!!ask} onOpenChange={(open) => !open && onClose(feel, false)}>
+      <DialogContent className="top-0 left-0 h-[100dvh] max-h-none w-full max-w-none translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-none border-0 bg-background p-0 sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[92dvh] sm:max-w-md sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-3xl sm:border">
+        {ask && s && (
+          <div className="flex min-h-full flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:pt-8">
+            <div className="text-center">
+              <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-brand-soft text-4xl animate-pop" aria-hidden>🏆</span>
+              <p className="type-overline mt-4 text-accent">Treino concluído</p>
+              <DialogTitle className="mt-1 pr-0 text-3xl leading-tight">{ask.dayName}</DialogTitle>
+            </div>
+            <dl className="mt-6 grid grid-cols-3 gap-2">
+              {([["Tempo", s.durationMs !== null ? formatDuration(s.durationMs) : "—"], ["Séries", `${s.setsDone}/${s.setsPlanned}`], ["Volume", s.total > 0 ? tonnes(s.total) : "—"]] as const).map(([label, value]) => (
+                <div key={label} className="rounded-2xl bg-muted px-3 py-3 animate-fade-up">
+                  <dt className="type-overline text-muted-foreground">{label}</dt>
+                  <dd className="type-number mt-0.5 text-xl leading-tight">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {s.records.length > 0 && (
+              <section className="mt-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 animate-fade-up">
+                <p className="type-overline text-warning-text">{s.records.length === 1 ? "Novo recorde" : `${s.records.length} recordes`}</p>
+                <ul className="mt-1 space-y-1 text-sm font-semibold">{s.records.map((r) => <li key={r}>{r}</li>)}</ul>
+              </section>
+            )}
+            {diff !== null && (
+              <section className="mt-3 rounded-2xl surface-card p-4">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="font-semibold">Comparado com a última vez</span>
+                  <b className={diff >= 0 ? "text-success-text" : "text-muted-foreground"}>{formatDiff(diff)}{diff > 0 && pct ? ` (+${pct}%)` : ""}</b>
+                </div>
+                <ProgressBar className="mt-2" value={s.total} max={Math.max(s.total, s.lastTotal)} color={diff >= 0 ? "var(--success)" : "var(--data-5)"} label="Volume comparado com a última vez" />
+              </section>
+            )}
+            <section className="mt-6">
+              <p className="text-sm font-semibold">Como foi?</p>
+              <div role="radiogroup" aria-label="Como foi o treino" className="mt-2 grid grid-cols-5 gap-1.5">
+                {FEELS.map((n) => (
+                  <button key={n} type="button" role="radio" aria-checked={feel === n} onClick={() => setFeel(n)} title={FEEL_LABEL[n]}
+                    className={`flex min-h-14 flex-col items-center justify-center rounded-2xl border text-xs font-semibold ${feel === n ? "border-brand bg-brand-soft text-accent" : "border-input bg-card text-muted-foreground"}`}>
+                    <span className="type-number text-lg text-foreground">{n}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 min-h-5 text-center text-xs text-muted-foreground">{feel ? FEEL_LABEL[feel] : "5 = muito bem · 1 = muito difícil. A IA cruza isso com o sono e a carga."}</p>
+            </section>
+            <div className="mt-auto grid gap-2 pt-6">
+              <Button size="lg" onClick={() => onClose(feel, true)}><Share2 />Compartilhar</Button>
+              <Button size="lg" variant="ghost" onClick={() => onClose(feel, false)}>Fechar</Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -1762,7 +1913,7 @@ function RecordDialog({ records, all, onClose }: { records: WorkoutRecord[] | nu
 function HistoryStat({ label, value, extra }: { label: string; value: string; extra?: ReactNode }) {
   return (
     <div className="min-w-0 rounded-2xl bg-muted/60 px-2.5 py-2">
-      <div className="whitespace-nowrap font-display text-[15px] font-bold leading-tight tabular-nums">{value}</div>
+      <div className="whitespace-nowrap font-display text-sm font-bold leading-tight tabular-nums">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
       {extra && <div className="whitespace-nowrap text-xs font-bold tabular-nums">{extra}</div>}
     </div>
@@ -1792,7 +1943,7 @@ function WorkoutHistory({ records, onDelete, onShare }: { records: WorkoutRecord
           return { r, index, done, planned, total, prs, diff: total > 0 && beforeTotal > 0 ? total - beforeTotal : null };
         }).reverse().map(({ r, index, done, planned, total, prs, diff }) => {
           return (
-            <details key={r.id} className="group rounded-3xl border border-border bg-card px-4 py-3">
+            <details key={r.id} className="group rounded-3xl surface-card px-4 py-3">
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
@@ -1836,7 +1987,7 @@ function WeeklyVolume({ records }: { records: WorkoutRecord[] }) {
   const groups = (Object.keys(GROUP_LABEL) as Group[]).filter((g) => g !== "cardio");
   const pct = (n: number) => `${(Math.min(n, SCALE_SETS) / SCALE_SETS) * 100}%`;
   return (
-    <section className="space-y-3 rounded-3xl border border-border bg-card p-4">
+    <section className="space-y-3 rounded-3xl surface-card p-4">
       <div>
         <h2 className="text-xl font-bold">Séries da semana por músculo</h2>
         <p className="text-xs text-muted-foreground">
@@ -1898,7 +2049,7 @@ function LoadHistory({ points, entries, onDelete }: { points: StrengthPoint[]; e
           {last && (
             <p className="mt-2 text-sm text-muted-foreground">
               Força estimada atual: <b className="text-foreground tabular-nums">{formatKg(last.e1rm!)}</b> para 1 repetição, pela melhor série do último treino ({last.set})
-              {gain !== null && gain !== 0 && <>; <b className={gain > 0 ? "text-[#3f9d6b]" : "text-destructive"}>{gain > 0 ? "+" : "−"}{Math.abs(gain)}%</b> desde {formatDate(first!.date)}</>}.
+              {gain !== null && gain !== 0 && <>; <b className={gain > 0 ? "text-success-text" : "text-destructive"}>{gain > 0 ? "+" : "−"}{Math.abs(gain)}%</b> desde {formatDate(first!.date)}</>}.
             </p>
           )}
           <div className="mt-3 h-52 w-full" aria-label="Gráfico de evolução de carga e força estimada">
@@ -2002,7 +2153,7 @@ function Warmup({ ex, workKg }: { ex: Exercise; workKg: number }) {
             <li key={k}>
               <button type="button" role="checkbox" aria-checked={on} onClick={() => setDone(on ? done.filter((d) => d !== k) : [...done, k])}
                 className={`flex min-h-11 w-full items-center gap-3 text-left text-sm tabular-nums ${on ? "text-muted-foreground line-through" : ""}`}>
-                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${on ? "border-[#3f9d6b] bg-[#3f9d6b] text-white" : "border-border"}`}>{on && <Check className="h-3.5 w-3.5" />}</span>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${on ? "border-success bg-success text-on-brand" : "border-border"}`}>{on && <Check className="h-3.5 w-3.5" />}</span>
                 <span className="flex-1">{s.kg === barKg(ex) ? `Barra vazia (${kgNumber(s.kg)} kg)` : formatKg(s.kg)}</span>
                 <span className="font-semibold">× {s.reps}</span>
               </button>
@@ -2047,7 +2198,7 @@ function RecoveryCard({ records, dayGroups, dayName }: { records: WorkoutRecord[
       ? `${names(almostToday)} ${almostToday.length === 1 ? "está quase pronto" : "estão quase prontos"} para o ${dayName}`
       : resting > 0 ? `${resting} ${resting === 1 ? "músculo ainda se recupera" : "músculos ainda se recuperam"}, nenhum do ${dayName}` : "Todos os músculos treinados estão recuperados";
   return (
-    <details className="group rounded-3xl border border-border bg-card px-4 py-3">
+    <details className="group rounded-3xl surface-card px-4 py-3">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Recuperação dos músculos</span>
@@ -2061,7 +2212,7 @@ function RecoveryCard({ records, dayGroups, dayName }: { records: WorkoutRecord[
           {list.map(([g, v]) => (
             <li key={g} className="flex items-center justify-between gap-3 py-1.5">
               <span className="inline-flex min-w-0 items-center gap-2">
-                <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${v.state === "pronto" ? "bg-[#3f9d6b]" : v.state === "recuperando" ? "bg-accent/45" : "bg-accent"}`} aria-hidden />
+                <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${v.state === "pronto" ? "bg-success" : v.state === "recuperando" ? "bg-accent/45" : "bg-accent"}`} aria-hidden />
                 <span className="truncate">{GROUP_LABEL[g]}</span>
               </span>
               <span className="shrink-0 text-right text-xs text-muted-foreground"><b className="text-foreground">{RECOVERY_LABEL[v.state]}</b> · há {v.hours < 48 ? `${v.hours} h` : `${Math.round(v.hours / 24)} dias`}</span>
@@ -2080,7 +2231,7 @@ function IntensityBars({ current, small = false }: { current: number; small?: bo
     <div className={`flex items-end gap-1 ${small ? "h-8" : "h-12"}`} role="img" aria-label={`Intensidade da semana ${current}: ${PROGRAM_WEEKS[current - 1]!.pct}%`}>
       {PROGRAM_WEEKS.map((w, i) => (
         <span key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
-          {!small && <span className={`text-[10px] tabular-nums ${i + 1 === current ? "font-bold text-foreground" : "text-muted-foreground"}`}>{w.pct}%</span>}
+          {!small && <span className={`text-xs tabular-nums ${i + 1 === current ? "font-bold text-foreground" : "text-muted-foreground"}`}>{w.pct}%</span>}
           <span className={`w-full rounded-sm ${i + 1 === current ? "bg-accent" : "bg-muted"}`} style={{ height: `${(w.pct / 65) * (small ? 28 : 26)}px` }} />
         </span>
       ))}
@@ -2106,7 +2257,7 @@ function ProgramCard({ plan, history, days, nextIdx, lockedToday }: { plan: Plan
     return { n, ...w, start, done, planned, missed: n < now.week ? Math.max(0, days - done.length) : 0 };
   });
   return (
-    <details className="group rounded-3xl border border-border bg-card px-4 py-3">
+    <details className="group rounded-3xl surface-card px-4 py-3">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Ciclo {now.cycle} · semana {now.week} de {CYCLE_WEEKS}</span>
@@ -2128,12 +2279,12 @@ function ProgramCard({ plan, history, days, nextIdx, lockedToday }: { plan: Plan
             <div className="mt-1"><IntensityBars current={w.n} /></div>
             <ul className="mt-2 space-y-2">
               {w.done.map((r) => (
-                <li key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#3f9d6b] px-3 py-2">
+                <li key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border-2 border-success px-3 py-2">
                   <span className="min-w-0">
                     <span className="block font-bold leading-tight">{r.dayName}</span>
                     <span className="block text-xs tabular-nums text-muted-foreground">{formatDate(r.date)}{recordTotal(r) > 0 ? ` · peso total ${formatKg(recordTotal(r))}` : ""}</span>
                   </span>
-                  <Check className="h-5 w-5 shrink-0 text-[#3f9d6b]" aria-label="concluído" />
+                  <Check className="h-5 w-5 shrink-0 text-success-text" aria-label="concluído" />
                 </li>
               ))}
               {w.planned.map((name, k) => {
@@ -2141,7 +2292,7 @@ function ProgramCard({ plan, history, days, nextIdx, lockedToday }: { plan: Plan
                 return (
                   <li key={`p${k}`} className={`flex items-center justify-between gap-3 rounded-2xl border-2 px-3 py-2 ${isNext ? "border-accent" : "border-border text-muted-foreground"}`}>
                     <span className="font-bold leading-tight">{name}</span>
-                    {isNext && <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold uppercase text-accent-foreground">Próximo treino</span>}
+                    {isNext && <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold uppercase text-accent-foreground">Próximo treino</span>}
                   </li>
                 );
               })}

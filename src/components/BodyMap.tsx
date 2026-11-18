@@ -28,7 +28,7 @@ function musclesOfExercise(id: string): Muscle[] {
 }
 
 // Recovery colors by frequency: 1 = ready (green), 2 = recovering (light orange), 3 = tired (orange).
-const RECOVERY_COLORS = ["#3f9d6b", "color-mix(in oklch, var(--accent) 45%, var(--card))", "var(--accent)"];
+const RECOVERY_COLORS = ["var(--success)", "color-mix(in srgb, var(--warning) 55%, var(--card))", "var(--warning)"];
 const RECOVERY_LEVEL: Record<Recovery, number> = { pronto: 1, recuperando: 2, cansado: 3 };
 
 /** Front and back of a body with each muscle trained in the last week painted by how rested it is. */
@@ -42,7 +42,7 @@ export function RecoveryMap({ groups, className = "" }: { groups: Partial<Record
         <Model type={type} data={data} bodyColor="var(--body-map)" highlightedColors={RECOVERY_COLORS}
           svgStyle={{ width: "100%", height: "auto", cursor: "default" }} />
       </div>
-      <figcaption className="text-[11px] font-semibold text-muted-foreground">{label}</figcaption>
+      <figcaption className="text-xs font-semibold text-muted-foreground">{label}</figcaption>
     </figure>
   );
   return (
@@ -72,7 +72,7 @@ export function BodyMap({ exIds, focus, size = "md", className = "" }: { exIds: 
         <Model type={type} data={data} bodyColor="var(--body-map)" highlightedColors={COLORS}
           svgStyle={{ width: "100%", height: "auto", cursor: "default" }} />
       </div>
-      {size === "md" && <figcaption className="text-[11px] font-semibold text-muted-foreground">{label}</figcaption>}
+      {size === "md" && <figcaption className="text-xs font-semibold text-muted-foreground">{label}</figcaption>}
     </figure>
   );
   return (

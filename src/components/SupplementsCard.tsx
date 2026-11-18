@@ -45,7 +45,7 @@ export function SupplementsCard({ date }: { date: string }) {
   const untake = (s: Supplement) => setFoods((fs) => fs.filter((f) => !(f.date === date && f.suppId === s.id)));
 
   return (
-    <section id="suplementos" className="scroll-mt-24 rounded-3xl border border-border bg-card p-5">
+    <section id="suplementos" className="scroll-mt-24 rounded-3xl surface-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <Pill className="h-5 w-5 text-accent" />
@@ -239,10 +239,10 @@ function SupplementDialog({ value, onClose, onSave, onDelete }: {
           ) : daily ? (
             <>
               <Button type="button" variant="secondary" onClick={() => submit(false)} className="rounded-full">Só salvar na rotina</Button>
-              <Button type="button" onClick={() => submit(true)} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Salvar e marcar hoje</Button>
+              <Button type="button" onClick={() => submit(true)} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Salvar e marcar hoje</Button>
             </>
           ) : (
-            <Button type="button" onClick={() => submit(true)} className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Adicionar hoje</Button>
+            <Button type="button" onClick={() => submit(true)} className="min-h-11 rounded-full bg-accent text-accent-foreground hover:bg-accent/90">Adicionar hoje</Button>
           )}
         </div>
       </DialogContent>

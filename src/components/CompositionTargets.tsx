@@ -16,7 +16,7 @@ export function CompositionTargets({ entry, profile, onApply }: { entry: BodyEnt
   if (inUse) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border p-3 text-sm">
-        <span className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[#3f9d6b]" aria-hidden />Seus objetivos diários já usam esta medição.</span>
+        <span className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-success-text" aria-hidden />Seus objetivos diários já usam esta medição.</span>
         <button type="button" onClick={() => onApply({ ...profile, composition: undefined })} className="min-h-11 font-semibold underline underline-offset-4">
           Voltar ao cálculo só pelo peso
         </button>

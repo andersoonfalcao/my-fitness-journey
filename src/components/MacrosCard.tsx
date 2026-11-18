@@ -8,9 +8,9 @@ type Targets = ReturnType<typeof targets>;
 type Key = "c" | "f" | "p";
 
 const MACROS: { key: Key; name: string; color: string; target: (t: Targets) => number }[] = [
-  { key: "p", name: "Proteína", color: "var(--chart-2)", target: (t) => t.protein },
-  { key: "c", name: "Carboidratos", color: "var(--chart-1)", target: (t) => t.carbs },
-  { key: "f", name: "Gorduras", color: "var(--chart-3)", target: (t) => t.fat },
+  { key: "p", name: "Proteína", color: "var(--data-protein)", target: (t) => t.protein },
+  { key: "c", name: "Carboidratos", color: "var(--data-carbs)", target: (t) => t.carbs },
+  { key: "f", name: "Gorduras", color: "var(--data-fat)", target: (t) => t.fat },
 ];
 // Day initials in pt-BR, Sunday first (Date.getDay order).
 const INITIALS = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -55,7 +55,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
   const todayTotals = totals[6]!;
 
   return (
-    <section className={`rounded-3xl border border-border bg-card p-4 sm:p-5 ${className}`}>
+    <section className={`rounded-3xl surface-card p-4 sm:p-5 ${className}`}>
       <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center justify-between gap-2 text-left" aria-haspopup="dialog">
         <h2 className="font-display text-xl font-bold">Macros</h2>
         <span className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">
@@ -85,7 +85,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
                         <div className="absolute inset-x-0 bottom-0 rounded-full transition-all" style={{ height: `${pct}%`, background: m.color }} />
                         {over && <div className="absolute inset-x-0 top-0 h-1.5 bg-foreground/60" />}
                       </div>
-                      <span className={`text-[11px] ${isEnd ? "font-extrabold text-foreground" : "text-muted-foreground"}`}>{d.initial}</span>
+                      <span className={`text-xs ${isEnd ? "font-extrabold text-foreground" : "text-muted-foreground"}`}>{d.initial}</span>
                     </div>
                   );
                 })}
@@ -109,7 +109,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
           </div>
           <table className="mt-2 w-full text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <th className="py-1 font-bold">Dia</th>
                 <th className="py-1 text-right font-bold">kcal</th>
                 {MACROS.map((m) => <th key={m.key} className="py-1 text-right font-bold" style={{ color: m.color }}>{m.name.slice(0, 4)}.</th>)}

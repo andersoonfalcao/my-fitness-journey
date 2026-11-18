@@ -34,7 +34,7 @@ export function FitnessCard({ profile }: { profile: Profile }) {
     </div>
   );
   return (
-    <section id="condicionamento" className="scroll-mt-24 space-y-4 rounded-3xl border border-border bg-card p-4 sm:p-6">
+    <section id="condicionamento" className="scroll-mt-24 space-y-4 rounded-3xl surface-card p-4 sm:p-6">
       <div className="px-2 sm:px-0">
         <h2 className="flex items-center gap-2 text-2xl font-bold"><HeartPulse className="h-6 w-6 text-accent" aria-hidden />Condicionamento</h2>
         <p className="text-sm text-muted-foreground">Pela sua idade ({profile.age} anos) e pelo batimento em repouso {measured ? "da Mi Band (média de 7 dias)" : "estimado: a Mi Band ainda não mandou"}.</p>

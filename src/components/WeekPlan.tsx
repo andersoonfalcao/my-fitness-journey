@@ -97,7 +97,7 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
   };
 
   return (
-    <section className="-mx-2 rounded-3xl border border-border bg-card px-1.5 py-3 sm:mx-0 sm:p-4">
+    <section className="-mx-2 rounded-3xl surface-card px-1.5 py-3 sm:mx-0 sm:p-4">
       <div className="flex items-center justify-between gap-2 px-2">
         <div>
           <h2 className="font-display text-lg font-bold">Sua semana</h2>
@@ -125,8 +125,8 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
           const dayName = cell.kind === "done" ? cell.records.map((r) => r.dayName).join(" + ") : cell.kind === "planned" ? plan.days[cell.idx]!.name : "";
           const tone = editing
             ? c.training ? "border-primary bg-primary/10" : "border-dashed border-border"
-            : cell.kind === "done" && c.today && todaySelected ? "border-[#3f9d6b] bg-[#3f9d6b]/10 ring-2 ring-[#3f9d6b] ring-offset-2 ring-offset-card"
-            : cell.kind === "done" || cell.kind === "cardio" ? "border-[#3f9d6b] bg-[#3f9d6b]/10"
+            : cell.kind === "done" && c.today && todaySelected ? "border-success bg-success/10 ring-2 ring-success ring-offset-2 ring-offset-card"
+            : cell.kind === "done" || cell.kind === "cardio" ? "border-success bg-success/10"
             : cell.kind === "missed" ? "border-border bg-muted/50"
             : cell.kind === "planned" ? selected ? "border-primary bg-primary text-primary-foreground" : c.today ? "border-accent bg-accent/10" : "border-border bg-card"
             : c.today ? "border-accent/60 bg-muted/40" : "border-transparent bg-muted/40";
@@ -147,7 +147,7 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
               <span className={`text-xs font-bold uppercase tracking-wide ${c.today ? "text-accent" : "opacity-70"}`}>{c.today ? "Hoje" : WEEKDAYS[c.w]}</span>
               <span className="text-xs tabular-nums opacity-70">{c.dateText}</span>
               <span className="mt-2 text-muted-foreground">{cell.kind === "missed" ? <X className="h-5 w-5" aria-hidden /> : <Moon className="h-5 w-5" aria-hidden />}</span>
-              <span className="text-[11px] font-semibold leading-tight text-muted-foreground">{cell.kind === "missed" ? "Sem treino" : "Descanso"}</span>
+              <span className="text-xs font-semibold leading-tight text-muted-foreground">{cell.kind === "missed" ? "Sem treino" : "Descanso"}</span>
             </span>
           ) : (
             <>
@@ -160,14 +160,14 @@ export function WeekPlan({ plan, history, cardio = {}, nextIdx, trainingDays, ac
                   : cell.kind === "done" || cell.kind === "planned" ? (
                     <>
                       <span className="flex items-center gap-1 font-display text-base font-extrabold leading-tight">
-                        {cell.kind === "done" && <Check className="h-4 w-4 shrink-0 text-[#3f9d6b]" aria-hidden />}{dayName}
+                        {cell.kind === "done" && <Check className="h-4 w-4 shrink-0 text-success-text" aria-hidden />}{dayName}
                       </span>
                       {muscles.map((m) => <span key={m} className="block text-xs font-semibold leading-tight opacity-80">{m}</span>)}
                     </>
                   )
                   : cell.kind === "cardio" ? (
                     <>
-                      <span className="flex items-center gap-1 font-display text-base font-extrabold leading-tight"><Check className="h-4 w-4 shrink-0 text-[#3f9d6b]" aria-hidden />Cardio</span>
+                      <span className="flex items-center gap-1 font-display text-base font-extrabold leading-tight"><Check className="h-4 w-4 shrink-0 text-success-text" aria-hidden />Cardio</span>
                       {[...new Set(cell.names)].map((n) => <span key={n} className="block text-xs font-semibold leading-tight opacity-80">{n}</span>)}
                     </>
                   )

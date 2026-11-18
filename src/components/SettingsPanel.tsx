@@ -10,7 +10,7 @@ import { CLOSED_TEST_SECONDS, disablePush, enablePush, sendClosedAppTest, sendTe
 const RESTS = [30, 45, 60, 75, 90, 120, 150, 180];
 const restLabel = (s: number) => (s < 60 ? `${s} segundos` : s % 60 === 0 ? `${s / 60} min` : `${Math.floor(s / 60)} min ${s % 60}s`);
 
-const CARD = "rounded-3xl border border-border bg-card p-5 sm:p-6";
+const CARD = "rounded-3xl surface-card p-5 sm:p-6";
 
 /** Treino: rest between sets (Configurações). */
 export function RestSetting() {
@@ -61,13 +61,13 @@ export function NotificationSettings() {
   return (
     <section className={`space-y-4 ${CARD}`}>
       <div className="flex items-start gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${subscribed ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${subscribed ? "bg-success/15 text-success-text" : "bg-muted text-muted-foreground"}`}>
           {subscribed ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-bold">Notificações</h3>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${subscribed ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${subscribed ? "bg-success/15 text-success-text" : "bg-muted text-muted-foreground"}`}>
               {subscribed ? "Ativadas" : state === "broken" ? "Pararam" : state === "blocked" ? "Bloqueadas" : "Desativadas"}
             </span>
           </div>

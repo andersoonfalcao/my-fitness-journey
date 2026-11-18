@@ -1,6 +1,8 @@
+import { EmptyState } from "@/components/ui/empty-state";
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { FileUp, Loader2, Trash2 } from "lucide-react";
+import { Activity, FileUp, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BodyMeasures } from "@/components/BodyMeasures";
@@ -44,12 +46,12 @@ const parse = (s: string) => {
 
 /** WHO BMI ranges for adults. */
 const BMI_RANGES = [
-  { max: 18.5, label: "Abaixo do peso", color: "#4fb3c9" },
-  { max: 25, label: "Peso normal", color: "#3f9d6b" },
-  { max: 30, label: "Sobrepeso", color: "#f2b84b" },
-  { max: 35, label: "Obesidade grau I", color: "#ee7b2c" },
-  { max: 40, label: "Obesidade grau II", color: "#e0582a" },
-  { max: Infinity, label: "Obesidade grau III", color: "#c43d2b" },
+  { max: 18.5, label: "Abaixo do peso", color: "var(--info)" },
+  { max: 25, label: "Peso normal", color: "var(--success)" },
+  { max: 30, label: "Sobrepeso", color: "var(--warning)" },
+  { max: 35, label: "Obesidade grau I", color: "color-mix(in srgb, var(--warning) 50%, var(--danger))" },
+  { max: 40, label: "Obesidade grau II", color: "var(--danger)" },
+  { max: Infinity, label: "Obesidade grau III", color: "color-mix(in srgb, var(--danger) 75%, var(--text))" },
 ];
 
 /** Bioimpedance fields: key, label, unit, whether a lower value is the better direction (null = neutral). */
@@ -82,7 +84,7 @@ function CorpoPage() {
   const [savedDate, setSavedDate] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
 
   const sorted = weightTrend(weights);
@@ -195,7 +197,7 @@ function CorpoPage() {
 
       <WeightPace profile={profile} />
 
-      <section className="rounded-3xl border border-border bg-card p-6">
+      <section className="rounded-3xl surface-card p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="text-sm text-muted-foreground">IMC atual</div>
@@ -213,7 +215,7 @@ function CorpoPage() {
           </div>
           <div className="absolute -top-1 h-5 w-5 -translate-x-1/2 rounded-full border-4 border-card shadow" style={{ left: `${pos}%`, background: range.color }} />
         </div>
-        <div className="relative mt-1 h-4 text-[11px] text-muted-foreground tabular-nums">
+        <div className="relative mt-1 h-4 text-xs text-muted-foreground tabular-nums">
           {[18.5, 25, 30, 35, 40].map((v) => (
             <span key={v} className="absolute -translate-x-1/2" style={{ left: `${((v - 15) / 27) * 100}%` }}>{num(v)}</span>
           ))}
@@ -224,7 +226,7 @@ function CorpoPage() {
         </p>
       </section>
 
-      <section id="evolucao" className="scroll-mt-24 rounded-3xl border border-border bg-card p-4 sm:p-6">
+      <section id="evolucao" className="scroll-mt-24 rounded-3xl surface-card p-4 sm:p-6">
         <h2 className="mb-3 px-2 text-lg font-bold sm:px-0">Evolução do peso</h2>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -264,9 +266,9 @@ function CorpoPage() {
         </ul>
       </section>
 
-      <section className="space-y-5 rounded-3xl border border-border bg-card p-6">
+      <section className="space-y-5 rounded-3xl surface-card p-6">
         <h2 className="text-2xl font-bold">Bioimpedância</h2>
-        {!latest && <p className="text-sm text-muted-foreground">Nenhuma medição ainda. Registre na aba Registrar.</p>}
+        {!latest && <EmptyState compact icon={Activity} title="Nenhuma medição ainda">Registre a bioimpedância na aba Registrar para acompanhar gordura e massa magra.</EmptyState>}
 
         {latest && (
           <div>
@@ -285,7 +287,7 @@ function CorpoPage() {
                     <div className="flex items-baseline justify-between gap-1">
                       <span className="whitespace-nowrap font-display text-lg font-bold leading-tight tabular-nums">{val(f.key, now)} <span className="text-sm">{f.unit}</span></span>
                       {diff !== null && diff !== 0 && (
-                        <b className={`whitespace-nowrap text-xs tabular-nums ${good === null ? "text-muted-foreground" : good ? "text-[#3f9d6b]" : "text-destructive"}`}>{diff > 0 ? "+" : ""}{val(f.key, diff)}</b>
+                        <b className={`whitespace-nowrap text-xs tabular-nums ${good === null ? "text-muted-foreground" : good ? "text-success-text" : "text-destructive"}`}>{diff > 0 ? "+" : ""}{val(f.key, diff)}</b>
                       )}
                     </div>
                     <div className="text-xs leading-tight text-muted-foreground">{f.label}</div>
@@ -345,7 +347,7 @@ function CorpoPage() {
 
       <FitnessCard profile={profile} />
       </>) : (<>
-      <section id="pesagem" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
+      <section id="pesagem" className="scroll-mt-24 rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">Pesagem</h2>
         <p className="text-sm text-muted-foreground">
           {sorted.length ? <>Última: <b className="text-foreground">{fmtKg(last)} kg</b> em {new Date(sorted.at(-1)!.date + "T12:00").toLocaleDateString("pt-BR")}</> : "Nenhuma pesagem ainda."}
@@ -362,7 +364,7 @@ function CorpoPage() {
         </div>
       </section>
 
-      <section id="bioimpedancia" className="scroll-mt-24 rounded-3xl border border-border bg-card p-6">
+      <section id="bioimpedancia" className="scroll-mt-24 rounded-3xl surface-card p-6">
         <h2 className="text-xl font-bold">Bioimpedância</h2>
         <p className="text-sm text-muted-foreground">
           Envie a foto ou o PDF do laudo para a IA preencher os números, ou copie da balança. Preencha só o que ela mostrar.
@@ -390,7 +392,7 @@ function CorpoPage() {
             </label>
           ))}
         </div>
-        <button onClick={addBio} disabled={reading} className="mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground disabled:opacity-60">Salvar medição</button>
+        <button onClick={addBio} disabled={reading} className="min-h-11 mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground disabled:opacity-60">Salvar medição</button>
         {savedDate && (() => {
           const saved = body.find((b) => b.date === savedDate);
           return saved ? (
@@ -415,7 +417,7 @@ function CorpoPage() {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="min-w-0 rounded-3xl border border-border bg-card p-3 sm:p-5">
+    <div className="min-w-0 rounded-3xl surface-card p-3 sm:p-5">
       <div className="text-xs text-muted-foreground sm:text-sm">{label}</div>
       <div className="whitespace-nowrap font-display text-lg font-extrabold leading-tight sm:text-3xl">{value}</div>
       {sub && <div className="whitespace-nowrap text-xs font-semibold text-accent sm:text-sm">{sub}</div>}

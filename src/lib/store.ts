@@ -32,6 +32,14 @@ export function useLocal<T>(key: string, fallback: T) {
   return [value, update, ready] as const;
 }
 
+/** Writes any key of the account (for documents created on the fly, like one per progress photo). */
+export function useWriteKey() {
+  const userId = useAuth().user?.uid;
+  return useCallback((key: string, value: unknown) => {
+    if (userId) writeCloud(userId, key, value);
+  }, [userId]);
+}
+
 const byMonth = (records: WorkoutRecord[]) => {
   const months = new Map<string, WorkoutRecord[]>();
   for (const r of records) months.set(r.date.slice(0, 7), [...(months.get(r.date.slice(0, 7)) ?? []), r]);

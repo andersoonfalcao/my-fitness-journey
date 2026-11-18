@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Share2, Trophy, X } from "lucide-react";
@@ -47,7 +48,7 @@ function MonthPage() {
   const health = useTwo<HealthMonth>(healthKey, month, {}, (a, b) => ({ ...a, ...b }));
   const [share, setShare] = useState<ShareRequest | null>(null);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
   const t = targets(profile);
   const inputs = { foods, water, weights, history, strava: [...synced, ...waiting.map(cardioAsActivity)], health, targets: { kcal: t.kcal, waterMl: t.waterMl } };
@@ -88,7 +89,7 @@ function MonthPage() {
         <button type="button" onClick={() => go(1)} disabled={current} aria-label="Próximo mês" className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-card disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
       </div>
 
-      <section className="rounded-3xl bg-primary p-6 text-primary-foreground">
+      <section className="rounded-3xl border border-brand-line bg-card bg-[linear-gradient(160deg,var(--accent-soft),transparent_70%)] p-6 shadow-sm">
         <p className="text-sm opacity-80">{s.volumeKg ? "Peso total levantado" : "Treinos no mês"}</p>
         <p className="font-display text-5xl font-extrabold tabular-nums leading-tight">{s.volumeKg ? `${n(s.volumeKg)} kg` : s.workouts}</p>
         <p className="mt-1 text-sm opacity-80">
@@ -107,10 +108,10 @@ function MonthPage() {
         ))}
       </div>
 
-      <section className="space-y-2 rounded-3xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-[#2f7d54] dark:text-[#6cc495]" aria-hidden /><h2 className="text-xl font-bold">{r.records.length ? `${r.records.length} recorde${r.records.length === 1 ? "" : "s"} no mês` : "Recordes"}</h2></div>
+      <section className="space-y-2 rounded-3xl surface-card p-5">
+        <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-success-text" aria-hidden /><h2 className="text-xl font-bold">{r.records.length ? `${r.records.length} recorde${r.records.length === 1 ? "" : "s"} no mês` : "Recordes"}</h2></div>
         {r.records.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum recorde de carga neste mês.</p>
+          <p className="text-sm text-muted-foreground">Nenhum recorde de carga neste mês ainda. Cada treino é uma nova chance.</p>
         ) : (
           <ul className="space-y-2">
             {r.records.slice(0, 6).map((pr) => (

@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/components/ui/skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, SendHorizontal, Sparkles, Trash2, X } from "lucide-react";
@@ -38,7 +39,7 @@ function AskPage() {
     if (messages.length || busy) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length, busy]);
 
-  if (!ready) return null;
+  if (!ready) return <ScreenSkeleton />;
   if (!profile) return <NeedProfile />;
 
   const send = async (question: string) => {

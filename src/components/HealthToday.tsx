@@ -6,36 +6,87 @@ import { restingAverage } from "@/lib/heart";
 import { dayStrain, STRAIN_MAX, STRAIN_ZONES } from "@/lib/strain";
 import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { overreach } from "@/lib/insights";
-import { clock, dayDistanceM, DEFAULT_STEPS_GOAL, healthKey, kmLabel, readiness, sleepLabel, STEPS_GOAL_KEY, type HealthMonth } from "@/lib/health";
+import { clock, dayDistanceM, DEFAULT_STEPS_GOAL, healthKey, kmLabel, readiness, readinessScore, sleepLabel, STEPS_GOAL_KEY, type HealthMonth, type Readiness } from "@/lib/health";
+import { useTrainedDays } from "@/lib/trained";
+import { ProgressRing } from "@/components/ui/meter";
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const addDays = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return iso(d); };
 
 /** Background and title color; the text stays in the normal color so it reads on any of them. */
 const TONE: Record<"bom" | "normal" | "baixo", [string, string]> = {
-  bom: ["bg-[#3f9d6b]/12", "text-[#2f7d54] dark:text-[#6cc495]"],
+  bom: ["bg-success/12", "text-success-text"],
   normal: ["bg-muted", "text-foreground"],
-  baixo: ["bg-accent/15", "text-accent"],
+  baixo: ["bg-warning/15", "text-warning-text"],
 };
 
-/** Hoje: readiness, last night's sleep and the day's steps (against the goal), active energy and resting heart rate. */
-export function HealthToday({ date, age }: { date: string; age: number }) {
+/** The day's Mi Band reading: the day, the 14 days before it and the readiness (with accumulated fatigue first). */
+function useDayReadiness(date: string) {
   const [thisMonth] = useLocal<HealthMonth>(healthKey(date), {});
   const [prevMonth] = useLocal<HealthMonth>(healthKey(addDays(date, -17)), {});
+  const day = thisMonth[date];
+  const all = { ...prevMonth, ...thisMonth };
+  const before = Object.entries(all).filter(([d]) => d < date && d >= addDays(date, -14)).map(([, v]) => v);
+  if (!day) return { day: undefined, all, before, ready: null };
+  // Three days in a row above normal is accumulated fatigue: it replaces today's reading so the screen says it once.
+  const sustained = overreach(all, [], date);
+  const ready: Readiness | null = sustained?.kind === "batimento"
+    ? { level: "baixo" as const, title: "Cansaço acumulado", detail: `Batimento em repouso pelo menos ${sustained.above} acima do seu normal nos últimos três dias: vale um dia de descanso ou uma semana com menos carga.` }
+    : readiness(day, before);
+  return { day, all, before, ready };
+}
+
+const BAND = {
+  pronto: { label: "Bom para treinar", color: "var(--success)", text: "text-success-text" },
+  leve: { label: "Treine com calma", color: "var(--warning)", text: "text-warning-text" },
+  recuperar: { label: "Priorize recuperar", color: "var(--danger)", text: "text-danger-text" },
+} as const;
+
+/** Hoje, at the top: readiness as a 0–100 figure from sleep, resting heart rate and training days in a row. */
+export function ReadinessCard({ date }: { date: string }) {
+  const { day, before, ready } = useDayReadiness(date);
+  const trained = useTrainedDays();
+  if (!day || !ready) return null;
+  const days = new Set(trained);
+  let run = 0;
+  while (days.has(addDays(date, -(run + 1)))) run++;
+  const r = readinessScore(day, before, ready, run);
+  const band = BAND[r.band];
+  return (
+    <section className="rounded-3xl surface-card p-5 sm:p-6" aria-label={`Prontidão ${r.score} de 100: ${band.label}`}>
+      <div className="flex items-center gap-5">
+        <ProgressRing value={r.score} max={100} size={112} stroke={11} color={band.color} label={`Prontidão ${r.score}`}>
+          <div className="type-number text-4xl leading-none">{r.score}</div>
+          <div className="text-xs text-muted-foreground">de 100</div>
+        </ProgressRing>
+        <div className="min-w-0 flex-1">
+          <p className="type-overline text-muted-foreground">Prontidão</p>
+          <h2 className={`type-h3 ${band.text}`}>{band.label}</h2>
+          <p className="mt-1 text-sm leading-snug">{ready.detail}</p>
+        </div>
+      </div>
+      <dl className="mt-4 grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-muted px-3 py-2"><dt className="type-overline text-muted-foreground">Sono</dt><dd className="type-number text-lg">{r.sleep !== null ? sleepLabel(r.sleep) : "—"}</dd></div>
+        <div className="rounded-2xl bg-muted px-3 py-2"><dt className="type-overline text-muted-foreground">FC repouso</dt><dd className="type-number text-lg">{day.restingHr ?? "—"}<span className="text-xs font-medium text-muted-foreground">{r.hrDiff !== null ? ` ${r.hrDiff >= 0 ? "+" : "−"}${Math.abs(Math.round(r.hrDiff))}` : ""}</span></dd></div>
+        <div className="rounded-2xl bg-muted px-3 py-2"><dt className="type-overline text-muted-foreground">Seguidos</dt><dd className="type-number text-lg">{r.run}<span className="text-xs font-medium text-muted-foreground"> {r.run === 1 ? "dia" : "dias"}</span></dd></div>
+      </dl>
+      <details className="mt-3 text-xs text-muted-foreground">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold text-foreground">Como calculamos</summary>
+        Sono até 40 pontos (8 h = cheio), batimento em repouso até 40 (menos 5 por batimento acima da sua média de 14 dias) e carga até 20 (menos 4 por dia seguido de treino depois do segundo). Sem uma das medidas, as outras valem 100. É uma regra prática, não um diagnóstico.
+      </details>
+    </section>
+  );
+}
+
+/** Hoje: last night's sleep and the day's steps (against the goal), active energy and resting heart rate. */
+export function HealthToday({ date, age, showReadiness = true }: { date: string; age: number; showReadiness?: boolean }) {
   const [stepsGoal] = useLocal<number>(STEPS_GOAL_KEY, DEFAULT_STEPS_GOAL);
   const [strava] = useLocal<StravaActivity[]>(stravaKey(date), []);
   const [waitingCardio] = useLocal<CardioRecord[]>(cardioKey(date), []);
   const [history] = useHistory();
-  const day = thisMonth[date];
+  const { day, all, ready } = useDayReadiness(date);
   if (!day) return null;
   const walked = dayDistanceM(day, date, strava);
-  const all = { ...prevMonth, ...thisMonth };
-  const before = Object.entries(all).filter(([d]) => d < date && d >= addDays(date, -14)).map(([, v]) => v);
-  // Three days in a row above normal is accumulated fatigue: it replaces today's reading so the screen says it once.
-  const sustained = overreach(all, [], date);
-  const ready = sustained?.kind === "batimento"
-    ? { level: "baixo" as const, title: "Cansaço acumulado", detail: `Batimento em repouso pelo menos ${sustained.above} acima do seu normal nos últimos três dias: vale um dia de descanso ou uma semana com menos carga.` }
-    : readiness(day, before);
   const strain = dayStrain({ day, date, age, restingAvg: restingAverage(all, date), strava: [...strava, ...waitingCardio.map(cardioAsActivity)], history, ready });
 
   const tiles: [typeof BedDouble, string, string, string | null, number | null][] = [];
@@ -45,12 +96,12 @@ export function HealthToday({ date, age }: { date: string; age: number }) {
   if (day.restingHr !== undefined) tiles.push([HeartPulse, "Repouso", `${day.restingHr} bpm`, null, null]);
   if (!tiles.length) return null;
   return (
-    <Link to="/corpo" search={{ aba: "evolucao" }} hash="saude" className="block rounded-3xl border border-border bg-card p-6">
+    <Link to="/corpo" search={{ aba: "evolucao" }} hash="saude" className="block rounded-3xl surface-card p-6">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-xl font-bold">Sua Mi Band hoje</h2>
         <span className="shrink-0 text-xs text-muted-foreground">atualizado {clock(new Date(day.at).toISOString())}</span>
       </div>
-      {ready && (
+      {ready && showReadiness && (
         <div className={`mt-3 rounded-2xl px-3 py-2.5 ${TONE[ready.level][0]}`}>
           <div className={`text-sm font-bold ${TONE[ready.level][1]}`}>{ready.title}</div>
           <div className="mt-0.5 text-sm leading-snug text-foreground">{ready.detail}</div>
@@ -69,11 +120,11 @@ export function HealthToday({ date, age }: { date: string; age: number }) {
           <div className="relative pt-1" role="img" aria-label={`Esforço ${strain.score.toLocaleString("pt-BR")} de ${STRAIN_MAX}, ${strain.zone}`}>
             <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
               {STRAIN_ZONES.map(([zone, width], i) => (
-                <span key={zone} style={{ flexGrow: width }} className={["bg-[#9ec9ae] dark:bg-[#4f8a68]", "bg-[#e8b04a]", "bg-accent", "bg-[#c4442f]"][i]} />
+                <span key={zone} style={{ flexGrow: width }} className={["bg-info", "bg-success", "bg-warning", "bg-danger"][i]} />
               ))}
             </div>
             <span className="absolute top-0 h-[1.125rem] w-1.5 -translate-x-1/2 rounded-full border-2 border-card bg-foreground" style={{ left: `${(strain.score / STRAIN_MAX) * 100}%` }} />
-            <div className="mt-1 flex text-[11px] text-muted-foreground">
+            <div className="mt-1 flex text-xs text-muted-foreground">
               {STRAIN_ZONES.map(([zone, width]) => <span key={zone} style={{ flexGrow: width, flexBasis: 0 }}>{zone === "moderado" ? "moder." : zone === "máximo" ? "máx." : zone}</span>)}
             </div>
           </div>
@@ -90,7 +141,7 @@ export function HealthToday({ date, age }: { date: string; age: number }) {
             <div className="mt-1 whitespace-nowrap font-display text-xl font-extrabold tabular-nums">{value}</div>
             {progress !== null && (
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-border" role="img" aria-label={`${Math.round(progress * 100)}% da meta de passos`}>
-                <div className={`h-full rounded-full ${progress >= 1 ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${progress * 100}%` }} />
+                <div className={`h-full rounded-full ${progress >= 1 ? "bg-success" : "bg-accent"}`} style={{ width: `${progress * 100}%` }} />
               </div>
             )}
             {/* The distance walked sits on its own line above the goal: side by side they don't fit half a phone screen. */}

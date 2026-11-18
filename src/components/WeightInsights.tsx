@@ -67,8 +67,8 @@ export function WeightNotices({ profile }: { profile: Profile }) {
   return (
     <>
       {notices.map(({ kind, icon: Icon, body }) => (
-        <section key={kind} className="flex items-start gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
-          <Icon className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
+        <section key={kind} className="flex items-start gap-3 rounded-3xl border border-warning/40 bg-warning/10 p-4">
+          <Icon className="mt-0.5 h-5 w-5 shrink-0 text-warning-text" aria-hidden />
           <div className="min-w-0 flex-1 text-sm">{body}</div>
           <button type="button" onClick={() => hide(kind)} aria-label="Dispensar por uma semana" className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground">
             <X className="h-4 w-4" />

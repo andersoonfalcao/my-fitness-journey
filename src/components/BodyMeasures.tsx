@@ -1,5 +1,6 @@
+import { EmptyState } from "@/components/ui/empty-state";
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Ruler, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { KEYS, today, useLocal, type MeasureEntry, type Profile } from "@/lib/store";
 
@@ -78,7 +79,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
   const ratioText = ratioLimit.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   return (
-    <section id="medidas" className="scroll-mt-24 space-y-5 rounded-3xl border border-border bg-card p-6">
+    <section id="medidas" className="scroll-mt-24 space-y-5 rounded-3xl surface-card p-6">
       <div>
         <h2 className={part === "registrar" ? "text-xl font-bold" : "text-2xl font-bold"}>Medidas</h2>
         {part === "registrar" ? (
@@ -86,7 +87,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
             Com fita métrica, em centímetros. Meça sempre no mesmo horário, de preferência em jejum. Preencha só o que medir.
             {latest && <> Última medição em {dateBR(latest.date)}.</>}
           </p>
-        ) : !latest && <p className="text-sm text-muted-foreground">Nenhuma medida ainda. Registre na aba Registrar.</p>}
+        ) : !latest && <EmptyState compact icon={Ruler} title="Nenhuma medida ainda">Cintura e braço mostram se o que sai é gordura. Registre na aba Registrar.</EmptyState>}
       </div>
 
       {part === "evolucao" && latest && (
@@ -98,7 +99,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
           {ratio !== null && (
             <div className="rounded-2xl bg-muted/60 px-4 py-3 text-sm">
               Relação cintura/quadril: <b className="tabular-nums">{ratio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
-              <span className={ratio > ratioLimit ? "text-destructive" : "text-[#3f9d6b]"}>
+              <span className={ratio > ratioLimit ? "text-destructive" : "text-success-text"}>
                 {" "}· {ratio > ratioLimit ? `acima de ${ratioText} (risco aumentado, OMS)` : `até ${ratioText} (adequada, OMS)`}
               </span>
             </div>
@@ -120,7 +121,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
                         <div className="font-display text-lg font-bold leading-tight tabular-nums">{num(now)} <span className="text-sm">cm</span></div>
                         <div className="text-xs text-muted-foreground">
                           {f.label}
-                          {!!diff && <b className={good === null ? "" : good ? "text-[#3f9d6b]" : "text-destructive"}> · {diff > 0 ? "+" : ""}{num(diff)}</b>}
+                          {!!diff && <b className={good === null ? "" : good ? "text-success-text" : "text-destructive"}> · {diff > 0 ? "+" : ""}{num(diff)}</b>}
                         </div>
                       </div>
                     );
@@ -155,7 +156,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
             </div>
           </fieldset>
         ))}
-        <button onClick={save} className="mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground">Salvar medidas</button>
+        <button onClick={save} className="min-h-11 mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-accent-foreground">Salvar medidas</button>
       </div>
       )}
 
