@@ -98,47 +98,81 @@ export function parseDate(v: unknown, tz: string): number {
 const localDate = (ms: number, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
 
 /**
- * Kind of a sleep sample. The Shortcuts app sends Health's label ("Essencial", "Acordado", "Na Cama"…) or, on some
- * iPhones, the raw category number (0 in bed, 1 asleep, 2 awake, 3 core, 4 deep, 5 REM).
+ * Kind of a sleep sample. The Shortcuts app sends Health's label in Portuguese ("Dormindo", "Essencial",
+ * "Profundo", "REM", "Acordado", "Na Cama"), English on some iPhones, or the raw category number
+ * (0 in bed, 1 asleep, 2 awake, 3 core, 4 deep, 5 REM). Only the sleep stages count; anything unknown is left out.
  */
-function sleepKind(value: unknown): "asleep" | "awake" | "inBed" {
-  const v = String(value ?? "").trim().toLowerCase();
-  if (/^\d+$/.test(v)) return v === "0" ? "inBed" : v === "2" ? "awake" : "asleep";
-  if (/acord|awake/.test(v)) return "awake";
-  if (/cama|bed/.test(v)) return "inBed";
-  return "asleep";
+export function sleepKind(value: unknown): "stage" | "awake" | "inBed" | "other" {
+  const v = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (/^\d+$/.test(v)) return v === "0" ? "inBed" : v === "2" ? "awake" : ["1", "3", "4", "5"].includes(v) ? "stage" : "other";
+  if (/acordad|awake/.test(v)) return "awake";
+  if (/cama|in ?bed/.test(v)) return "inBed";
+  if (/dormindo|principal|essencial|profundo|\brem\b|asleep|core|deep/.test(v)) return "stage";
+  return "other";
 }
 
-/** Minutes asleep in the sleep that ended today, from Health's sleep samples (value + start + end). */
-export function sleepOf(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string) {
-  return sleepReport(values, starts, ends, tz, today).sleep;
+/** Sleep source kept when the night came from more than one app. */
+const PREFERRED_SLEEP_SOURCE = /zepp\s*life/i;
+
+/** Minutes asleep in last night's sleep, from Health's sleep samples (value + start + end, and source when sent). */
+export function sleepOf(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string, sources: unknown[] = []) {
+  return sleepReport(values, starts, ends, tz, today, sources).sleep;
 }
+
+const hm = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
 
 /**
- * The sleep that ended today and, when there is none, why: shown on the iPhone after the Shortcut runs, so a missing
- * permission or an unreadable date is visible without opening anything.
+ * Last night's sleep. The night is the one that ended between noon yesterday and noon today in `tz`; only the sleep
+ * stages count (in bed and awake are left out); with more than one source, Zepp Life is kept and the others are
+ * dropped; overlapping intervals are joined so no minute counts twice. Returns the sleep and a line for the
+ * Shortcut's result: the total with source and times, or why there is none.
  */
-export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string) {
+export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string, sources: unknown[] = []) {
   const none = (note: string) => ({ sleep: null, note });
   const arrived = values.length === 1 ? "1 amostra chegou" : `${values.length} amostras chegaram`;
-  if (!values.length) return none("sono: nenhuma amostra chegou (no iPhone: Ajustes → Saúde → Acesso a Dados → Atalhos → Análise do Sono ligado, e o Mi Fitness gravando Sono no Saúde)");
+  if (!values.length) return none("sono: nenhuma amostra chegou (no iPhone: Ajustes → Saúde → Acesso a Dados → Atalhos → Análise do Sono ligado, e o app da pulseira gravando Sono no Saúde)");
   if (starts.length !== values.length || ends.length !== values.length) {
     return none(`sono: as listas chegaram com tamanhos diferentes (${values.length} tipos, ${starts.length} inícios, ${ends.length} fins); confira se sleepValues, sleepStarts e sleepEnds vêm do mesmo “Encontrar Amostras de Saúde”`);
   }
-  const all = values.map((value, i) => ({ kind: sleepKind(value), start: parseDate(starts[i], tz), end: parseDate(ends[i], tz) }));
+  // Sources only count when they line up one to one with the samples.
+  const hasSources = sources.length === values.length;
+  const all = values.map((value, i) => ({
+    kind: sleepKind(value), start: parseDate(starts[i], tz), end: parseDate(ends[i], tz),
+    source: hasSources ? String(sources[i] ?? "").trim() : "",
+  }));
   const dated = all.filter((s) => !Number.isNaN(s.start) && !Number.isNaN(s.end));
   if (!dated.length) return none(`sono: ${arrived}, mas as datas não foram entendidas (exemplo: “${String(ends[0] ?? "").slice(0, 40)}”)`);
-  const samples = dated.filter((s) => s.end > s.start && s.end - s.start < 16 * 3600_000 && localDate(s.end, tz) === today);
-  // Stages (core, deep, REM) or plain "asleep"; only "in bed" when the band recorded nothing finer.
-  let asleep = samples.filter((s) => s.kind === "asleep");
-  if (!asleep.length) asleep = samples.filter((s) => s.kind === "inBed");
-  if (!asleep.length) {
-    const latest = Math.max(...dated.map((s) => s.end));
-    const when = new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(latest));
-    return none(`sono: ${arrived}, mas nenhuma de sono terminou hoje (a mais recente termina em ${when}); sincronize a Mi Band e rode o atalho de novo`);
+
+  // The night: samples that end between noon yesterday and noon today, local time.
+  const [y, m, d] = today.split("-").map(Number) as [number, number, number];
+  const noonUtc = Date.UTC(y, m - 1, d, 12);
+  const noonToday = noonUtc - offsetMinutes(tz, new Date(noonUtc)) * 60000;
+  const night = dated.filter((s) => s.end > s.start && s.end > noonToday - 24 * 3600_000 && s.end <= noonToday);
+  let stages = night.filter((s) => s.kind === "stage");
+  if (!stages.length) {
+    const fmtWhen = (ms: number) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
+    if (night.length) {
+      const kinds = [...new Set(night.map((s) => String(values[all.indexOf(s)] ?? "")))].slice(0, 4).join(", ");
+      return none(`sono: ${night.length} amostras desta noite, mas nenhuma fase de sono (vieram: ${kinds}); só Dormindo, Essencial, Profundo e REM contam`);
+    }
+    return none(`sono: ${arrived}, mas nenhuma terminou entre 12h de ontem e 12h de hoje (a mais recente termina em ${fmtWhen(Math.max(...dated.map((s) => s.end)))}); sincronize a pulseira e rode o atalho de novo`);
   }
-  // Overlapping samples (stages inside an "asleep" block) are counted once.
-  const sorted = asleep.sort((a, b) => a.start - b.start);
+
+  // More than one app recorded the night: Zepp Life wins and the rest is dropped.
+  const found = [...new Set(stages.map((s) => s.source).filter(Boolean))];
+  let kept = found;
+  let dropped: string[] = [];
+  if (found.length > 1) {
+    const preferred = found.filter((src) => PREFERRED_SLEEP_SOURCE.test(src));
+    if (preferred.length) {
+      kept = preferred;
+      dropped = found.filter((src) => !preferred.includes(src));
+      stages = stages.filter((s) => preferred.includes(s.source));
+    }
+  }
+
+  // Overlapping intervals (stages inside a block, or two apps) are joined so no minute counts twice.
+  const sorted = [...stages].sort((a, b) => a.start - b.start);
   let total = 0;
   let [curStart, curEnd] = [sorted[0]!.start, sorted[0]!.end];
   for (const s of sorted.slice(1)) {
@@ -146,9 +180,15 @@ export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[
     else { total += curEnd - curStart; [curStart, curEnd] = [s.start, s.end]; }
   }
   total += curEnd - curStart;
+  const sleepMin = Math.round(total / 60000);
+  const first = sorted[0]!.start;
+  const last = Math.max(...sorted.map((s) => s.end));
+  const clockAt = (ms: number) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
+  const origin = kept.length ? kept.join(" + ") : hasSources ? "sem fonte" : "fonte não enviada";
+  const droppedText = dropped.length ? ` · descartadas: ${dropped.join(", ")}` : found.length > 1 ? " · várias fontes, sem Zepp Life: juntas sem repetir minutos" : "";
   return {
-    sleep: { sleepMin: Math.round(total / 60000), sleepStart: new Date(sorted[0]!.start).toISOString(), sleepEnd: new Date(Math.max(...sorted.map((s) => s.end))).toISOString() },
-    note: null,
+    sleep: { sleepMin, sleepStart: new Date(first).toISOString(), sleepEnd: new Date(last).toISOString() },
+    note: `sono: ${hm(sleepMin)} dormindo (${origin} · ${clockAt(first)}–${clockAt(last)} · ${stages.length} ${stages.length === 1 ? "fase" : "fases"}${droppedText})`,
   };
 }
 
@@ -272,7 +312,7 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   if (resting) day.restingHr = resting;
   const vo2 = parseNumber(Array.isArray(body.vo2max) ? body.vo2max.at(-1) : body.vo2max);
   if (vo2 >= 10 && vo2 <= 90) day.vo2max = Math.round(vo2 * 10) / 10;
-  const sleepRead = sleepReport(list(body.sleepValues), list(body.sleepStarts), list(body.sleepEnds), tz, today);
+  const sleepRead = sleepReport(list(body.sleepValues), list(body.sleepStarts), list(body.sleepEnds), tz, today, list(body.sleepSources));
   if (sleepRead.sleep) Object.assign(day, sleepRead.sleep);
 
   const docKey = `forma.health.${today.slice(0, 7)}`;
@@ -303,7 +343,7 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   ].filter(Boolean);
   // Named so a doubled total (samples that came without their source) is easy to spot on the iPhone.
   const from = sources.length ? ` (fontes: ${sources.join(", ")})` : stepSamples || kcalSamples || distSamples ? " (as amostras vieram sem a fonte: passos e calorias podem estar somados em dobro)" : "";
-  // A sleep that didn't come in says why, on its own line, so the Shortcut's result shows what to fix.
+  // The sleep gets its own line: the total with source and times to check it, or why it didn't come in.
   const sleepNote = sleepRead.note ? `\n${sleepRead.note}` : "";
   return text(parts.length ? `forma recebeu: ${parts.join(" · ")}${from}${sleepNote}` : `forma recebeu o envio, mas sem dados de hoje. Confira as permissões do atalho no app Saúde.${sleepNote}`, 200);
 }
