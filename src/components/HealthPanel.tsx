@@ -90,18 +90,37 @@ export function HealthPanel() {
       </label>
 
       <details className="rounded-2xl bg-muted/60 px-4 py-3 text-sm">
-        <summary className="cursor-pointer font-semibold">Como montar o atalho</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center font-semibold">Como montar o atalho</summary>
+        <p className="mt-2 text-xs text-muted-foreground">No app Atalhos, cada “Obter Detalhes” e cada “Encontrar Amostras” vira uma variável com o nome indicado (toque no resultado → Renomear). Os nomes em azul no corpo JSON precisam ser escritos exatamente assim.</p>
+        <ol className="mt-3 list-decimal space-y-3 pl-5 leading-snug">
+          <li>No app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>forma Saúde</b> (com esse nome: o botão de atualizar do forma procura por ele).</li>
+          <li><b>Passos.</b> Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, filtro <b>Data de Início é hoje</b>, sem agrupar nem somar. Depois, quatro vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>passosValor</i>, <b>Data de Início</b> → <i>passosInicio</i>, <b>Data de Fim</b> → <i>passosFim</i>, <b>Fonte</b> → <i>passosFonte</i>.</li>
+          <li><b>Energia e distância.</b> Repita o passo 2 para <b>Energia Ativa</b> (<i>energiaValor</i>, <i>energiaInicio</i>, <i>energiaFim</i>, <i>energiaFonte</i>) e para <b>Distância de Caminhada + Corrida</b> (<i>distValor</i>, <i>distInicio</i>, <i>distFim</i>, <i>distFonte</i>).</li>
+          <li><b>Batimentos.</b> <b>Encontrar Amostras de Saúde</b>: <b>Frequência Cardíaca</b>, filtro <b>Data de Início está no último 1 dia</b>, sem limite → <i>batimentos</i>.</li>
+          <li><b>Sono.</b> <b>Encontrar Amostras de Saúde</b>: <b>Análise do Sono</b>, filtro <b>Data de Fim está no último 1 dia</b> (é a Data de <b>Fim</b>: o sono começa ontem à noite), sem limite, sem agrupar. Depois, quatro vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre <b>esse mesmo resultado</b>: <b>Valor</b> → <i>sonoTipo</i>, <b>Data de Início</b> → <i>sonoInicio</i>, <b>Data de Fim</b> → <i>sonoFim</i>, <b>Fonte</b> → <i>sonoFonte</i>. Conta a noite que terminou entre 12h de ontem e 12h de hoje, só as fases de sono (Dormindo, Essencial, Profundo, REM); se mais de um app gravou a noite, vale o Zepp Life.</li>
+          <li><b>VO2 máx.</b> <b>Encontrar Amostras de Saúde</b>: <b>Preparo Cardiovascular</b>, ordenar por <b>Data de Início</b>, <b>mais recente primeiro</b>, limite <b>1</b> → <i>vo2</i>.</li>
+          <li><b>Envio.</b> <b>Obter Conteúdo do URL</b> com o <b>Endereço</b> acima, Método <b>POST</b>, Cabeçalho <b>Authorization</b> = o <b>Valor do cabeçalho</b> copiado acima, colado inteiro (já começa com <b>Bearer</b>; cada chave nova invalida a anterior). Corpo da requisição <b>JSON</b>, todos os campos do tipo <b>Texto</b>:
+            <ul className="mt-1.5 grid gap-x-3 gap-y-0.5 font-mono text-xs sm:grid-cols-2">
+              {([["stepValues", "passosValor"], ["stepStarts", "passosInicio"], ["stepEnds", "passosFim"], ["stepSources", "passosFonte"], ["kcalValues", "energiaValor"], ["kcalStarts", "energiaInicio"], ["kcalEnds", "energiaFim"], ["kcalSources", "energiaFonte"], ["distValues", "distValor"], ["distStarts", "distInicio"], ["distEnds", "distFim"], ["distSources", "distFonte"], ["heartRates", "batimentos"], ["sleepValues", "sonoTipo"], ["sleepStarts", "sonoInicio"], ["sleepEnds", "sonoFim"], ["sleepSources", "sonoFonte"], ["vo2max", "vo2"]] as const).map(([field, variable]) => (
+                <li key={field}><span className="text-info-text">{field}</span> = {variable}</li>
+              ))}
+            </ul>
+          </li>
+          <li><b>Resultado.</b> Termine com <b>Mostrar Resultado</b> (o Conteúdo do URL). Rode uma vez e permita todos os acessos ao Saúde: deve aparecer “forma recebeu: sono …, passos …”.</li>
+          <li><b>Automação.</b> Em <b>Automação</b> → <b>+</b> → <b>App</b> → <b>Mi Fitness</b> → <b>É Aberto</b> → <b>Executar Imediatamente</b> → atalho <b>forma Saúde</b>. Ele roda sempre que a Mi Band sincroniza, com o iPhone desbloqueado.</li>
+          <li>Para mandar na hora, toque no botão de atualizar ao lado do calendário, no topo do forma.</li>
+        </ol>
+      </details>
+
+      <details className="rounded-2xl bg-muted/60 px-4 py-3 text-sm">
+        <summary className="flex min-h-11 cursor-pointer items-center font-semibold">O sono não chega?</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 leading-snug">
-          <li>No app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>forma Saúde</b>.</li>
-          <li>Adicione <b>Encontrar Amostras de Saúde</b>: tipo <b>Passos</b>, Data de Início <b>é hoje</b>, sem somar (o forma desconta o que o iPhone e a pulseira contaram ao mesmo tempo). Em seguida, quatro vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → variável <i>passosValor</i>, <b>Data de Início</b> → <i>passosInicio</i>, <b>Data de Fim</b> → <i>passosFim</i>, <b>Fonte</b> → <i>passosFonte</i>.</li>
-          <li>Repita para <b>Energia Ativa</b> → <i>energiaValor</i>, <i>energiaInicio</i>, <i>energiaFim</i>, <i>energiaFonte</i>, e para <b>Distância de Caminhada + Corrida</b> → <i>distValor</i>, <i>distInicio</i>, <i>distFim</i>, <i>distFonte</i>.</li>
-          <li><b>Encontrar Amostras de Saúde</b>: <b>Frequência Cardíaca</b>, Data de Início <b>está no último 1 dia</b> → variável <i>batimentos</i>.</li>
-          <li><b>Encontrar Amostras de Saúde</b>: <b>Análise do Sono</b>, Data de Fim <b>está no último 1 dia</b>. Em seguida, três vezes <b>Obter Detalhes de Amostras de Saúde</b> sobre esse resultado: <b>Valor</b> → <i>sonoTipo</i>, <b>Data de Início</b> → <i>sonoInicio</i>, <b>Data de Fim</b> → <i>sonoFim</i>.</li>
-          <li><b>Encontrar Amostras de Saúde</b>: <b>Preparo Cardiovascular</b>, ordenar por <b>Data de Início</b>, <b>mais recente primeiro</b>, limite <b>1</b> → variável <i>vo2</i>.</li>
-          <li><b>Obter Conteúdo do URL</b> com o <b>Endereço</b> acima, Método <b>POST</b>, Cabeçalho <b>Authorization</b> = o <b>Valor do cabeçalho</b> copiado acima, colado inteiro (ele já começa com <b>Bearer</b>). Cada chave nova invalida a anterior: depois de gerar, troque no atalho. Corpo <b>JSON</b>, todos como Texto: <i>stepValues</i> = passosValor, <i>stepStarts</i> = passosInicio, <i>stepEnds</i> = passosFim, <i>stepSources</i> = passosFonte, <i>kcalValues</i> = energiaValor, <i>kcalStarts</i> = energiaInicio, <i>kcalEnds</i> = energiaFim, <i>kcalSources</i> = energiaFonte, <i>distValues</i> = distValor, <i>distStarts</i> = distInicio, <i>distEnds</i> = distFim, <i>distSources</i> = distFonte,<i>heartRates</i> = batimentos, <i>sleepValues</i> = sonoTipo, <i>sleepStarts</i> = sonoInicio, <i>sleepEnds</i> = sonoFim, <i>vo2max</i> = vo2.</li>
-          <li>Termine com <b>Mostrar Resultado</b> (o conteúdo do URL). Rode uma vez e permita o acesso ao Saúde: deve aparecer “forma recebeu: …”.</li>
-          <li>Em <b>Automação</b> → <b>+</b> → <b>App</b> → <b>Mi Fitness</b> → <b>É Aberto</b> → <b>Executar Imediatamente</b> → atalho <b>forma Saúde</b>. Assim ele roda sempre que a Mi Band sincroniza, com o iPhone desbloqueado.</li>
-          <li>Para mandar na hora, toque no botão de recarregar ao lado do calendário, no topo: ele abre o atalho <b>forma Saúde</b> (com esse nome) e, quando você volta ao forma, traz o Strava.</li>
+          <li><b>O app da pulseira grava o sono no Saúde?</b> App <b>Saúde</b> → foto do perfil → <b>Apps</b> → <b>Zepp Life</b> (ou Mi Fitness): <b>Sono</b> ligado. Confira em Saúde → Navegar → Sono se a noite de hoje aparece lá.</li>
+          <li><b>O atalho pode ler o sono?</b> <b>Ajustes</b> do iPhone → <b>Saúde</b> → <b>Acesso a Dados e Dispositivos</b> → <b>Atalhos</b>: <b>Análise do Sono</b> ligado. Quando o atalho foi criado, esse acesso pode ter ficado negado sem aviso.</li>
+          <li><b>O filtro está certo?</b> No passo do sono, o filtro é <b>Data de Fim</b> no último 1 dia. “Data de Início é hoje” perde o sono que começou ontem à noite.</li>
+          <li><b>As quatro variáveis vêm do mesmo resultado?</b> sonoTipo, sonoInicio, sonoFim e sonoFonte saem do mesmo “Encontrar Amostras” de Análise do Sono, e no JSON os nomes são <i>sleepValues</i>, <i>sleepStarts</i>, <i>sleepEnds</i> e <i>sleepSources</i>.</li>
+          <li><b>Sincronizou antes?</b> Abra o app da pulseira e espere sincronizar; só então o sono da noite entra no Saúde. Rode o atalho de novo.</li>
+          <li>A mensagem que o atalho mostra no fim traz uma linha “sono: …” com o total, a fonte usada e o horário (por exemplo “sono: 7h00 dormindo (Zepp Life · 23:30–06:50 · 4 fases)”), ou o motivo de o sono não ter entrado.</li>
         </ol>
       </details>
 
