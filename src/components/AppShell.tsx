@@ -151,7 +151,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               to={n.to}
               activeOptions={{ exact: n.to === "/" }}
               className="group flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-200"
-              activeProps={{ className: "!text-accent !font-semibold", "aria-current": "page" }}
+              activeProps={{ className: "!text-accent", "aria-current": "page" }}
             >
               <span className="grid h-8 w-14 place-items-center rounded-full transition-colors duration-200 group-aria-[current=page]:bg-brand-soft">
                 <n.icon className="h-[22px] w-[22px]" aria-hidden />
