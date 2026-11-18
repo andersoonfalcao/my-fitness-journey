@@ -108,7 +108,7 @@ function MonthPage() {
       </div>
 
       <section className="space-y-2 rounded-3xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-[#2f7d54] dark:text-[#6cc495]" aria-hidden /><h2 className="text-xl font-bold">{r.records.length ? `${r.records.length} recorde${r.records.length === 1 ? "" : "s"} no mês` : "Recordes"}</h2></div>
+        <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-success-text" aria-hidden /><h2 className="text-xl font-bold">{r.records.length ? `${r.records.length} recorde${r.records.length === 1 ? "" : "s"} no mês` : "Recordes"}</h2></div>
         {r.records.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum recorde de carga neste mês.</p>
         ) : (

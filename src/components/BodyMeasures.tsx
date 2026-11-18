@@ -98,7 +98,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
           {ratio !== null && (
             <div className="rounded-2xl bg-muted/60 px-4 py-3 text-sm">
               Relação cintura/quadril: <b className="tabular-nums">{ratio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
-              <span className={ratio > ratioLimit ? "text-destructive" : "text-[#3f9d6b]"}>
+              <span className={ratio > ratioLimit ? "text-destructive" : "text-success-text"}>
                 {" "}· {ratio > ratioLimit ? `acima de ${ratioText} (risco aumentado, OMS)` : `até ${ratioText} (adequada, OMS)`}
               </span>
             </div>
@@ -120,7 +120,7 @@ export function BodyMeasures({ profile, part }: { profile: Profile; part: "regis
                         <div className="font-display text-lg font-bold leading-tight tabular-nums">{num(now)} <span className="text-sm">cm</span></div>
                         <div className="text-xs text-muted-foreground">
                           {f.label}
-                          {!!diff && <b className={good === null ? "" : good ? "text-[#3f9d6b]" : "text-destructive"}> · {diff > 0 ? "+" : ""}{num(diff)}</b>}
+                          {!!diff && <b className={good === null ? "" : good ? "text-success-text" : "text-destructive"}> · {diff > 0 ? "+" : ""}{num(diff)}</b>}
                         </div>
                       </div>
                     );

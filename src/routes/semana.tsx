@@ -120,7 +120,7 @@ function WeekPage() {
                 <div className="mt-0.5 whitespace-nowrap font-display text-xl font-extrabold tabular-nums">{v === null ? "—" : m.format(v)}</div>
                 <div className="text-xs tabular-nums text-muted-foreground">
                   {v === null ? "sem registro nesta semana" : p === null ? "sem dado na anterior" : diff === 0 ? "igual à anterior"
-                    : <b className={good === null ? "" : good ? "text-[#3f9d6b]" : "text-destructive"}>{diff! > 0 ? "+" : "−"}{m.format(Math.abs(diff!))}</b>}
+                    : <b className={good === null ? "" : good ? "text-success-text" : "text-destructive"}>{diff! > 0 ? "+" : "−"}{m.format(Math.abs(diff!))}</b>}
                 </div>
                 {m.sub && v !== null && <div className="text-xs tabular-nums text-muted-foreground">{m.sub(week)}</div>}
               </div>
@@ -129,7 +129,7 @@ function WeekPage() {
         </div>
         <div className="mt-3 space-y-1.5 px-1 text-sm">
           {week.kcalWeekdays !== null && week.kcalWeekend !== null && (
-            <p>Segunda a sexta: <b className="tabular-nums">{n(week.kcalWeekdays)} kcal</b> por dia · sábado e domingo: <b className={`tabular-nums ${week.kcalWeekend > week.kcalWeekdays * 1.1 ? "text-accent" : ""}`}>{n(week.kcalWeekend)} kcal</b></p>
+            <p>Segunda a sexta: <b className="tabular-nums">{n(week.kcalWeekdays)} kcal</b> por dia · sábado e domingo: <b className={`tabular-nums ${week.kcalWeekend > week.kcalWeekdays * 1.1 ? "text-warning-text" : ""}`}>{n(week.kcalWeekend)} kcal</b></p>
           )}
           <StreakLine planned={profile.days} />
         </div>

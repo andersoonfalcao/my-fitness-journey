@@ -76,7 +76,7 @@ function Need({ done, need, label }: { done: number; need: number; label: string
   const ok = done >= need;
   return (
     <li className="flex items-center gap-2">
-      <span className={`w-12 shrink-0 text-right font-display font-bold tabular-nums ${ok ? "text-[#3f9d6b]" : ""}`}>{Math.min(done, need)}/{need}</span>
+      <span className={`w-12 shrink-0 text-right font-display font-bold tabular-nums ${ok ? "text-success-text" : ""}`}>{Math.min(done, need)}/{need}</span>
       <span className="text-muted-foreground">{label}</span>
     </li>
   );

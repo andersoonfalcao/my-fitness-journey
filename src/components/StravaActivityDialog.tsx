@@ -37,7 +37,7 @@ export function StravaActivityDialog({ activity, onClose }: { activity: StravaAc
         {activity && (
           <>
             <DialogHeader className="pr-8 text-left">
-              <div className="text-xs font-bold uppercase tracking-wider text-[#fc4c02]">
+              <div className="text-xs font-bold uppercase tracking-wider text-strava">
                 {activity.app ? cardioLabel(activity.app) : sportLabel(activity.sport)} ·{" "}
                 {new Date(detail?.startLocal.replace("Z", "") ?? `${activity.date}T12:00:00`).toLocaleString("pt-BR", {
                   weekday: "long", day: "numeric", month: "long", ...(detail ? { hour: "2-digit", minute: "2-digit" } : {}),
@@ -131,7 +131,7 @@ function DetailBody({ d, onShare }: { d: StravaDetail; onShare: () => void }) {
         <button type="button" onClick={onShare} className="inline-flex items-center gap-1 font-bold text-accent">
           <Share2 className="h-3.5 w-3.5" />Compartilhar
         </button>
-        <a href={`https://www.strava.com/activities/${d.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-[#fc4c02]">
+        <a href={`https://www.strava.com/activities/${d.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-strava">
           Ver no Strava<ExternalLink className="h-3.5 w-3.5" />
         </a>
       </div>
@@ -156,10 +156,13 @@ function RouteMap({ points }: { points: [number, number][] }) {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map);
-      const route = L.polyline(points, { color: "#fc4c02", weight: 4, opacity: 0.95 }).addTo(map);
-      const dot = (color: string) => ({ radius: 6, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 });
-      L.circleMarker(points[0]!, dot("#1f4d3a")).addTo(map);
-      L.circleMarker(points.at(-1)!, dot("#fc4c02")).addTo(map);
+      // Leaflet draws with SVG attributes, which take colours and not CSS variables: read the tokens.
+      const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const strava = token("--brand-strava");
+      const route = L.polyline(points, { color: strava, weight: 4, opacity: 0.95 }).addTo(map);
+      const dot = (color: string) => ({ radius: 6, color: token("--surface-1"), weight: 2, fillColor: color, fillOpacity: 1 });
+      L.circleMarker(points[0]!, dot(token("--accent-base"))).addTo(map);
+      L.circleMarker(points.at(-1)!, dot(strava)).addTo(map);
       map.fitBounds(route.getBounds(), { padding: [18, 18] });
       // The dialog animates open; measure again once it has its final size.
       setTimeout(() => {

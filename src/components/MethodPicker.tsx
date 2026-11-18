@@ -25,9 +25,9 @@ export function MethodPicker({ profile, value, onChange }: { profile: Pick<Profi
               className={`rounded-2xl border-2 p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${selected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-accent"}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold">{m.name}</span>
-                {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : m.id === rec.id && <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-bold text-accent">recomendado</span>}
+                {selected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : m.id === rec.id && <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">recomendado</span>}
               </div>
-              {selected && m.id === rec.id && <span className="mt-1 inline-block rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-bold text-accent">recomendado</span>}
+              {selected && m.id === rec.id && <span className="mt-1 inline-block rounded-full bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">recomendado</span>}
               <p className="mt-1 text-xs text-muted-foreground">{m.description}</p>
               {!fits && <p className="mt-1 text-xs font-semibold">De {m.minDays} a {m.maxDays} dias por semana.</p>}
             </button>

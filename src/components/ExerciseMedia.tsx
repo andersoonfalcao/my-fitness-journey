@@ -58,7 +58,7 @@ export function ExerciseMedia({ exercise, compact = false, className, onOpen }: 
           className={cn("absolute inset-0 h-full w-full transition-opacity duration-500", compact ? "object-cover" : "object-contain", frame === i ? "opacity-100" : "opacity-0")}
         />
       ))}
-      {!compact && <span className="absolute bottom-2 left-2 rounded bg-white/80 px-1.5 text-[10px] text-muted-foreground">{PHOTO_CREDIT}</span>}
+      {!compact && <span className="absolute bottom-2 left-2 rounded bg-white/80 px-1.5 text-xs text-muted-foreground">{PHOTO_CREDIT}</span>}
       {openButton}
       <Button
         type="button"

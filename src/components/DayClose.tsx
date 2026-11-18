@@ -241,7 +241,7 @@ export function DaySummary({ record, onShare }: { record: DayRecord; onShare?: (
 
 function Bullets({ title, items, tone }: { title: string; items: string[]; tone: "good" | "improve" }) {
   return (
-    <div className={`rounded-2xl p-4 ${tone === "good" ? "bg-secondary" : "bg-accent/10"}`}>
+    <div className={`rounded-2xl p-4 ${tone === "good" ? "bg-brand-soft" : "bg-warning/10"}`}>
       <h4 className="font-bold">{title}</h4>
       <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">{items.map((item) => <li key={item}>{item}</li>)}</ul>
     </div>

@@ -55,8 +55,8 @@ export function PushNotice() {
       : "Sem isso, descanso e lembretes não chegam com o app fechado.";
 
   return (
-    <div role="status" className="mb-5 flex items-center gap-3 rounded-2xl border border-accent/40 bg-accent/10 py-2 pl-4 pr-2">
-      <BellOff className="h-5 w-5 shrink-0 text-accent" />
+    <div role="status" className="mb-5 flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 py-2 pl-4 pr-2">
+      <BellOff className="h-5 w-5 shrink-0 text-warning-text" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold">{title}</p>
         <p className="text-xs text-muted-foreground">{text}</p>

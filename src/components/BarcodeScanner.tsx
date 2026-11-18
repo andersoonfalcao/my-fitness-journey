@@ -82,7 +82,7 @@ export function BarcodeScanner({ open, onClose, onCode }: { open: boolean; onClo
         ) : (
           <div className="relative overflow-hidden rounded-2xl bg-black">
             <video ref={video} playsInline muted className="aspect-[4/3] w-full object-cover" />
-            <div className="pointer-events-none absolute inset-x-8 top-1/2 h-24 -translate-y-1/2 rounded-xl border-2 border-accent/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+            <div className="pointer-events-none absolute inset-x-8 top-1/2 h-24 -translate-y-1/2 rounded-xl border-2 border-accent/90 shadow-[0_0_0_9999px_var(--overlay)]" />
             {status === "starting" && (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-white"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Abrindo a câmera…</div>
             )}

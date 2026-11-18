@@ -5,27 +5,234 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  forma — design system
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  Every colour, size, radius, shadow and duration of the app comes from here.
+ *  Components never hold a colour of their own: change a token below and every
+ *  screen follows, in both themes.
  *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *  1. Foundation tokens  (:root = light, .dark = dark) — the raw palette by role:
+ *       background · surface · text · border · accent · semantic · data
+ *  2. Component aliases  (--background, --card, --primary…) — the names the
+ *     shadcn components and Tailwind classes use (bg-card, text-primary…),
+ *     pointed at the foundation tokens.
+ *  3. @theme inline      — exposes both layers as Tailwind utilities, plus the
+ *     type scale, radii, shadows and motion.
  *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ *  Contrast (WCAG 2.1 AA, checked on bg and both surfaces):
+ *  - Body text ≥ 15:1, secondary text ≥ 5.2:1 in both themes.
+ *  - Light theme: the emerald #059669 gives 3.8:1 on white, enough for icons,
+ *    rings and bars (3:1) but not for small text. Text and filled buttons use
+ *    --accent-strong #047857 (5.5:1 with white). Amber text uses #B45309.
+ *  - Dark theme: filled emerald buttons carry dark text (#0F1115, 7.4:1);
+ *    white on #10B981 would be 2.5:1.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
+:root {
+  color-scheme: light;
+
+  /* Background & surfaces (surface-1 cards, surface-2 wells/inputs/chips, surface-3 hover/pressed) */
+  --bg: #f7f8fa;
+  --surface-1: #ffffff;
+  --surface-2: #eef0f3;
+  --surface-3: #e4e7eb;
+  --overlay: rgb(18 21 26 / 0.48);
+
+  /* Text */
+  --text: #12151a;
+  --text-muted: #5b6470;
+  --text-subtle: #7c8591; /* placeholders and disabled only, never body text */
+
+  /* Borders */
+  --line: #e3e6ea;
+  --line-strong: #c9ced5;
+
+  /* Accent — main actions, progress, goals met */
+  --accent-base: #059669;
+  --accent-strong: #047857; /* text on light surfaces and filled buttons */
+  --accent-hover: #065f46;
+  --on-accent: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent-base) 12%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent-base) 40%, transparent);
+
+  /* Semantic */
+  --success: #059669;
+  --success-text: #047857;
+  --warning: #f59e0b; /* alerts and the streak only */
+  --warning-text: #b45309;
+  --on-warning: #12151a;
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --on-danger: #ffffff;
+  --info: #0284c7;
+  --info-text: #0369a1;
+
+  /* Data (charts and macro bars) */
+  --data-protein: #059669;
+  --data-carbs: #0284c7;
+  --data-fat: #7c3aed;
+  --data-4: #db2777;
+  --data-5: #64748b;
+
+  /* Third-party brand colours that their guidelines require as-is */
+  --brand-strava: #fc4c02;
+
+  /* Elevation: soft shadows in light; in dark the surface tone carries the elevation */
+  --shadow-1: 0 1px 2px rgb(18 21 26 / 0.05), 0 1px 3px rgb(18 21 26 / 0.06);
+  --shadow-2: 0 4px 12px rgb(18 21 26 / 0.08), 0 2px 4px rgb(18 21 26 / 0.04);
+  --shadow-3: 0 16px 40px rgb(18 21 26 / 0.16), 0 4px 12px rgb(18 21 26 / 0.06);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: #0f1115;
+  --surface-1: #181b21;
+  --surface-2: #22262e;
+  --surface-3: #2c313a;
+  --overlay: rgb(0 0 0 / 0.64);
+
+  --text: #f2f4f7;
+  --text-muted: #9aa3af;
+  --text-subtle: #737c88;
+
+  --line: #2a2f37;
+  --line-strong: #3b414b;
+
+  --accent-base: #10b981;
+  --accent-strong: #10b981;
+  --accent-hover: #34d399;
+  --on-accent: #0f1115;
+  --accent-soft: color-mix(in srgb, var(--accent-base) 14%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent-base) 45%, transparent);
+
+  --success: #10b981;
+  --success-text: #34d399;
+  --warning: #f59e0b;
+  --warning-text: #fbbf24;
+  --on-warning: #0f1115;
+  --danger: #ef4444;
+  --danger-text: #f87171;
+  --on-danger: #ffffff;
+  --info: #38bdf8;
+  --info-text: #7dd3fc;
+
+  --data-protein: #10b981;
+  --data-carbs: #38bdf8;
+  --data-fat: #a78bfa;
+  --data-4: #f472b6;
+  --data-5: #94a3b8;
+
+  --shadow-1: none;
+  --shadow-2: 0 0 0 1px rgb(255 255 255 / 0.03);
+  --shadow-3: 0 16px 48px rgb(0 0 0 / 0.5);
+}
+
+/* Component aliases (shadcn names). Same in both themes: they follow the foundation tokens. */
+:root,
+.dark {
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface-1);
+  --card-foreground: var(--text);
+  --popover: var(--surface-1);
+  --popover-foreground: var(--text);
+  --primary: var(--accent-strong);
+  --primary-foreground: var(--on-accent);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  /* "accent" is the brand highlight in this app (eyebrows, icons, active states): the emerald. */
+  --accent: var(--accent-strong);
+  --accent-foreground: var(--on-accent);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--on-danger);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--accent-base);
+  --chart-1: var(--data-protein);
+  --chart-2: var(--data-carbs);
+  --chart-3: var(--data-fat);
+  --chart-4: var(--data-4);
+  --chart-5: var(--data-5);
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--accent-strong);
+  --sidebar-primary-foreground: var(--on-accent);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--accent-base);
+  /* Unworked muscles on the body figure (BodyMap). */
+  --body-map: var(--surface-3);
+}
+.dark {
+  --popover: var(--surface-2); /* raised layers get a lighter tone instead of a shadow */
+}
+
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  /* Fonts */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /*
+   * Type scale: 12 / 14 / 16 / 20 / 24 / 32 / 48.
+   * Tailwind sizes are mapped onto it so every text-* lands on a step.
+   */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-4xl: 2rem;
+  --text-4xl--line-height: 2.5rem;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 3.25rem;
+  --text-6xl: 3rem;
+  --text-6xl--line-height: 3.25rem;
+  --text-7xl: 3rem;
+  --text-7xl--line-height: 3.25rem;
+
+  /* Spacing: Tailwind's 4 px base (p-1 = 4px, p-2 = 8px, p-4 = 16px, p-6 = 24px). */
+  --spacing: 0.25rem;
+
+  /* Radii: 6 · 8 · 10 · 12 · 16 · 20 · 24 · pill */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.25rem;
+  --radius-4xl: 1.5rem;
+
+  /* Elevation */
+  --shadow-xs: var(--shadow-1);
+  --shadow-sm: var(--shadow-1);
+  --shadow: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
+  --shadow-xl: var(--shadow-3);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Colours: component aliases */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -59,91 +266,87 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Colours: foundation tokens (bg-surface-2, text-warning-text, border-line-strong…) */
+  --color-bg: var(--bg);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-overlay: var(--overlay);
+  --color-subtle: var(--text-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--accent-base);
+  --color-brand-strong: var(--accent-strong);
+  --color-brand-hover: var(--accent-hover);
+  --color-brand-soft: var(--accent-soft);
+  --color-brand-line: var(--accent-line);
+  --color-on-brand: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-on-warning: var(--on-warning);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-info: var(--info);
+  --color-info-text: var(--info-text);
+  --color-strava: var(--brand-strava);
 }
 
-:root {
-  /* Native controls, scrollbars and the browser's own dark mode follow the app's theme, not the phone's. */
-  color-scheme: light;
-  --radius: 0.875rem;
-  --background: oklch(0.975 0.014 85);
-  --foreground: oklch(0.26 0.045 160);
-  --card: oklch(0.995 0.006 85);
-  --card-foreground: oklch(0.26 0.045 160);
-  --popover: oklch(0.995 0.006 85);
-  --popover-foreground: oklch(0.26 0.045 160);
-  --primary: oklch(0.36 0.07 160);
-  --primary-foreground: oklch(0.975 0.014 85);
-  --secondary: oklch(0.93 0.025 120);
-  --secondary-foreground: oklch(0.3 0.05 160);
-  --muted: oklch(0.94 0.018 85);
-  --muted-foreground: oklch(0.5 0.03 160);
-  --accent: oklch(0.7 0.17 50);
-  --accent-foreground: oklch(0.2 0.03 50);
-  --destructive: oklch(0.577 0.22 27);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.88 0.02 90);
-  --input: oklch(0.88 0.02 90);
-  --ring: oklch(0.7 0.17 50);
-  --chart-1: oklch(0.7 0.17 50);
-  --chart-2: oklch(0.45 0.08 160);
-  --chart-3: oklch(0.78 0.14 90);
-  --chart-4: oklch(0.6 0.12 200);
-  --chart-5: oklch(0.65 0.15 20);
-  --sidebar: oklch(0.975 0.014 85);
-  --sidebar-foreground: oklch(0.26 0.045 160);
-  --sidebar-primary: oklch(0.36 0.07 160);
-  --sidebar-primary-foreground: oklch(0.975 0.014 85);
-  --sidebar-accent: oklch(0.94 0.018 85);
-  --sidebar-accent-foreground: oklch(0.26 0.045 160);
-  --sidebar-border: oklch(0.88 0.02 90);
-  --sidebar-ring: oklch(0.7 0.17 50);
-  /* Unworked muscles on the body figure (BodyMap). */
-  --body-map: color-mix(in oklch, var(--muted-foreground) 25%, var(--card));
-  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
-  --font-body: "Manrope", system-ui, sans-serif;
+/* Named text styles, for new code: type-display, type-h1… */
+@utility type-display {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  line-height: 3.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
 }
-
-/* Dark theme in the brand's colours: deep green background, cream text, the same orange. */
-.dark {
-  color-scheme: dark;
-  --body-map: color-mix(in oklch, var(--muted-foreground) 45%, var(--card));
-  --background: oklch(0.2 0.022 160);
-  --foreground: oklch(0.94 0.015 85);
-  --card: oklch(0.255 0.025 160);
-  --card-foreground: oklch(0.94 0.015 85);
-  --popover: oklch(0.255 0.025 160);
-  --popover-foreground: oklch(0.94 0.015 85);
-  --primary: oklch(0.45 0.085 160);
-  --primary-foreground: oklch(0.98 0.012 85);
-  --secondary: oklch(0.3 0.03 140);
-  --secondary-foreground: oklch(0.93 0.015 85);
-  --muted: oklch(0.31 0.022 160);
-  --muted-foreground: oklch(0.74 0.025 120);
-  --accent: oklch(0.72 0.17 50);
-  --accent-foreground: oklch(0.2 0.03 50);
-  --destructive: oklch(0.68 0.2 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.36 0.022 160);
-  --input: oklch(0.42 0.022 160);
-  --ring: oklch(0.72 0.17 50);
-  --chart-1: oklch(0.72 0.17 50);
-  --chart-2: oklch(0.7 0.12 160);
-  --chart-3: oklch(0.8 0.14 90);
-  --chart-4: oklch(0.68 0.12 200);
-  --chart-5: oklch(0.7 0.15 20);
-  --sidebar: oklch(0.2 0.022 160);
-  --sidebar-foreground: oklch(0.94 0.015 85);
-  --sidebar-primary: oklch(0.47 0.085 160);
-  --sidebar-primary-foreground: oklch(0.98 0.012 85);
-  --sidebar-accent: oklch(0.31 0.022 160);
-  --sidebar-accent-foreground: oklch(0.94 0.015 85);
-  --sidebar-border: oklch(0.36 0.022 160);
-  --sidebar-ring: oklch(0.72 0.17 50);
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
-
-/* The card green is too dark for green text and links on the dark page, so text uses a lighter green. */
-.dark .text-primary {
-  color: oklch(0.8 0.1 160);
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+@utility type-h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+@utility type-body {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+@utility type-caption {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--text-muted);
+}
+/* Small label above a title ("TREINO DE HOJE"). */
+@utility type-overline {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* Large figures: kcal, kg, timers. */
+@utility type-number {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 @layer base {
@@ -165,12 +368,100 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-body);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
     /* No rubber band past the ends: on the iPhone it dragged the fixed tab bar up with the page. */
     overscroll-behavior-y: none;
   }
-  h1, h2, h3, .font-display {
+  h1,
+  h2,
+  h3,
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
+  }
+  /* Figures line up in columns everywhere (kg, kcal, sets). */
+  .font-display,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+  }
+}
+
+/* Theme change: colours cross-fade for a moment (theme.ts adds the class only while switching). */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition:
+    background-color 250ms var(--ease-out),
+    border-color 250ms var(--ease-out),
+    color 250ms var(--ease-out),
+    fill 250ms var(--ease-out),
+    stroke 250ms var(--ease-out) !important;
+}
+
+/* Feedback when a set or a goal is completed. */
+@keyframes forma-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes forma-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes forma-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@utility animate-pop {
+  animation: forma-pop 300ms var(--ease-spring);
+}
+@utility animate-fade-up {
+  animation: forma-fade-up 250ms var(--ease-out) both;
+}
+@utility skeleton-shimmer {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: forma-shimmer 1.4s linear infinite;
+}
+
+/* Pressed feel on anything tappable. */
+@utility pressable {
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out),
+    color 150ms var(--ease-out);
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+/* Bottom tab bar and fixed bars sit above the iPhone home indicator. */
+@utility pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -370,11 +370,11 @@ function CardioGoal({ elapsedS }: { elapsedS?: number }) {
       </dl>
       {elapsedS !== undefined && (
         <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-card" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Tempo até o objetivo">
-          <div className={`h-full rounded-full ${done ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${pct}%` }} />
+          <div className={`h-full rounded-full ${done ? "bg-success" : "bg-accent"}`} style={{ width: `${pct}%` }} />
         </div>
       )}
       <p className="mt-2 text-xs text-muted-foreground">
-        {done ? <b className="text-[#3f9d6b]">Tempo do objetivo cumprido. </b> : null}
+        {done ? <b className="text-success-text">Tempo do objetivo cumprido. </b> : null}
         Mantenha o batimento na faixa (confira na Mi Band): dá para conversar, mas não cantar.{goal.measured ? "" : " A faixa usa um repouso estimado até a Mi Band mandar o seu."}
       </p>
     </div>

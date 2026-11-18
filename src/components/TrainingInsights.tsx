@@ -10,7 +10,7 @@ const streakText = (weeks: number) => `${weeks} semanas seguidas cumprindo o pla
 export function StreakLine({ planned }: { planned: number }) {
   const streak = weekStreak(useTrainedDays(), planned, today());
   if (streak < 2) return null;
-  return <p className="flex items-center gap-1.5"><Flame className="h-4 w-4 shrink-0 text-accent" aria-hidden /><b>{streakText(streak)}</b></p>;
+  return <p className="flex items-center gap-1.5"><Flame className="h-4 w-4 shrink-0 text-warning" aria-hidden /><b>{streakText(streak)}</b></p>;
 }
 
 /** Hoje: the streak of weeks on plan and, when the last days add up to fatigue, a suggestion to ease off. */
@@ -28,12 +28,12 @@ export function TrainingInsights({ planned }: { planned: number }) {
     <>
       {streak >= 2 && (
         <p className="flex items-center gap-2 rounded-3xl border border-border bg-card px-5 py-3 text-sm">
-          <Flame className="h-5 w-5 shrink-0 text-accent" aria-hidden /><b>{streakText(streak)}</b>
+          <Flame className="h-5 w-5 shrink-0 text-warning" aria-hidden /><b>{streakText(streak)}</b>
         </p>
       )}
       {tired && (
-        <section className="flex items-start gap-3 rounded-3xl border-2 border-accent bg-accent/10 p-4">
-          <Activity className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
+        <section className="flex items-start gap-3 rounded-3xl border border-warning/40 bg-warning/10 p-4">
+          <Activity className="mt-0.5 h-5 w-5 shrink-0 text-warning-text" aria-hidden />
           <p className="min-w-0 flex-1 text-sm">
             <b>{tired.days} dias seguidos de treino, sem descanso.</b> O corpo evolui na recuperação: inclua um dia livre antes do próximo treino pesado.
           </p>

@@ -61,13 +61,13 @@ export function NotificationSettings() {
   return (
     <section className={`space-y-4 ${CARD}`}>
       <div className="flex items-start gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${subscribed ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${subscribed ? "bg-success/15 text-success-text" : "bg-muted text-muted-foreground"}`}>
           {subscribed ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-bold">Notificações</h3>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${subscribed ? "bg-[#3f9d6b]/15 text-[#3f9d6b]" : "bg-muted text-muted-foreground"}`}>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${subscribed ? "bg-success/15 text-success-text" : "bg-muted text-muted-foreground"}`}>
               {subscribed ? "Ativadas" : state === "broken" ? "Pararam" : state === "blocked" ? "Bloqueadas" : "Desativadas"}
             </span>
           </div>

@@ -180,7 +180,7 @@ function FoodPage() {
         </div>
         <div className="mt-1 font-display text-4xl font-extrabold">{Math.round(sum.kcal).toLocaleString("pt-BR")}<span className="text-lg opacity-75"> / {t.kcal.toLocaleString("pt-BR")} kcal</span></div>
         <div className="mt-4 grid gap-3 [&_span]:!text-primary-foreground/80">
-          <MacroBar name="Proteína" value={sum.p} max={t.protein} color="#6cc495" />
+          <MacroBar name="Proteína" value={sum.p} max={t.protein} color="var(--data-protein)" />
           <MacroBar name="Carboidratos" value={sum.c} max={t.carbs} color="var(--chart-1)" />
           <MacroBar name="Gorduras" value={sum.f} max={t.fat} color="var(--chart-3)" />
           {fiber.known > 0 && <MacroBar name="Fibras" value={fiber.grams} max={FIBER_REFERENCE} color="var(--chart-4)" />}
@@ -294,7 +294,7 @@ function FoodPage() {
                         </span>
                         <span className="shrink-0 text-right text-sm text-muted-foreground">
                           {f.kcal} kcal
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide">{f.source}</span>
+                          <span className="block text-xs font-semibold uppercase tracking-wide">{f.source}</span>
                         </span>
                       </button>
                     </li>
@@ -358,7 +358,7 @@ function FoodPage() {
               <div className="flex justify-between"><h3 className="font-bold">{m.t}</h3><span className="font-display font-bold text-accent">{kcal} kcal</span></div>
               {m.v !== "suplementos" && items.length > 0 && (
                 <p className="text-xs tabular-nums text-muted-foreground">
-                  Proteína: <b className={mealProtein[m.v]! >= proteinAim ? "text-[#3f9d6b]" : "text-foreground"}>{mealProtein[m.v]} g</b>
+                  Proteína: <b className={mealProtein[m.v]! >= proteinAim ? "text-success-text" : "text-foreground"}>{mealProtein[m.v]} g</b>
                   {mealProtein[m.v]! < proteinAim && <> · o ideal por refeição é a partir de {proteinAim} g</>}
                 </p>
               )}

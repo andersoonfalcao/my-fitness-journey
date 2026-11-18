@@ -85,7 +85,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
                         <div className="absolute inset-x-0 bottom-0 rounded-full transition-all" style={{ height: `${pct}%`, background: m.color }} />
                         {over && <div className="absolute inset-x-0 top-0 h-1.5 bg-foreground/60" />}
                       </div>
-                      <span className={`text-[11px] ${isEnd ? "font-extrabold text-foreground" : "text-muted-foreground"}`}>{d.initial}</span>
+                      <span className={`text-xs ${isEnd ? "font-extrabold text-foreground" : "text-muted-foreground"}`}>{d.initial}</span>
                     </div>
                   );
                 })}
@@ -109,7 +109,7 @@ export function MacrosCard({ t, end = today(), className = "" }: { t: Targets; e
           </div>
           <table className="mt-2 w-full text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <th className="py-1 font-bold">Dia</th>
                 <th className="py-1 text-right font-bold">kcal</th>
                 {MACROS.map((m) => <th key={m.key} className="py-1 text-right font-bold" style={{ color: m.color }}>{m.name.slice(0, 4)}.</th>)}

@@ -63,8 +63,8 @@ export function AchievementWatcher({ profile }: { profile: Profile }) {
   const recent = list.filter((a) => won[a.id] && won[a.id] !== "antes" && won[a.id]! >= addDays(today(), -2));
   if (hidden || recent.length === 0) return null;
   return (
-    <section className="flex items-start gap-3 rounded-3xl border border-[#3f9d6b]/40 bg-[#3f9d6b]/10 p-4">
-      <Trophy className="mt-0.5 h-6 w-6 shrink-0 text-[#2f7d54] dark:text-[#6cc495]" aria-hidden />
+    <section className="flex items-start gap-3 rounded-3xl border border-success/40 bg-success/10 p-4">
+      <Trophy className="mt-0.5 h-6 w-6 shrink-0 text-success-text" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="font-bold">{recent.length === 1 ? `Conquista nova: ${recent[0]!.title}` : `${recent.length} conquistas novas`}</p>
         <p className="text-sm text-muted-foreground">{recent.length === 1 ? recent[0]!.how : recent.map((a) => a.title).join(" · ")}</p>
@@ -98,7 +98,7 @@ export function AchievementsGrid({ profile }: { profile: Profile }) {
                 <span className={`grid h-14 w-14 place-items-center rounded-full border-2 ${on ? "border-accent bg-accent text-accent-foreground" : "border-border bg-muted text-muted-foreground"} ${open?.id === a.id ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : ""}`}>
                   <Icon className="h-6 w-6" aria-hidden />
                 </span>
-                <span className={`text-[11px] font-semibold leading-tight ${on ? "" : "text-muted-foreground"}`}>{a.title}</span>
+                <span className={`text-xs font-semibold leading-tight ${on ? "" : "text-muted-foreground"}`}>{a.title}</span>
               </button>
             </li>
           );
@@ -109,7 +109,7 @@ export function AchievementsGrid({ profile }: { profile: Profile }) {
           <p className="font-bold">{open.title}</p>
           <p className="text-muted-foreground">{open.how}.</p>
           {isWon(open, won) ? (
-            <p className="mt-1 font-semibold text-[#3f9d6b]">Conquistada{won[open.id] && won[open.id] !== "antes" ? ` em ${new Date(`${won[open.id]}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}.</p>
+            <p className="mt-1 font-semibold text-success-text">Conquistada{won[open.id] && won[open.id] !== "antes" ? ` em ${new Date(`${won[open.id]}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}.</p>
           ) : (
             <>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-card"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, (open.have / open.need) * 100)}%` }} /></div>

@@ -3,12 +3,12 @@ import { Download, ImagePlus, Loader2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BACKGROUNDS, shareImage, type Background } from "@/lib/share-card";
+import { BACKGROUNDS, SHARE_COLORS, shareImage, type Background } from "@/lib/share-card";
 
 export type ShareRequest = { heading: string; title: string; fileName: string; make: (bg: Background) => Promise<Blob> };
 
 const BG_KEY = "forma.share.bg";
-const CHECKER = "repeating-conic-gradient(#d9d4c7 0% 25%, #f4efe4 0% 50%) 0 0 / 16px 16px";
+const CHECKER = "repeating-conic-gradient(var(--surface-3) 0% 25%, var(--surface-1) 0% 50%) 0 0 / 16px 16px";
 const savedBg = () => {
   try {
     return BACKGROUNDS.find((b) => b.id === localStorage.getItem(BG_KEY)) ?? BACKGROUNDS[0]!;
@@ -95,17 +95,17 @@ export function ShareDialog({ request, onClose }: { request: ShareRequest | null
         </div>
 
         <div role="radiogroup" aria-label="Fundo da imagem" className="-mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 pb-1">
-          <button type="button" onClick={() => file.current?.click()} className="flex w-16 shrink-0 flex-col items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+          <button type="button" onClick={() => file.current?.click()} className="flex w-16 shrink-0 flex-col items-center gap-1 text-xs font-semibold text-muted-foreground">
             <span className="flex h-20 w-16 items-center justify-center rounded-xl border-2 border-dashed border-border"><ImagePlus className="h-5 w-5" /></span>
             Sua foto
           </button>
           {options.map((b) => (
             <button key={b.id} type="button" role="radio" aria-checked={bg.id === b.id} aria-label={b.label} onClick={() => choose(b)}
-              className={`flex w-16 shrink-0 flex-col items-center gap-1 text-[11px] font-semibold ${bg.id === b.id ? "text-accent" : "text-muted-foreground"}`}>
+              className={`flex w-16 shrink-0 flex-col items-center gap-1 text-xs font-semibold ${bg.id === b.id ? "text-accent" : "text-muted-foreground"}`}>
               <span className={`h-20 w-16 overflow-hidden rounded-xl border-2 ${bg.id === b.id ? "border-accent" : "border-transparent"}`}
-                style={{ background: b.kind === "transparent" ? CHECKER : b.kind === "brand" ? "#124830" : undefined }}>
+                style={{ background: b.kind === "transparent" ? CHECKER : b.kind === "brand" ? SHARE_COLORS.bg : undefined }}>
                 {b.src && <img src={b.src} alt="" className="h-full w-full object-cover" />}
-                {b.kind === "brand" && <span className="flex h-full items-center justify-center font-display text-lg font-extrabold text-[#fbf6ec]">f<span className="text-accent">.</span></span>}
+                {b.kind === "brand" && <span className="flex h-full items-center justify-center font-display text-lg font-bold" style={{ color: SHARE_COLORS.text }}>f<span style={{ color: SHARE_COLORS.accent }}>.</span></span>}
               </span>
               <span className="w-full truncate text-center">{b.label}</span>
             </button>

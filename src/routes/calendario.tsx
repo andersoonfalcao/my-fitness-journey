@@ -204,8 +204,8 @@ function CalendarPage() {
                   <span className="flex flex-wrap justify-center gap-0.5 sm:gap-1">
                     {d.trained && <Dot color="var(--accent)" />}
                     {d.eaten.length > 0 && <Dot color={d.onCalories ? "var(--chart-2)" : "var(--muted-foreground)"} ring={!d.onCalories} />}
-                    {d.waterMl >= d.goal.waterMl && <Dot color="#4fb3c9" />}
-                    {d.workouts.length > 0 && (d.cardio.length > 0 || d.strava.some(isCardio)) && <Dot color="#fc4c02" ring />}
+                    {d.waterMl >= d.goal.waterMl && <Dot color="var(--info)" />}
+                    {d.workouts.length > 0 && (d.cardio.length > 0 || d.strava.some(isCardio)) && <Dot color="var(--brand-strava)" ring />}
                   </span>
                 )}
               </button>
@@ -216,8 +216,8 @@ function CalendarPage() {
           <Legend color="var(--accent)" label="treino" />
           <Legend color="var(--chart-2)" label="calorias na meta" />
           <Legend color="var(--muted-foreground)" label="refeições fora da meta" ring />
-          <Legend color="#4fb3c9" label="água na meta" />
-          <Legend color="#fc4c02" label="cardio além do treino" ring />
+          <Legend color="var(--info)" label="água na meta" />
+          <Legend color="var(--brand-strava)" label="cardio além do treino" ring />
           <span><b className="text-accent">7</b> dia finalizado</span>
         </div>
       </section>
@@ -283,9 +283,9 @@ function CalendarPage() {
         })}
 
         {sel.strava.map((a) => (
-          <button key={a.id} type="button" onClick={() => setActivity(a)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 text-left hover:border-[#fc4c02]">
+          <button key={a.id} type="button" onClick={() => setActivity(a)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 text-left hover:border-strava">
             <span className="min-w-0">
-              <span className="block text-xs font-bold uppercase tracking-wider text-[#fc4c02]">{a.app ? cardioLabel(a.app) : sportLabel(a.sport)} · Strava</span>
+              <span className="block text-xs font-bold uppercase tracking-wider text-strava">{a.app ? cardioLabel(a.app) : sportLabel(a.sport)} · Strava</span>
               <span className="block truncate font-display font-bold">{a.name}</span>
             </span>
             <span className="shrink-0 text-right text-sm font-semibold tabular-nums">

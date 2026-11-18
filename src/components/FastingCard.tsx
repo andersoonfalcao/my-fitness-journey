@@ -32,16 +32,16 @@ export function FastingCard() {
     const done = elapsed >= goalMs;
     const pct = Math.min(100, (elapsed / goalMs) * 100);
     return (
-      <section className={`rounded-3xl border-2 p-4 ${done ? "border-[#3f9d6b] bg-[#3f9d6b]/10" : "border-primary bg-card"}`}>
+      <section className={`rounded-3xl border-2 p-4 ${done ? "border-success bg-success/10" : "border-primary bg-card"}`}>
         <div className="flex items-center gap-3">
-          <Hourglass className={`h-6 w-6 shrink-0 ${done ? "text-[#3f9d6b]" : "text-accent"}`} aria-hidden />
+          <Hourglass className={`h-6 w-6 shrink-0 ${done ? "text-success-text" : "text-accent"}`} aria-hidden />
           <div className="min-w-0 flex-1">
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{done ? "Jejum completo" : `Jejum · meta de ${fast.goalH} h`}</div>
             <div className="font-display text-3xl font-extrabold leading-tight tabular-nums">{hoursLabel(elapsed)}</div>
           </div>
         </div>
         <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Progresso do jejum">
-          <div className={`h-full rounded-full ${done ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${pct}%` }} />
+          <div className={`h-full rounded-full ${done ? "bg-success" : "bg-accent"}`} style={{ width: `${pct}%` }} />
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
           Começou às {clock(fast.startedAt)}{new Date(fast.startedAt).toDateString() !== new Date(now).toDateString() ? " de ontem" : ""}.{" "}
@@ -52,7 +52,7 @@ export function FastingCard() {
           cancelFastPush();
           setFast(null);
           toast.success(`Jejum encerrado com ${hoursLabel(Date.now() - fast.startedAt)}`);
-        }} className={`mt-3 min-h-11 w-full rounded-full font-bold ${done ? "bg-[#3f9d6b] text-white" : "border border-input bg-card"}`}>
+        }} className={`mt-3 min-h-11 w-full rounded-full font-bold ${done ? "bg-success text-on-brand" : "border border-input bg-card"}`}>
           {done ? "Encerrar jejum" : "Encerrar antes da meta"}
         </button>
       </section>

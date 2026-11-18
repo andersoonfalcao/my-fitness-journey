@@ -62,7 +62,7 @@ export function StravaCard() {
             <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => void disconnect()} className="rounded-full text-muted-foreground">Desconectar</Button>
           </div>
         ) : (
-          <Button type="button" disabled={status === null} onClick={startStravaConnect} className="rounded-full bg-[#fc4c02] text-white hover:bg-[#e34402]">
+          <Button type="button" disabled={status === null} onClick={startStravaConnect} className="rounded-full bg-strava text-white hover:bg-strava/90">
             Conectar ao Strava
           </Button>
         )}
@@ -73,7 +73,7 @@ export function StravaCard() {
 
 function StravaLogo() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="#fc4c02">
+    <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="var(--brand-strava)">
       <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
     </svg>
   );

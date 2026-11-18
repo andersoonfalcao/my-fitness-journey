@@ -8,16 +8,25 @@ import stravaLogo from "@/assets/strava-powered-white.svg";
 
 const W = 1080;
 const H = 1350;
-const C = { green: "#124830", greenSoft: "#1d5c40", cream: "#fbf6ec", orange: "#ee7b2c", mute: "#a9c4b5", line: "rgba(251,246,236,0.14)" };
-const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
-const BODY = 'Manrope, system-ui, sans-serif';
+/**
+ * The image is a picture, not a themed screen: it always uses the dark-theme tokens of styles.css
+ * (--bg, --surface-2, --text, --text-muted, --accent-base, --data-*), so it reads the same on any phone.
+ * Keep these in step with styles.css.
+ */
+export const SHARE_COLORS = {
+  bg: "#0f1115", tile: "#22262e", text: "#f2f4f7", mute: "#9aa3af", accent: "#10b981",
+  protein: "#a78bfa", water: "#38bdf8", line: "rgba(242,244,247,0.12)",
+} as const;
+const C = SHARE_COLORS;
+const DISPLAY = '"Space Grotesk", system-ui, sans-serif';
+const BODY = 'Inter, system-ui, sans-serif';
 
-/** Background choices: the brand green, fitness photos (CC0, see assets/share-bg/FONTES.md), the user's own photo, or none. */
+/** Background choices: the brand graphite, fitness photos (CC0, see assets/share-bg/FONTES.md), the user's own photo, or none. */
 export type Background = { id: string; label: string; kind: "brand" | "photo" | "transparent"; src?: string };
 const PHOTOS = import.meta.glob<string>("@/assets/share-bg/*.jpg", { eager: true, import: "default" });
 const PHOTO_LABEL: Record<string, string> = { halteres: "Halteres", anilha: "Anilha", box: "Box", pista: "Pista", "pista-noite": "Pista à noite", esteiras: "Esteiras", piscina: "Piscina" };
 export const BACKGROUNDS: Background[] = [
-  { id: "brand", label: "Verde", kind: "brand" },
+  { id: "brand", label: "Grafite", kind: "brand" },
   ...Object.keys(PHOTO_LABEL).flatMap((id) => {
     const src = Object.entries(PHOTOS).find(([path]) => path.endsWith(`/${id}.jpg`))?.[1];
     return src ? [{ id, label: PHOTO_LABEL[id]!, kind: "photo" as const, src }] : [];
@@ -27,7 +36,7 @@ export const BACKGROUNDS: Background[] = [
 
 /** Per-canvas look: tiles go translucent and text gets a soft shadow over photos or a transparent background. */
 const looks = new WeakMap<CanvasRenderingContext2D, { tile: string; shadow: boolean; mute: string }>();
-const look = (ctx: CanvasRenderingContext2D) => looks.get(ctx) ?? { tile: C.greenSoft, shadow: false, mute: C.mute };
+const look = (ctx: CanvasRenderingContext2D) => looks.get(ctx) ?? { tile: C.tile, shadow: false, mute: C.mute };
 
 const n = (v: number, digits = 0) => v.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 const longDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
@@ -42,7 +51,7 @@ const loadImage = (src: string) =>
 
 async function canvas(bg: Background) {
   await Promise.all([
-    document.fonts.load(`800 120px ${DISPLAY}`),
+    document.fonts.load(`700 120px ${DISPLAY}`),
     document.fonts.load(`700 40px ${DISPLAY}`),
     document.fonts.load(`600 32px ${BODY}`),
   ]).catch(() => undefined);
@@ -51,7 +60,7 @@ async function canvas(bg: Background) {
   el.height = H;
   const ctx = el.getContext("2d")!;
   if (bg.kind === "transparent") {
-    looks.set(ctx, { tile: "rgba(10,32,22,0.55)", shadow: true, mute: "#e3ede7" });
+    looks.set(ctx, { tile: "rgba(15,17,21,0.55)", shadow: true, mute: "#e4e7eb" });
     return { el, ctx };
   }
   if (bg.kind === "photo" && bg.src) {
@@ -61,21 +70,21 @@ async function canvas(bg: Background) {
       ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
       // Dark green veil so the numbers read over any photo.
       const veil = ctx.createLinearGradient(0, 0, 0, H);
-      veil.addColorStop(0, "rgba(8,28,19,0.72)");
-      veil.addColorStop(0.45, "rgba(8,28,19,0.45)");
-      veil.addColorStop(1, "rgba(8,28,19,0.8)");
+      veil.addColorStop(0, "rgba(15,17,21,0.72)");
+      veil.addColorStop(0.45, "rgba(15,17,21,0.45)");
+      veil.addColorStop(1, "rgba(15,17,21,0.8)");
       ctx.fillStyle = veil;
       ctx.fillRect(0, 0, W, H);
-      looks.set(ctx, { tile: "rgba(10,32,22,0.62)", shadow: true, mute: "#d5e3da" });
+      looks.set(ctx, { tile: "rgba(15,17,21,0.62)", shadow: true, mute: "#d6dae0" });
       return { el, ctx };
     }
   }
-  // Brand background: green with a soft glow in the corner.
-  ctx.fillStyle = C.green;
+  // Brand background: graphite with a soft emerald glow in the corner.
+  ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, W, H);
   const glow = ctx.createRadialGradient(W * 0.85, H * 0.1, 40, W * 0.85, H * 0.1, 760);
-  glow.addColorStop(0, "rgba(238,123,44,0.28)");
-  glow.addColorStop(1, "rgba(238,123,44,0)");
+  glow.addColorStop(0, "rgba(16,185,129,0.22)");
+  glow.addColorStop(1, "rgba(16,185,129,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
   return { el, ctx };
@@ -89,12 +98,12 @@ function shade(ctx: CanvasRenderingContext2D) {
 
 function logo(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
   shade(ctx);
-  ctx.font = `800 ${size}px ${DISPLAY}`;
+  ctx.font = `700 ${size}px ${DISPLAY}`;
   ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = C.cream;
+  ctx.fillStyle = C.text;
   ctx.fillText("forma", x, y);
   const w = ctx.measureText("forma").width;
-  ctx.fillStyle = C.orange;
+  ctx.fillStyle = C.accent;
   ctx.fillText(".", x + w, y);
   ctx.shadowBlur = 0;
 }
@@ -111,21 +120,21 @@ function text(ctx: CanvasRenderingContext2D, value: string, x: number, y: number
 
 /** Stat tile: big value with a small label underneath. */
 function tile(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, value: string, label: string, accent = false) {
-  ctx.fillStyle = accent ? C.orange : look(ctx).tile;
+  ctx.fillStyle = accent ? C.accent : look(ctx).tile;
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 36);
   ctx.fill();
-  text(ctx, value, x + 36, y + h / 2 + 8, `800 64px ${DISPLAY}`, accent ? C.green : C.cream, w - 60);
-  text(ctx, label, x + 36, y + h / 2 + 56, `600 30px ${BODY}`, accent ? C.green : C.mute, w - 60);
+  text(ctx, value, x + 36, y + h / 2 + 8, `700 64px ${DISPLAY}`, accent ? C.bg : C.text, w - 60);
+  text(ctx, label, x + 36, y + h / 2 + 56, `600 30px ${BODY}`, accent ? C.bg : C.mute, w - 60);
 }
 
 /** Progress bar row: label, "value / target" and a bar. */
 function bar(ctx: CanvasRenderingContext2D, y: number, label: string, value: number, target: number, unit: string, color: string, digits = 0) {
-  text(ctx, label, 80, y, `700 38px ${DISPLAY}`, C.cream);
+  text(ctx, label, 80, y, `700 38px ${DISPLAY}`, C.text);
   const right = `${n(value, digits)} / ${n(target, digits)} ${unit}`;
   ctx.font = `600 34px ${BODY}`;
   text(ctx, right, W - 80 - ctx.measureText(right).width, y, `600 34px ${BODY}`, C.mute);
-  ctx.fillStyle = look(ctx).shadow ? "rgba(10,32,22,0.55)" : C.line;
+  ctx.fillStyle = look(ctx).shadow ? "rgba(15,17,21,0.55)" : C.line;
   ctx.beginPath();
   ctx.roundRect(80, y + 26, W - 160, 22, 11);
   ctx.fill();
@@ -154,8 +163,8 @@ const clock = (ms: number) => {
 export async function workoutCard(record: WorkoutRecord, previous: WorkoutRecord | undefined, bg: Background): Promise<Blob> {
   const { el, ctx } = await canvas(bg);
   logo(ctx, 80, 150, 88);
-  text(ctx, longDate(record.date).toUpperCase(), 80, 250, `700 30px ${BODY}`, C.orange);
-  text(ctx, `${record.dayName} concluído`, 80, 340, `800 84px ${DISPLAY}`, C.cream, W - 160);
+  text(ctx, longDate(record.date).toUpperCase(), 80, 250, `700 30px ${BODY}`, C.accent);
+  text(ctx, `${record.dayName} concluído`, 80, 340, `700 84px ${DISPLAY}`, C.text, W - 160);
 
   const done = record.exercises.reduce((s, e) => s + e.setsDone, 0);
   const planned = record.exercises.reduce((s, e) => s + e.setsPlanned, 0);
@@ -200,9 +209,9 @@ function route(ctx: CanvasRenderingContext2D, points: [number, number][], x: num
   ctx.beginPath();
   points.forEach((_, i) => (i ? ctx.lineTo(...at(i)) : ctx.moveTo(...at(i))));
   ctx.stroke();
-  for (const [i, color] of [[0, C.cream], [points.length - 1, STRAVA]] as const) {
+  for (const [i, color] of [[0, C.text], [points.length - 1, STRAVA]] as const) {
     ctx.fillStyle = color;
-    ctx.strokeStyle = C.green;
+    ctx.strokeStyle = C.bg;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.arc(...at(i), 16, 0, Math.PI * 2);
@@ -211,6 +220,7 @@ function route(ctx: CanvasRenderingContext2D, points: [number, number][], x: num
   }
 }
 
+// Strava orange, required as-is by their brand guidelines (--brand-strava in styles.css).
 const STRAVA = "#fc4c02";
 
 /** Image for a Strava activity: route drawing, the main numbers, the forma. logo and the official "Powered by Strava" mark. */
@@ -219,7 +229,7 @@ export async function stravaCard(d: StravaDetail, bg: Background): Promise<Blob>
   logo(ctx, 80, 150, 88);
   const when = new Date(d.startLocal.replace("Z", "")).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   text(ctx, `${sportLabel(d.sport)} · ${when}`.toUpperCase(), 80, 250, `700 30px ${BODY}`, STRAVA, W - 160);
-  text(ctx, d.name, 80, 340, `800 76px ${DISPLAY}`, C.cream, W - 160);
+  text(ctx, d.name, 80, 340, `700 76px ${DISPLAY}`, C.text, W - 160);
 
   const paceSport = usesPace(d.sport);
   const stats: [string, string][] = [
@@ -257,12 +267,12 @@ export async function dayCard(record: DayRecord, bg: Background): Promise<Blob> 
   const { el, ctx } = await canvas(bg);
   const { day, sinceStart: s } = record;
   logo(ctx, 80, 150, 88);
-  text(ctx, longDate(record.date).toUpperCase(), 80, 250, `700 30px ${BODY}`, C.orange);
-  text(ctx, "Meu dia", 80, 340, `800 92px ${DISPLAY}`, C.cream);
+  text(ctx, longDate(record.date).toUpperCase(), 80, 250, `700 30px ${BODY}`, C.accent);
+  text(ctx, "Meu dia", 80, 340, `700 92px ${DISPLAY}`, C.text);
 
-  bar(ctx, 430, "Calorias", day.kcal, day.targets.kcal, "kcal", C.orange);
-  bar(ctx, 540, "Proteína", day.protein, day.targets.protein, "g", "#f2b84b");
-  bar(ctx, 650, "Água", day.waterMl / 1000, day.targets.waterMl / 1000, "L", "#4fb3c9", 1);
+  bar(ctx, 430, "Calorias", day.kcal, day.targets.kcal, "kcal", C.accent);
+  bar(ctx, 540, "Proteína", day.protein, day.targets.protein, "g", C.protein);
+  bar(ctx, 650, "Água", day.waterMl / 1000, day.targets.waterMl / 1000, "L", C.water, 1);
 
   const half = (W - 160 - 30) / 2;
   const workout = day.workout ? `${day.workout.name}` : "Descanso";
@@ -287,8 +297,8 @@ export async function monthCard(r: MonthReview, bg: Background): Promise<Blob> {
   const { el, ctx } = await canvas(bg);
   const s = r.stats;
   logo(ctx, 80, 150, 88);
-  text(ctx, monthName(r.month).toUpperCase(), 80, 250, `700 30px ${BODY}`, C.orange);
-  text(ctx, r.inProgress ? "Meu mês até aqui" : "Meu mês", 80, 340, `800 92px ${DISPLAY}`, C.cream);
+  text(ctx, monthName(r.month).toUpperCase(), 80, 250, `700 30px ${BODY}`, C.accent);
+  text(ctx, r.inProgress ? "Meu mês até aqui" : "Meu mês", 80, 340, `700 92px ${DISPLAY}`, C.text);
 
   const half = (W - 160 - 30) / 2;
   tile(ctx, 80, 420, W - 160, 220, s.volumeKg ? `${n(s.volumeKg)} kg` : `${s.workouts} treinos`, s.volumeKg ? "levantados no mês" : "no mês", true);

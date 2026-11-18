@@ -72,7 +72,7 @@ export function HealthTrends() {
             {rhythm && (
               <p>
                 Você dorme em média às <b className="tabular-nums">{rhythm.bedtime}</b> e acorda às <b className="tabular-nums">{rhythm.wake}</b>. Horário{" "}
-                <b className={rhythm.level === "regular" ? "text-[#3f9d6b]" : "text-accent"}>{rhythm.level}</b>
+                <b className={rhythm.level === "regular" ? "text-success-text" : "text-warning-text"}>{rhythm.level}</b>
                 <span className="text-muted-foreground"> (dormir varia {rhythm.bedtimeSd} min e acordar {rhythm.wakeSd} min)</span>.
               </p>
             )}

@@ -325,15 +325,15 @@ function ProfileSummary({ p, current, start }: { p: Profile; current: number; st
           <div className="flex w-full min-w-0 items-start justify-center gap-2 sm:contents">
             <WeightFigure label="Peso atual" value={current} />
             <div className="flex min-w-[5.5rem] flex-1 flex-col items-center gap-1 pt-5">
-              <span className={`rounded-full px-2.5 py-1 text-center text-xs font-bold leading-tight sm:text-sm ${diff === 0 ? "bg-[#3f9d6b]/10 text-[#3f9d6b]" : "bg-destructive/10 text-destructive"}`}>
+              <span className={`rounded-full px-2.5 py-1 text-center text-xs font-bold leading-tight sm:text-sm ${diff === 0 ? "bg-success/10 text-success-text" : "bg-destructive/10 text-destructive"}`}>
                 {diff === 0 ? "Na meta" : <>{diff > 0 ? "Ganhar" : "Perder"} <span className="whitespace-nowrap">{kg(Math.abs(diff))}</span></>}
               </span>
-              <span className={`flex w-full items-center ${diff === 0 ? "text-[#3f9d6b]" : "text-destructive"}`} aria-hidden>
+              <span className={`flex w-full items-center ${diff === 0 ? "text-success-text" : "text-destructive"}`} aria-hidden>
                 <span className="h-px flex-1 bg-current opacity-50" />
                 <ArrowRight className="-ml-1 h-4 w-4" />
               </span>
             </div>
-            <WeightFigure label="Meta" value={p.goalWeight} className="text-[#3f9d6b]" />
+            <WeightFigure label="Meta" value={p.goalWeight} className="text-success-text" />
           </div>
         </div>
         <div className="mt-5 flex flex-wrap justify-center gap-2 border-t border-border pt-4">

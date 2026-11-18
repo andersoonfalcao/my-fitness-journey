@@ -144,7 +144,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={n.to}
               to={n.to}
               activeOptions={{ exact: n.to === "/" }}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-[11px] font-semibold text-muted-foreground"
+              className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-semibold text-muted-foreground"
               activeProps={{ className: "!text-accent" }}
             >
               <n.icon className="h-5 w-5" />

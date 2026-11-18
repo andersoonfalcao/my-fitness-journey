@@ -2,8 +2,8 @@ import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import type { BodyAnalysis } from "@/lib/store";
 
 const STATUS: Record<BodyAnalysis["items"][number]["status"], { label: string; className: string }> = {
-  bom: { label: "Bom", className: "bg-[#3f9d6b]/15 text-[#3f9d6b]" },
-  atencao: { label: "Atenção", className: "bg-[#f2b84b]/20 text-[#a86d00] dark:text-[#f2b84b]" },
+  bom: { label: "Bom", className: "bg-success/15 text-success-text" },
+  atencao: { label: "Atenção", className: "bg-warning/15 text-warning-text" },
   melhorar: { label: "Melhorar", className: "bg-destructive/15 text-destructive" },
 };
 

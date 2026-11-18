@@ -44,12 +44,12 @@ const parse = (s: string) => {
 
 /** WHO BMI ranges for adults. */
 const BMI_RANGES = [
-  { max: 18.5, label: "Abaixo do peso", color: "#4fb3c9" },
-  { max: 25, label: "Peso normal", color: "#3f9d6b" },
-  { max: 30, label: "Sobrepeso", color: "#f2b84b" },
-  { max: 35, label: "Obesidade grau I", color: "#ee7b2c" },
-  { max: 40, label: "Obesidade grau II", color: "#e0582a" },
-  { max: Infinity, label: "Obesidade grau III", color: "#c43d2b" },
+  { max: 18.5, label: "Abaixo do peso", color: "var(--info)" },
+  { max: 25, label: "Peso normal", color: "var(--success)" },
+  { max: 30, label: "Sobrepeso", color: "var(--warning)" },
+  { max: 35, label: "Obesidade grau I", color: "color-mix(in srgb, var(--warning) 50%, var(--danger))" },
+  { max: 40, label: "Obesidade grau II", color: "var(--danger)" },
+  { max: Infinity, label: "Obesidade grau III", color: "color-mix(in srgb, var(--danger) 75%, var(--text))" },
 ];
 
 /** Bioimpedance fields: key, label, unit, whether a lower value is the better direction (null = neutral). */
@@ -213,7 +213,7 @@ function CorpoPage() {
           </div>
           <div className="absolute -top-1 h-5 w-5 -translate-x-1/2 rounded-full border-4 border-card shadow" style={{ left: `${pos}%`, background: range.color }} />
         </div>
-        <div className="relative mt-1 h-4 text-[11px] text-muted-foreground tabular-nums">
+        <div className="relative mt-1 h-4 text-xs text-muted-foreground tabular-nums">
           {[18.5, 25, 30, 35, 40].map((v) => (
             <span key={v} className="absolute -translate-x-1/2" style={{ left: `${((v - 15) / 27) * 100}%` }}>{num(v)}</span>
           ))}
@@ -285,7 +285,7 @@ function CorpoPage() {
                     <div className="flex items-baseline justify-between gap-1">
                       <span className="whitespace-nowrap font-display text-lg font-bold leading-tight tabular-nums">{val(f.key, now)} <span className="text-sm">{f.unit}</span></span>
                       {diff !== null && diff !== 0 && (
-                        <b className={`whitespace-nowrap text-xs tabular-nums ${good === null ? "text-muted-foreground" : good ? "text-[#3f9d6b]" : "text-destructive"}`}>{diff > 0 ? "+" : ""}{val(f.key, diff)}</b>
+                        <b className={`whitespace-nowrap text-xs tabular-nums ${good === null ? "text-muted-foreground" : good ? "text-success-text" : "text-destructive"}`}>{diff > 0 ? "+" : ""}{val(f.key, diff)}</b>
                       )}
                     </div>
                     <div className="text-xs leading-tight text-muted-foreground">{f.label}</div>

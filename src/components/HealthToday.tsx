@@ -13,9 +13,9 @@ const addDays = (date: string, n: number) => { const d = new Date(`${date}T12:00
 
 /** Background and title color; the text stays in the normal color so it reads on any of them. */
 const TONE: Record<"bom" | "normal" | "baixo", [string, string]> = {
-  bom: ["bg-[#3f9d6b]/12", "text-[#2f7d54] dark:text-[#6cc495]"],
+  bom: ["bg-success/12", "text-success-text"],
   normal: ["bg-muted", "text-foreground"],
-  baixo: ["bg-accent/15", "text-accent"],
+  baixo: ["bg-warning/15", "text-warning-text"],
 };
 
 /** Hoje: readiness, last night's sleep and the day's steps (against the goal), active energy and resting heart rate. */
@@ -69,11 +69,11 @@ export function HealthToday({ date, age }: { date: string; age: number }) {
           <div className="relative pt-1" role="img" aria-label={`Esforço ${strain.score.toLocaleString("pt-BR")} de ${STRAIN_MAX}, ${strain.zone}`}>
             <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
               {STRAIN_ZONES.map(([zone, width], i) => (
-                <span key={zone} style={{ flexGrow: width }} className={["bg-[#9ec9ae] dark:bg-[#4f8a68]", "bg-[#e8b04a]", "bg-accent", "bg-[#c4442f]"][i]} />
+                <span key={zone} style={{ flexGrow: width }} className={["bg-info", "bg-success", "bg-warning", "bg-danger"][i]} />
               ))}
             </div>
             <span className="absolute top-0 h-[1.125rem] w-1.5 -translate-x-1/2 rounded-full border-2 border-card bg-foreground" style={{ left: `${(strain.score / STRAIN_MAX) * 100}%` }} />
-            <div className="mt-1 flex text-[11px] text-muted-foreground">
+            <div className="mt-1 flex text-xs text-muted-foreground">
               {STRAIN_ZONES.map(([zone, width]) => <span key={zone} style={{ flexGrow: width, flexBasis: 0 }}>{zone === "moderado" ? "moder." : zone === "máximo" ? "máx." : zone}</span>)}
             </div>
           </div>
@@ -90,7 +90,7 @@ export function HealthToday({ date, age }: { date: string; age: number }) {
             <div className="mt-1 whitespace-nowrap font-display text-xl font-extrabold tabular-nums">{value}</div>
             {progress !== null && (
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-border" role="img" aria-label={`${Math.round(progress * 100)}% da meta de passos`}>
-                <div className={`h-full rounded-full ${progress >= 1 ? "bg-[#3f9d6b]" : "bg-accent"}`} style={{ width: `${progress * 100}%` }} />
+                <div className={`h-full rounded-full ${progress >= 1 ? "bg-success" : "bg-accent"}`} style={{ width: `${progress * 100}%` }} />
               </div>
             )}
             {/* The distance walked sits on its own line above the goal: side by side they don't fit half a phone screen. */}
