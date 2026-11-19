@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { FEEL_LABEL, KEYS, today, uid, useHistory, useLocal, type DropSet, type LoadEntry, type Profile, type WorkoutFeel, type WorkoutRecord, type WorkoutSession } from "@/lib/store";
 import { generatePlan, holdSeconds, nextWorkoutIndex, normalizePlan, prescribeFor, repsCount, repsFor, withSmallMuscles, comboName, comboOf, tidyCombos, type Plan, type PlanItem } from "@/lib/plan";
-import { alternatives, byId, EXERCISES, GROUP_LABEL, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
+import { alternatives, byId, EXERCISES, GROUP_LABEL, PPL_SECTIONS, youtubeSearchUrl, type Exercise, type Group } from "@/lib/exercises";
 import { NeedProfile } from "@/components/AppShell";
 import { defaultTrainingDays, musclesOf, WeekPlan } from "@/components/WeekPlan";
 import { BodyMap, RecoveryMap } from "@/components/BodyMap";
@@ -1307,13 +1307,29 @@ function TreinosPage() {
                 <>
                   <DialogHeader><DialogTitle className="font-display text-xl">Adicionar exercício</DialogTitle></DialogHeader>
                   <p className="text-sm text-muted-foreground">Escolha o músculo. Séries, repetições e descanso seguem o método do plano ({plan.method}).</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(Object.keys(GROUP_LABEL) as Group[]).map((g) => (
-                      <button key={g} type="button" onClick={() => setAdding({ ...adding, group: g })}
-                        className="flex min-h-14 items-center justify-between gap-1 rounded-2xl border border-border py-2 pl-3 pr-2 text-left hover:border-accent">
-                        <span className="min-w-0 text-sm font-bold leading-tight">{GROUP_LABEL[g]}</span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                      </button>
+                  <div className="space-y-4">
+                    {PPL_SECTIONS.map((section) => (
+                      <section key={section.id} aria-labelledby={`ppl-${section.id}`}>
+                        <h3 id={`ppl-${section.id}`} className="mb-2 flex items-baseline gap-2">
+                          <span className="font-display text-base font-bold">{section.label}</span>
+                          <span className="type-overline text-muted-foreground">{section.hint}</span>
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          {section.groups.map((g) => {
+                            const count = EXERCISES.filter((e) => e.group === g).length;
+                            return (
+                              <button key={g} type="button" onClick={() => setAdding({ ...adding, group: g })}
+                                className="pressable flex min-h-14 items-center justify-between gap-1 rounded-2xl border border-border bg-card py-2 pl-3 pr-2 text-left hover:border-brand-line hover:bg-brand-soft">
+                                <span className="min-w-0">
+                                  <span className="block text-sm font-semibold leading-tight">{GROUP_LABEL[g]}</span>
+                                  <span className="block text-xs text-muted-foreground">{count} {count === 1 ? "exercício" : "exercícios"}</span>
+                                </span>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
                     ))}
                   </div>
                 </>
@@ -1323,7 +1339,10 @@ function TreinosPage() {
             const options = EXERCISES.filter((e) => e.group === group).sort((a, b) => Number(b.compound) - Number(a.compound) || a.name.localeCompare(b.name, "pt-BR"));
             return (
               <>
-                <DialogHeader><DialogTitle className="font-display text-xl">{GROUP_LABEL[group]}</DialogTitle></DialogHeader>
+                <DialogHeader>
+                  <p className="type-overline text-accent">{PPL_SECTIONS.find((x) => x.groups.includes(group))?.label}</p>
+                  <DialogTitle className="font-display text-xl">{GROUP_LABEL[group]}</DialogTitle>
+                </DialogHeader>
                 <button type="button" onClick={() => setAdding({ ...adding, group: null })} className="-my-1 inline-flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-primary">
                   <ArrowLeft className="h-4 w-4" />Outro músculo
                 </button>

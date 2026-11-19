@@ -40,6 +40,17 @@ export const GROUP_LABEL: Record<Group, string> = {
   cardio: "Condicionamento",
 };
 
+/**
+ * Muscles grouped as push / pull / legs, for picking an exercise to add. Shoulders sit in push (presses and raises);
+ * core and conditioning are trained on any day and come last.
+ */
+export const PPL_SECTIONS: { id: "push" | "pull" | "legs" | "outros"; label: string; hint: string; groups: Group[] }[] = [
+  { id: "push", label: "Push", hint: "empurrar", groups: ["peito", "ombros", "triceps"] },
+  { id: "pull", label: "Pull", hint: "puxar", groups: ["costas", "biceps", "trapezio", "antebraco"] },
+  { id: "legs", label: "Legs", hint: "pernas", groups: ["quadriceps", "posterior", "panturrilha"] },
+  { id: "outros", label: "Outros", hint: "qualquer dia", groups: ["core", "cardio"] },
+];
+
 export type Pattern =
   | "empurrar-horizontal" | "aduzir-ombro" | "empurrar-vertical" | "abduzir-ombro" | "abrir-ombro-posterior"
   | "puxar-horizontal" | "puxar-vertical" | "agachar" | "unilateral-joelho" | "estender-joelho"
