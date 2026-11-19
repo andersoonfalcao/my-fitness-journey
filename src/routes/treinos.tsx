@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/meter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScreenSkeleton } from "@/components/ui/skeleton";
@@ -820,7 +821,10 @@ function TreinosPage() {
                   <span className="block truncate text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {isLater && <span className="text-accent">Para depois · </span>}{combo && <span className="text-accent">{combo.label} · {combo.position}/{combo.members.length} · </span>}{GROUP_LABEL[ex.group]} · {ex.equipment}
                   </span>
-                  <span className="block font-display text-base font-bold leading-tight">{ex.name}</span>
+                  <span className="block font-display text-base font-bold leading-tight">
+                    {ex.name}
+                    {it.extra && <Badge variant="info" className="ml-1.5 align-middle font-sans" title="Você adicionou este exercício ao treino"><Plus aria-hidden />Adicionado</Badge>}
+                  </span>
                   <span className="mt-0.5 block text-sm">
                     {finished ? (
                       <b className="text-success-text">Peso total: {exTotal > 0 ? formatKg(exTotal) : "sem carga"}</b>
@@ -1317,12 +1321,14 @@ function TreinosPage() {
                         <div className="grid grid-cols-2 gap-2">
                           {section.groups.map((g) => {
                             const count = EXERCISES.filter((e) => e.group === g).length;
+                            const added = planDay.items.filter((it) => it.extra && byId(it.exId).group === g).length;
                             return (
                               <button key={g} type="button" onClick={() => setAdding({ ...adding, group: g })}
                                 className="pressable flex min-h-14 items-center justify-between gap-1 rounded-2xl border border-border bg-card py-2 pl-3 pr-2 text-left hover:border-brand-line hover:bg-brand-soft">
                                 <span className="min-w-0">
                                   <span className="block text-sm font-semibold leading-tight">{GROUP_LABEL[g]}</span>
                                   <span className="block text-xs text-muted-foreground">{count} {count === 1 ? "exercício" : "exercícios"}</span>
+                                  {added > 0 && <Badge variant="info" className="mt-1"><Plus aria-hidden />{added} {added === 1 ? "adicionado" : "adicionados"}</Badge>}
                                 </span>
                                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                               </button>
@@ -1336,6 +1342,7 @@ function TreinosPage() {
               );
             }
             const inDay = new Set(planDay.items.map((it) => it.exId));
+            const addedByHand = new Set(planDay.items.filter((it) => it.extra).map((it) => it.exId));
             const options = EXERCISES.filter((e) => e.group === group).sort((a, b) => Number(b.compound) - Number(a.compound) || a.name.localeCompare(b.name, "pt-BR"));
             return (
               <>
@@ -1352,12 +1359,14 @@ function TreinosPage() {
                     const rx = prescribeFor(profile, a, plan);
                     return (
                       <button key={a.id} type="button" onClick={() => addExtra(a.id)} disabled={inDay.has(a.id)}
-                        className="flex w-full items-center gap-3 rounded-2xl border border-border p-2 text-left hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border">
+                        className={`flex w-full items-center gap-3 rounded-2xl border p-2 text-left hover:border-accent disabled:cursor-not-allowed ${addedByHand.has(a.id) ? "border-info/40 bg-info/5 disabled:hover:border-info/40" : "border-border disabled:opacity-50 disabled:hover:border-border"}`}>
                         <img src={photosFor(a.id)?.[1] ?? a.img} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
                         <div className="min-w-0 flex-1">
                           <div className="font-bold leading-tight">{a.name}</div>
                           <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">{a.equipment}</span>
-                          {inDay.has(a.id) && <span className="ml-2 text-xs text-muted-foreground">já está neste treino</span>}
+                          {addedByHand.has(a.id)
+                            ? <Badge variant="info" className="ml-2"><Plus aria-hidden />Adicionado por você</Badge>
+                            : inDay.has(a.id) && <span className="ml-2 text-xs text-muted-foreground">já no treino (do plano)</span>}
                         </div>
                         <span className="shrink-0 font-display text-sm font-extrabold tabular-nums">{rx.sets}x{rx.reps}</span>
                       </button>
