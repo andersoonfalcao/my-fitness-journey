@@ -99,7 +99,7 @@ export function HealthToday({ date, age, showReadiness = true }: { date: string;
     <Link to="/corpo" search={{ aba: "evolucao" }} hash="saude" className="block rounded-3xl surface-card p-6">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-xl font-bold">Sua Mi Band hoje</h2>
-        <span className="shrink-0 text-xs text-muted-foreground">atualizado {clock(new Date(day.at).toISOString())}</span>
+        {day.at > 0 && <span className="shrink-0 text-xs text-muted-foreground">atualizado {clock(new Date(day.at).toISOString())}</span>}
       </div>
       {ready && showReadiness && (
         <div className={`mt-3 rounded-2xl px-3 py-2.5 ${TONE[ready.level][0]}`}>

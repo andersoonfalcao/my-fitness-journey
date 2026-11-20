@@ -8,6 +8,7 @@ import { byId } from "@/lib/exercises";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { DayClose } from "@/components/DayClose";
 import { HealthToday, ReadinessCard } from "@/components/HealthToday";
+import { SleepCard } from "@/components/SleepCard";
 import { CheckCheck, ChevronRight, Droplets, Dumbbell, HeartPulse, Moon, Play, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ActivityRings, ProgressBar, type RingSpec } from "@/components/ui/meter";
@@ -90,6 +91,8 @@ function Index() {
       </header>
 
       <ReadinessCard date={today()} />
+
+      <SleepCard date={today()} />
 
       {session && <WorkoutNow session={session} plan={plan} />}
 
