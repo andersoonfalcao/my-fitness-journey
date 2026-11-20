@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SpotifyBar } from "@/components/SpotifyPlayer";
 import { useAuth } from "@/lib/auth";
 import {
   CARDIO_KINDS, CARDIO_SESSION_KEY, OTHER_ACTIVITIES, cardioKey, cardioLabel, cardioSeconds, joinStoredCardio, treadmillStats,
@@ -237,6 +238,8 @@ function RunningCardio({ session, onChange, onFinish, onCancel }: {
         </div>
         <button type="button" onClick={onCancel} className="-m-2 min-h-11 shrink-0 px-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">Cancelar</button>
       </div>
+
+      <SpotifyBar className="mt-3" />
 
       <div className="mt-3"><CardioGoal elapsedS={elapsedS} /></div>
 
