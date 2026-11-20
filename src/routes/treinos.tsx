@@ -25,6 +25,8 @@ import { CARDIO_SESSION_KEY, cardioByDate, cardioKey, cardioLabel, type CardioRe
 import { stravaKey, type StravaActivity } from "@/lib/strava";
 import { ShareDialog, type ShareRequest } from "@/components/ShareDialog";
 import { formatDuration, WorkoutClock } from "@/components/WorkoutClock";
+import { SpotifyBar } from "@/components/SpotifyPlayer";
+import { SPOTIFY_KEY, type SpotifyAuth } from "@/lib/spotify";
 import { CYCLE_WEEKS, PROGRAM_WEEKS, programAt, referenceMax, rirText, weekLoad, type MaxTest } from "@/lib/program";
 import { workoutCard } from "@/lib/share-card";
 import { barKg, dropVolume, lastRecordBefore, loadAdvice, muscleRecovery, personalRecords, platesPerSide, recordTotal, repsOfSet, setsByGroup, strengthHistory, sumKg, volume, warmupSets, weekStart, type PersonalRecord, type SetValues } from "@/lib/workout-stats";
@@ -74,6 +76,8 @@ function TreinosPage() {
   // Exercises are collapsed cards; one opens at a time to show its sets, reps and loads.
   const [openItem, setOpenItem] = useState<number | null>(null);
   // Focus mode: during a workout, one exercise at a time in full screen (kept per device).
+  // Connected Spotify adds the mini player to focus mode's top bar, so the exercise starts lower.
+  const [spotifyAuth] = useLocal<SpotifyAuth | null>(SPOTIFY_KEY, null);
   const [focusPref, setFocusPref] = useState(() => { try { return localStorage.getItem(FOCUS_KEY) === "1"; } catch { return false; } });
   const touchX = useRef<number | null>(null);
   const toggleFocus = (on: boolean) => {
@@ -673,6 +677,7 @@ function TreinosPage() {
               aria-label="Cancelar o treino" title="Cancelar o treino"
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-destructive"><X className="h-5 w-5" /></button>
           </div>
+          <SpotifyBar className="mb-0.5 mr-1.5 mt-1.5" />
         </div>
       ) : viewingDone ? (
         <section className="rounded-3xl border border-success/40 bg-success/10 p-4">
@@ -811,7 +816,7 @@ function TreinosPage() {
           return (
             <article key={i} id={`exercicio-${i}`} {...(focusing && open ? swipe : {})}
               className={focusing && open
-                ? "focus-overlay dark fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-[calc(7.25rem+env(safe-area-inset-top))] text-foreground animate-fade-up"
+                ? `focus-overlay dark fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] ${spotifyAuth?.refresh ? "pt-[calc(11.5rem+env(safe-area-inset-top))]" : "pt-[calc(7.25rem+env(safe-area-inset-top))]"} text-foreground animate-fade-up`
                 : `scroll-mt-36 overflow-hidden rounded-3xl border transition-[border-color,box-shadow] duration-200 ${finished ? "border-success/40 bg-success/5" : open ? "border-brand-line bg-card shadow-md ring-1 ring-brand-line" : "surface-card"}`}>
               <button type="button" onClick={() => !focusing && setOpenItem(open ? null : i)} aria-expanded={open} aria-controls={`exercicio-${i}-corpo`}
                 className="flex w-full items-center gap-3 p-3 text-left sm:p-4">
@@ -1188,6 +1193,7 @@ function TreinosPage() {
                 className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${(session.sets?.[j] ?? 0) >= it.sets ? "bg-brand" : j === openItem ? "bg-foreground/80" : "bg-surface-3"}`} />
             ))}
           </div>
+          <SpotifyBar className="mx-auto mt-3 max-w-lg" />
         </div>
       )}
       {focusing && (
