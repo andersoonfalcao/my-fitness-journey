@@ -257,7 +257,8 @@ export function NeedProfile() {
 function RefreshButton() {
   const uid = useAuth().user?.uid;
   const [health] = useLocal<HealthMonth>(healthKey(today()), {});
-  const usesShortcut = isIos() && Object.keys(health).length > 0;
+  // Only days the Shortcut sent (at > 0) count: a sleep typed in the app is no sign of the Shortcut.
+  const usesShortcut = isIos() && Object.values(health).some((d) => d.at > 0);
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);

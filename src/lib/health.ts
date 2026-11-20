@@ -15,6 +15,8 @@ export type HealthDay = {
   distanceEst?: boolean;
   /** Sleep that ended on this day: minutes asleep, first and last moment asleep (ISO). */
   sleepMin?: number; sleepStart?: string; sleepEnd?: string;
+  /** The sleep was typed in the app (bedtime and wake time); the Shortcut never overwrites it. */
+  sleepManual?: boolean;
   /** When the Shortcut last sent this day (ms). */
   at: number;
 };
@@ -159,4 +161,20 @@ export function readinessScore(day: HealthDay, before: HealthDay[], ready: Readi
   if (ready.level === "baixo") score = Math.min(score, 59);
   if (ready.level === "bom") score = Math.max(score, 70);
   return { score, band: score >= 70 ? "pronto" : score >= 50 ? "leve" : "recuperar", sleep: day.sleepMin ?? null, hrDiff, run };
+}
+
+/**
+ * Sleep from the bedtime and wake time typed in the app ("23:47", "05:58"), for the night that ended on `date`:
+ * a bedtime later than the wake time was the evening before. Null outside 1 to 16 hours.
+ */
+export function sleepFromTimes(date: string, bed: string, wake: string) {
+  const at = (day: string, hm: string) => new Date(`${day}T${hm}:00`).getTime();
+  const wakeMs = at(date, wake);
+  const prev = new Date(`${date}T12:00:00`);
+  prev.setDate(prev.getDate() - 1);
+  const prevDay = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}-${String(prev.getDate()).padStart(2, "0")}`;
+  const bedMs = bed > wake ? at(prevDay, bed) : at(date, bed);
+  const sleepMin = Math.round((wakeMs - bedMs) / 60000);
+  if (!Number.isFinite(sleepMin) || sleepMin < 60 || sleepMin > 16 * 60) return null;
+  return { sleepMin, sleepStart: new Date(bedMs).toISOString(), sleepEnd: new Date(wakeMs).toISOString() };
 }

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Droplets, HeartPulse, Pill, Ruler, Scale, Utensils } from "lucide-react";
+import { BedDouble, Camera, ChevronRight, Droplets, HeartPulse, Pill, Ruler, Scale, Utensils } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 /** Everything logged during a day, one tap from any screen (the "+" in the tab bar). Each opens the place it is logged. */
@@ -10,6 +10,8 @@ const ACTIONS = [
   { label: "Cardio", icon: HeartPulse, to: "/treinos", hash: "", tone: "text-danger-text", search: { aba: "cardio" as const } },
   { label: "Medidas", icon: Ruler, to: "/corpo", hash: "medidas", tone: "text-[var(--data-carbs)]" },
   { label: "Suplemento", icon: Pill, to: "/alimentacao", hash: "suplementos", tone: "text-[var(--data-fat)]" },
+  { label: "Sono", icon: BedDouble, to: "/", hash: "sono", tone: "text-[var(--data-protein)]" },
+  { label: "Foto", icon: Camera, to: "/fotos", hash: "", tone: "text-accent" },
 ] as const;
 
 export function QuickLog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -22,10 +24,10 @@ export function QuickLog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           <DialogTitle>Registrar</DialogTitle>
           <DialogDescription>O que você quer anotar agora?</DialogDescription>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {ACTIONS.map((a) => (
             <Link key={a.label} to={a.to} {...(a.hash ? { hash: a.hash } : {})} search={"search" in a ? a.search : {}} onClick={close}
-              className="pressable flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl bg-muted px-2 py-3 text-sm font-semibold hover:bg-surface-3">
+              className="pressable flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl bg-muted px-1 py-3 text-xs font-semibold hover:bg-surface-3">
               <a.icon className={`h-6 w-6 ${a.tone}`} aria-hidden />{a.label}
             </Link>
           ))}

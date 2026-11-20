@@ -13,6 +13,8 @@ export type HealthDay = {
   distanceEst?: boolean;
   /** Sleep that ended on this day: minutes asleep and the first and last moment asleep (ISO). */
   sleepMin?: number; sleepStart?: string; sleepEnd?: string;
+  /** The sleep was typed in the app (bedtime and wake time); the Shortcut never overwrites it. */
+  sleepManual?: boolean;
   /** When the Shortcut last sent this day (ms). */
   at: number;
 };
@@ -369,9 +371,12 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   }
   const current = ((await readUserDocs(env, record.uid, record.refreshToken, [docKey], idToken))[docKey] ?? {}) as Record<string, HealthDay>;
   // A later send of the same day replaces what it brings and keeps the rest (e.g. sleep sent in the morning).
+  // A sleep typed in the app wins over the band's: the Shortcut leaves it as it is.
+  const manual = current[today]?.sleepManual ? current[today] : null;
+  if (manual) for (const k of ["sleepMin", "sleepStart", "sleepEnd"] as const) delete day[k];
   current[today] = { ...current[today], ...day, at: now };
   // A sleep counted from durations has no bedtime or wake time: drop ones left from an earlier send.
-  if (sleepRead.sleep && !("sleepStart" in sleepRead.sleep)) {
+  if (!manual && sleepRead.sleep && !("sleepStart" in sleepRead.sleep)) {
     delete current[today]!.sleepStart;
     delete current[today]!.sleepEnd;
   }
@@ -394,6 +399,6 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   // Named so a doubled total (samples that came without their source) is easy to spot on the iPhone.
   const from = sources.length ? ` (fontes: ${sources.join(", ")})` : stepSamples || kcalSamples || distSamples ? " (as amostras vieram sem a fonte: passos e calorias podem estar somados em dobro)" : "";
   // The sleep gets its own line: the total with source and times to check it, or why it didn't come in.
-  const sleepNote = sleepRead.note ? `\n${sleepRead.note}` : "";
+  const sleepNote = manual?.sleepMin !== undefined ? `\nsono: ${hm(manual.sleepMin)} (registrado no app, mantido)` : sleepRead.note ? `\n${sleepRead.note}` : "";
   return text(parts.length ? `forma recebeu: ${parts.join(" · ")}${from}${sleepNote}` : `forma recebeu o envio, mas sem dados de hoje. Confira as permissões do atalho no app Saúde.${sleepNote}`, 200);
 }
