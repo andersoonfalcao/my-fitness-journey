@@ -11,6 +11,7 @@ import { InvitesPanel } from "@/components/InvitesPanel";
 import { NotificationSettings, ReminderSettings, RestSetting } from "@/components/SettingsPanel";
 import { useThemePreference } from "@/lib/theme";
 import { StravaCard } from "@/components/StravaCard";
+import { SpotifyCard } from "@/components/SpotifyCard";
 import { logout, useAuth } from "@/lib/auth";
 import { updateApp, useAppVersion } from "@/lib/offline";
 
@@ -123,6 +124,7 @@ function ConfiguracoesPage() {
 
       <Group id="conexoes">
         <StravaCard />
+        <SpotifyCard />
         <HealthPanel />
       </Group>
 

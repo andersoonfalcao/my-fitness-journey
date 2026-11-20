@@ -22,6 +22,7 @@ import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PergunteRouteImport } from './routes/pergunte'
 import { Route as PesoRouteImport } from './routes/peso'
 import { Route as SemanaRouteImport } from './routes/semana'
+import { Route as SpotifyRouteImport } from './routes/spotify'
 import { Route as StravaRouteImport } from './routes/strava'
 import { Route as TreinosRouteImport } from './routes/treinos'
 
@@ -90,6 +91,11 @@ const SemanaRoute = SemanaRouteImport.update({
   path: '/semana',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SpotifyRoute = SpotifyRouteImport.update({
+  id: '/spotify',
+  path: '/spotify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StravaRoute = StravaRouteImport.update({
   id: '/strava',
   path: '/strava',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/pergunte': typeof PergunteRoute
   '/peso': typeof PesoRoute
   '/semana': typeof SemanaRoute
+  '/spotify': typeof SpotifyRoute
   '/strava': typeof StravaRoute
   '/treinos': typeof TreinosRoute
 }
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/pergunte': typeof PergunteRoute
   '/peso': typeof PesoRoute
   '/semana': typeof SemanaRoute
+  '/spotify': typeof SpotifyRoute
   '/strava': typeof StravaRoute
   '/treinos': typeof TreinosRoute
 }
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/pergunte': typeof PergunteRoute
   '/peso': typeof PesoRoute
   '/semana': typeof SemanaRoute
+  '/spotify': typeof SpotifyRoute
   '/strava': typeof StravaRoute
   '/treinos': typeof TreinosRoute
 }
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/pergunte'
     | '/peso'
     | '/semana'
+    | '/spotify'
     | '/strava'
     | '/treinos'
   fileRoutesByTo: FileRoutesByTo
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/pergunte'
     | '/peso'
     | '/semana'
+    | '/spotify'
     | '/strava'
     | '/treinos'
   id:
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/pergunte'
     | '/peso'
     | '/semana'
+    | '/spotify'
     | '/strava'
     | '/treinos'
   fileRoutesById: FileRoutesById
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   PergunteRoute: typeof PergunteRoute
   PesoRoute: typeof PesoRoute
   SemanaRoute: typeof SemanaRoute
+  SpotifyRoute: typeof SpotifyRoute
   StravaRoute: typeof StravaRoute
   TreinosRoute: typeof TreinosRoute
 }
@@ -318,6 +331,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SemanaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/spotify': {
+      id: '/spotify'
+      path: '/spotify'
+      fullPath: '/spotify'
+      preLoaderRoute: typeof SpotifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/strava': {
       id: '/strava'
       path: '/strava'
@@ -349,6 +369,7 @@ const rootRouteChildren: RootRouteChildren = {
   PergunteRoute: PergunteRoute,
   PesoRoute: PesoRoute,
   SemanaRoute: SemanaRoute,
+  SpotifyRoute: SpotifyRoute,
   StravaRoute: StravaRoute,
   TreinosRoute: TreinosRoute,
 }
