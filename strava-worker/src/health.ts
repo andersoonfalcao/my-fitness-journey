@@ -115,9 +115,33 @@ export function sleepKind(value: unknown): "stage" | "awake" | "inBed" | "other"
 const PREFERRED_SLEEP_SOURCE = /mi\s*fitness/i;
 
 /** Minutes asleep in last night's sleep, from Health's sleep samples (value + start + end, and source when sent). */
-export function sleepOf(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string, sources: unknown[] = []) {
-  return sleepReport(values, starts, ends, tz, today, sources).sleep;
+export function sleepOf(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string, sources: unknown[] = [], durations: unknown[] = []) {
+  return sleepReport(values, starts, ends, tz, today, sources, durations).sleep;
 }
+
+/**
+ * A sample's duration as the Shortcuts app sends it: seconds ("17460"), a clock ("4:51:00", "4:51"), or words
+ * ("4 h 51 min", "4h51", "51 min", "30 s"). Milliseconds, NaN when unreadable.
+ */
+export function parseDuration(v: unknown): number {
+  if (typeof v === "number") return v * 1000;
+  if (typeof v !== "string" || !v.trim()) return NaN;
+  const t = v.trim().toLowerCase();
+  const clockMatch = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (clockMatch) return ((+clockMatch[1]! * 60 + +clockMatch[2]!) * 60 + +(clockMatch[3] ?? 0)) * 1000;
+  if (/^\d+([.,]\d+)?$/.test(t)) return Number(t.replace(",", ".")) * 1000;
+  const h = t.match(/(\d+(?:[.,]\d+)?)\s*h/);
+  const min = t.match(/(\d+)\s*(?:min|m\b)/) ?? t.match(/h\s*(\d+)\b/);
+  const sec = t.match(/(\d+)\s*s\b/);
+  if (!h && !min && !sec) return NaN;
+  return ((h ? Number(h[1]!.replace(",", ".")) * 3600 : 0) + (min ? +min[1]! * 60 : 0) + (sec ? +sec[1]! : 0)) * 1000;
+}
+
+/** "Dormindo"/"Asleep" without a stage: the whole night, which the stages (Essencial, Profundo, REM) break down. */
+const isGenericAsleep = (value: unknown) => {
+  const v = String(value ?? "").trim().toLowerCase();
+  return v === "1" || (/dormindo|asleep/.test(v) && !/essencial|principal|profundo|\brem\b|core|deep/.test(v));
+};
 
 const hm = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
 
@@ -127,7 +151,7 @@ const hm = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart
  * dropped; overlapping intervals are joined so no minute counts twice. Returns the sleep and a line for the
  * Shortcut's result: the total with source and times, or why there is none.
  */
-export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string, sources: unknown[] = []) {
+export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[], tz: string, today: string, sources: unknown[] = [], durations: unknown[] = []) {
   const none = (note: string) => ({ sleep: null, note });
   const arrived = values.length === 1 ? "1 amostra chegou" : `${values.length} amostras chegaram`;
   if (!values.length) return none("sono: nenhuma amostra chegou (no iPhone: Ajustes → Saúde → Acesso a Dados → Atalhos → Análise do Sono ligado, e o app da pulseira gravando Sono no Saúde)");
@@ -136,10 +160,16 @@ export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[
   }
   // Sources only count when they line up one to one with the samples.
   const hasSources = sources.length === values.length;
+  const hasDurations = durations.length === values.length;
   const all = values.map((value, i) => ({
     kind: sleepKind(value), start: parseDate(starts[i], tz), end: parseDate(ends[i], tz),
     source: hasSources ? String(sources[i] ?? "").trim() : "",
+    generic: isGenericAsleep(value), label: String(value ?? "").trim(),
+    // Some band apps write the night as samples that start and end at the sync time; their length is only in Duração.
+    duration: hasDurations ? parseDuration(durations[i]) : NaN,
   }));
+  const hasInterval = (s: { start: number; end: number }) => s.end - s.start >= 60_000;
+  const hasDuration = (s: { duration: number }) => s.duration >= 60_000 && s.duration < 16 * 3600_000;
   const dated = all.filter((s) => !Number.isNaN(s.start) && !Number.isNaN(s.end));
   if (!dated.length) return none(`sono: ${arrived}, mas as datas não foram entendidas (exemplo: “${String(ends[0] ?? "").slice(0, 40)}”)`);
 
@@ -147,7 +177,7 @@ export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[
   const [y, m, d] = today.split("-").map(Number) as [number, number, number];
   const noonUtc = Date.UTC(y, m - 1, d, 12);
   const noonToday = noonUtc - offsetMinutes(tz, new Date(noonUtc)) * 60000;
-  const night = dated.filter((s) => s.end > s.start && s.end > noonToday - 24 * 3600_000 && s.end <= noonToday);
+  const night = dated.filter((s) => (hasInterval(s) || hasDuration(s)) && s.end > noonToday - 24 * 3600_000 && s.end <= noonToday);
   let stages = night.filter((s) => s.kind === "stage");
   if (!stages.length) {
     const fmtWhen = (ms: number) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
@@ -171,6 +201,23 @@ export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[
     }
   }
 
+  const origin = kept.length ? kept.join(" + ") : hasSources ? "sem fonte" : "fonte não enviada";
+  const droppedText = dropped.length ? ` · descartadas: ${dropped.join(", ")}` : found.length > 1 ? " · várias fontes, sem Mi Fitness: juntas sem repetir minutos" : "";
+
+  // No stage has real start and end times, only a Duração: add the stages up (Essencial, Profundo, REM), or the
+  // plain "Dormindo" when that is all there is, never both (they are the same night). No bedtime or wake time.
+  if (!stages.some(hasInterval)) {
+    const fine = stages.filter((s) => !s.generic && hasDuration(s));
+    const counted = fine.length ? fine : stages.filter(hasDuration);
+    const sleepMin = Math.round(counted.reduce((sum, s) => sum + s.duration, 0) / 60000);
+    const parts = counted.map((s) => `${s.label} ${hm(Math.round(s.duration / 60000))}`).join(" + ");
+    return {
+      sleep: { sleepMin },
+      note: `sono: ${hm(sleepMin)} dormindo (${origin} · pela duração: ${parts}${droppedText})`,
+    };
+  }
+  stages = stages.filter(hasInterval);
+
   // Overlapping intervals (stages inside a block, or two apps) are joined so no minute counts twice.
   const sorted = [...stages].sort((a, b) => a.start - b.start);
   let total = 0;
@@ -184,8 +231,6 @@ export function sleepReport(values: unknown[], starts: unknown[], ends: unknown[
   const first = sorted[0]!.start;
   const last = Math.max(...sorted.map((s) => s.end));
   const clockAt = (ms: number) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
-  const origin = kept.length ? kept.join(" + ") : hasSources ? "sem fonte" : "fonte não enviada";
-  const droppedText = dropped.length ? ` · descartadas: ${dropped.join(", ")}` : found.length > 1 ? " · várias fontes, sem Mi Fitness: juntas sem repetir minutos" : "";
   return {
     sleep: { sleepMin, sleepStart: new Date(first).toISOString(), sleepEnd: new Date(last).toISOString() },
     note: `sono: ${hm(sleepMin)} dormindo (${origin} · ${clockAt(first)}–${clockAt(last)} · ${stages.length} ${stages.length === 1 ? "fase" : "fases"}${droppedText})`,
@@ -312,7 +357,7 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   if (resting) day.restingHr = resting;
   const vo2 = parseNumber(Array.isArray(body.vo2max) ? body.vo2max.at(-1) : body.vo2max);
   if (vo2 >= 10 && vo2 <= 90) day.vo2max = Math.round(vo2 * 10) / 10;
-  const sleepRead = sleepReport(list(body.sleepValues), list(body.sleepStarts), list(body.sleepEnds), tz, today, list(body.sleepSources));
+  const sleepRead = sleepReport(list(body.sleepValues), list(body.sleepStarts), list(body.sleepEnds), tz, today, list(body.sleepSources), list(body.sleepDurations));
   if (sleepRead.sleep) Object.assign(day, sleepRead.sleep);
 
   const docKey = `forma.health.${today.slice(0, 7)}`;
@@ -325,6 +370,11 @@ export async function ingestHealth(request: Request, env: NotifyEnv): Promise<Re
   const current = ((await readUserDocs(env, record.uid, record.refreshToken, [docKey], idToken))[docKey] ?? {}) as Record<string, HealthDay>;
   // A later send of the same day replaces what it brings and keeps the rest (e.g. sleep sent in the morning).
   current[today] = { ...current[today], ...day, at: now };
+  // A sleep counted from durations has no bedtime or wake time: drop ones left from an earlier send.
+  if (sleepRead.sleep && !("sleepStart" in sleepRead.sleep)) {
+    delete current[today]!.sleepStart;
+    delete current[today]!.sleepEnd;
+  }
   const name = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${record.uid}/data/${docKey}`;
   const res = await fetch(`https://firestore.googleapis.com/v1/${name}`, {
     method: "PATCH",
