@@ -9,7 +9,7 @@ import { readCloudOnce, writeCloud } from "./cloud-store";
  * Client ID: the one below, else the one pasted in Configurações (`forma.spotify.app`). Each person who uses it
  * must be added to the Spotify app's user list in its dashboard while the app is in development mode.
  */
-export const SPOTIFY_CLIENT_ID = "";
+export const SPOTIFY_CLIENT_ID = "9d64a948ca2f4e0d9d9297ed3747aaf6";
 export const SPOTIFY_APP_KEY = "forma.spotify.app";
 export const SPOTIFY_KEY = "forma.spotify";
 const PENDING = "forma.spotify.pending";
