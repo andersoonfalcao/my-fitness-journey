@@ -14,9 +14,9 @@ const hmOf = (iso: string | undefined, fallback: string) => {
 };
 
 /**
- * Hoje: last night's sleep. The band's app may not send it right to Health, so the person types the bedtime and the
- * wake time and the total is worked out here. A typed sleep is kept (the Shortcut never overwrites it) and feeds the
- * readiness, the day close and the AI like any other.
+ * Hoje: last night's sleep. The band's app may not send it right to Health, so the person types it: the bedtime and
+ * the wake time (the total is worked out here) or just the total the band shows. A typed sleep is kept (the Shortcut
+ * never overwrites it) and feeds the readiness, the day close and the AI like any other.
  */
 export function SleepCard({ date }: { date: string }) {
   const [month, setMonth, ready] = useLocal<HealthMonth>(healthKey(date), {});
@@ -27,20 +27,34 @@ export function SleepCard({ date }: { date: string }) {
 
   // The last typed night is the starting point: most nights look alike.
   const lastManual = Object.entries(month).filter(([d, v]) => d < date && v.sleepManual && v.sleepStart).sort().at(-1)?.[1];
+  // Two ways in: the bedtime and wake time, or the total the band shows (e.g. 6h05), with no times.
+  const [mode, setMode] = useState<"horarios" | "total">("horarios");
   const [bed, setBed] = useState("23:00");
   const [wake, setWake] = useState("07:00");
+  const [hours, setHours] = useState("7");
+  const [minutes, setMinutes] = useState("0");
   useEffect(() => {
     if (!open) return;
+    const known = day?.sleepMin ?? lastManual?.sleepMin;
+    setMode(day?.sleepManual && !day.sleepStart ? "total" : "horarios");
     setBed(hmOf(day?.sleepStart ?? lastManual?.sleepStart, "23:00"));
     setWake(hmOf(day?.sleepEnd ?? lastManual?.sleepEnd, "07:00"));
+    setHours(String(known !== undefined ? Math.floor(known / 60) : 7));
+    setMinutes(String(known !== undefined ? known % 60 : 0));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!ready) return null;
-  const preview = sleepFromTimes(date, bed, wake);
+  const totalMin = Number(hours) * 60 + Number(minutes);
+  const totalOk = Number.isInteger(Number(hours)) && Number.isInteger(Number(minutes)) && Number(minutes) >= 0 && Number(minutes) < 60 && totalMin >= 60 && totalMin <= 16 * 60;
+  const preview = mode === "horarios" ? sleepFromTimes(date, bed, wake) : totalOk ? { sleepMin: totalMin } : null;
 
   const save = () => {
     if (!preview) return;
-    setMonth((m) => ({ ...m, [date]: { ...(m[date] ?? { at: 0 }), ...preview, sleepManual: true } }));
+    setMonth((m) => {
+      // A total typed alone has no times: drop the ones from an earlier entry or from the band.
+      const { sleepStart: _s, sleepEnd: _e, ...base } = m[date] ?? { at: 0 };
+      return { ...m, [date]: { ...(mode === "total" ? base : m[date] ?? { at: 0 }), ...preview, sleepManual: true } };
+    });
     setOpen(false);
     toast.success(`Sono registrado: ${sleepLabel(preview.sleepMin)}`, { description: "Entra na prontidão e na recuperação." });
   };
@@ -82,8 +96,28 @@ export function SleepCard({ date }: { date: string }) {
         <DialogContent className="sm:max-w-sm">
           <div>
             <DialogTitle>Sono desta noite</DialogTitle>
-            <DialogDescription>Use os horários que a pulseira mostra. O total é calculado aqui.</DialogDescription>
+            <DialogDescription>{mode === "horarios" ? "Use os horários que a pulseira mostra. O total é calculado aqui." : "Digite o tempo de sono que a pulseira mostra."}</DialogDescription>
           </div>
+          <div role="radiogroup" aria-label="Como informar o sono" className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
+            {([["horarios", "Horários"], ["total", "Tempo total"]] as const).map(([v, label]) => (
+              <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => setMode(v)}
+                className={`min-h-11 rounded-xl text-sm font-semibold ${mode === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>{label}</button>
+            ))}
+          </div>
+          {mode === "total" ? (
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold">Horas</span>
+              <input type="number" inputMode="numeric" min={1} max={16} value={hours} onChange={(e) => setHours(e.target.value)}
+                className="h-12 w-full rounded-xl border border-input bg-card px-3 text-center font-display text-xl font-bold tabular-nums" />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold">Minutos</span>
+              <input type="number" inputMode="numeric" min={0} max={59} value={minutes} onChange={(e) => setMinutes(e.target.value)}
+                className="h-12 w-full rounded-xl border border-input bg-card px-3 text-center font-display text-xl font-bold tabular-nums" />
+            </label>
+          </div>
+          ) : (
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold">Dormi às</span>
@@ -96,14 +130,15 @@ export function SleepCard({ date }: { date: string }) {
                 className="h-12 w-full rounded-xl border border-input bg-card px-3 text-center font-display text-xl font-bold tabular-nums" />
             </label>
           </div>
+          )}
           <div className="rounded-2xl bg-muted px-4 py-3 text-center" aria-live="polite">
             {preview ? (
               <>
                 <p className="type-number text-4xl leading-tight">{sleepLabel(preview.sleepMin)}</p>
-                <p className="text-sm text-muted-foreground">de sono{bed > wake ? ", começando na noite anterior" : ""}</p>
+                <p className="text-sm text-muted-foreground">de sono{mode === "horarios" && bed > wake ? ", começando na noite anterior" : ""}</p>
               </>
             ) : (
-              <p className="text-sm text-danger-text">Confira os horários: o total precisa ficar entre 1 e 16 horas.</p>
+              <p className="text-sm text-danger-text">{mode === "horarios" ? "Confira os horários" : "Confira as horas e os minutos (0 a 59)"}: o total precisa ficar entre 1 e 16 horas.</p>
             )}
           </div>
           <div className="grid gap-2">
