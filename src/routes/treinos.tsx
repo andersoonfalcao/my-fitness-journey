@@ -657,22 +657,21 @@ function TreinosPage() {
       </section>
 
       {session ? (
-        <div className="sticky top-[calc(3.75rem+env(safe-area-inset-top))] z-20 rounded-3xl border border-brand-line bg-card/90 py-2.5 pl-4 pr-2 shadow-lg backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-accent"><Timer className="h-5 w-5" aria-hidden /></span>
-              <div className="min-w-0">
-                <div className="type-overline truncate text-muted-foreground">{session.dayName} em andamento</div>
-                <WorkoutClock startedAt={session.startedAt} className="type-number text-2xl leading-tight" />
-              </div>
+        <div className="sticky top-[calc(3.75rem+env(safe-area-inset-top))] z-20 rounded-3xl border border-brand-line bg-card/90 py-2 pl-4 pr-1.5 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center gap-2">
+            {/* The name gives way when space is short (a clock past one hour, the rest on screen); the clock never wraps. */}
+            <div className="min-w-0 flex-1">
+              <div className="type-overline truncate text-muted-foreground">{session.dayName} em andamento</div>
+              <WorkoutClock startedAt={session.startedAt} className="type-number whitespace-nowrap text-2xl leading-tight" />
             </div>
             {session.rest && <RestChip endsAt={session.rest.endsAt} item={session.rest.item} />}
             {sessionIdx === active && (
               <button type="button" onClick={() => toggleFocus(true)} aria-label="Modo foco: um exercício por vez em tela cheia" title="Modo foco"
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Maximize2 className="h-5 w-5" /></button>
             )}
-            <button onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); setRirInputs({}); } }}
-              className="min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">Cancelar</button>
+            <button type="button" onClick={() => { if (confirm("Cancelar o treino? O tempo não será salvo.")) { cancelRestPush(); setHold(null); setSession(null); setLoadInputs({}); setRepsInputs({}); setRirInputs({}); } }}
+              aria-label="Cancelar o treino" title="Cancelar o treino"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-destructive"><X className="h-5 w-5" /></button>
           </div>
         </div>
       ) : viewingDone ? (
